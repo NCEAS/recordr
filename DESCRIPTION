@@ -1,0 +1,18 @@
+Package: recordr
+Title: Record execution of R scripts and functions by tracking and recording
+    provenance.
+Version: 0.1
+Authors@R: c( person("Lauren", "Walker", role = c("aut", "cre"), email =
+    "walker@nceas.ucsb.edu"), person("Peter", "Slaughter", role = c("aut",
+    "cre"), email = "walker@nceas.ucsb.edu"), person("Chris", "Jones", role =
+    c("aut", "cre"), email = "cjones@nceas.ucsb.edu"), person("Matthew",
+    "Jones", role = c("aut", "cre"), email = "jones@nceas.ucsb.edu") )
+Description: What the package does (one paragraph)
+Depends:
+    R (>= 3.1.0)
+Suggests:
+    knitr,
+    testthat
+License: Apache License 2.0
+URL: https://github.com/NCEAS/recordr
+BugReports: https://github.com/NCEAS/recordr/issues
