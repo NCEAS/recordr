@@ -7,6 +7,9 @@
 # called.
 # See the 'record' method to see how the overriding of the methods is performed.
 #
+library(dataone)
+## @include Recordr.R
+
 # Override the 'source' function so that recordr can detect when the user's script sources another script
 #' @export
 setGeneric("recordr_source", function(file, ...) {
@@ -53,13 +56,21 @@ setGeneric("recordr_getD1Object", function(x, identifier, ...) {
 })
 
 setMethod("recordr_getD1Object", "D1Client", function(x, identifier) {
-  cat(sprintf("recordr_getD1Object: getting identifier: %s", identifier))
   d1o <- dataone::getD1Object(x, identifier)
   
   # Record the provenance relationship between the downloaded D1 object and the executing script
   # as 'script <- used <- D1Object
   # i.e. insertRelationship
-  
+  # Record the provenance relationship between the user's script and the derived data file
+  if (getProvCapture()) {
+    cat(sprintf("recordr_getD1Obj: recording prov for: %s\n", identifier))
+    scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
+    ##d1Client <- get("d1Client", envir = as.environment(".recordr"))
+    ##d1Pkg <- get("d1Pkg", envir = as.environment(".recordr"))
+    outLines <- sprintf("%s used %s", basename(scriptPath), identifier)
+    runDir <- get("runDir", envir = as.environment(".recordr"))
+    write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE) 
+  }
   
   return(d1o)
 })
@@ -72,7 +83,7 @@ setGeneric("recordr_createD1Object", function(x, d1Object, ...) {
   standardGeneric("recordr_createD1Object")
 })
 
-setMethod("recordr_createD1Object", signature("D1Client", "D1Object"), function(x, d1Object) {
+setMethod("recordr_createD1Object", signature("D1Client", "D1Object"), function(x, d1Object, ...) {
   
   cat(sprintf("recordr_createD1Object"))
   
@@ -84,4 +95,110 @@ setMethod("recordr_createD1Object", signature("D1Client", "D1Object"), function(
   
   return(d1o)
   
+})
+
+# Register "textConnection" as an S4 class so that we use it in the
+# method signatures below.
+setOldClass("textConnection", "connection")
+
+# Override the R 'write.csv' method
+# record the provenance relationship of local objecct <- wasGeneratedBy <- script
+#
+#' @export
+setGeneric("recordr_write.table", function(x, file, ...) {
+  standardGeneric("recordr_write.table")
+})
+
+setMethod("recordr_write.table", signature("data.frame", "character"), function(x, file, ...) {
+  
+  # Call the original function that we are overriding
+  obj <- utils::write.table(x, file, ...)
+  
+  # Record the provenance relationship between the user's script and the derived data file
+  if (getProvCapture()) {
+    cat(sprintf("recordr_write.table: recording prov for %s\n", file))
+    scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
+    d1Client <- get("d1Client", envir = as.environment(".recordr"))
+    d1Pkg <- get("d1Pkg", envir = as.environment(".recordr"))
+    setProvCapture(FALSE)
+    derived.data <- convert.csv(d1Client, x)
+    setProvCapture(TRUE)
+    #id.derived <- file
+    #programId <- scriptPath
+    outLines <- sprintf("%s wasGeneratedBy %s", basename(file), basename(scriptPath))
+    #execMeta <- get("execMeta", envir = as.environment(".recordr"))
+    runDir <- get("runDir", envir = as.environment(".recordr"))
+    write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE)
+    #d1Object.result <- new(Class="D1Object", id.derived, derived.data, format.result, d1Client@mn.nodeid)
+    #addData(d1Pkg, d1Object.result)
+    #insertRelationship(d1Pkg, id.result, c(programId), "http://www.w3.org/ns/prov", "http://www.w3.org/ns/prov#wasGeneratedBy")
+    
+    # Replace the data package in the ".recordr" environment
+    #rm("d1Pkg", envir = as.environment(".test"))
+    #assign("d1Pkg", d1Pkg, envir = as.environment(".recordr"))
+  }
+  return(obj)
+})
+
+setMethod("recordr_write.table", signature("data.frame", "textConnection"), function(x, file, ...) {
+  print("recordr_write.table for textConnection!!!")
+  obj <- utils::write.table(x, file, ...)
+})
+# Override the R 'read.csv' method
+# record the provenance relationship of local objecct <- wasGeneratedBy <- script
+#
+#' @export
+setGeneric("recordr_read.table", function(...) { 
+  standardGeneric("recordr_read.table")
+})
+
+setMethod("recordr_read.table", signature("character"), function(...) {
+  df <- utils::read.table(file, ...)
+  # Record the provenance relationship between the user's script and the derived data file
+  
+  if (getProvCapture()) {
+    scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
+    outLines <- sprintf("%s used %s", basename(scriptPath), basename(file))
+    runDir <- get("runDir", envir = as.environment(".recordr"))
+    write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE)
+  }
+  return(df)
+})
+
+setMethod("recordr_read.table", signature("textConnection"), function(file, ...) {
+  print("recordr_read.table for textConnection")
+  obj <- utils::read.table(file, ...)
+})
+
+#' Disable or enable provenance capture temporarily
+#' It may be necessary to disable provenance capture temporarily, for example when
+#' record() is writting out a housekeeping file.
+#' A state variable in the ".recordr" environment is used to
+#' temporarily disable provenance capture so that housekeeping tasks
+#' will not have provenance information recorded for them.
+#' @export
+setGeneric("setProvCapture", function(enable) {
+  standardGeneric("setProvCapture")
+})
+
+setMethod("setProvCapture", signature("logical"), function(enable) {
+    assign("provCaptureEnabled", enable, envir = as.environment(".recordr"))
+})
+
+#' @export
+setGeneric("getProvCapture", function(x) {
+  standardGeneric("getProvCapture")
+})
+
+setMethod("getProvCapture", signature(), function(x) {
+  # The default state for provenance capture is enabled = FALSE. Currently in this package,
+  # provenance capture is only enabled when the record() function is running.
+  #cat(exists(".recordr", mode = "environment"))
+  if (exists("provCaptureEnabled", envir = as.environment(".recordr"), inherits = FALSE )) {
+      enabled <- get("provCaptureEnabled", envir = as.environment(".recordr"))
+  } else {
+    #assign("provCaptureEnabled", TRUE, envir = as.environment(".recordr"))
+    enabled <- FALSE
+  }
+  return(enabled)
 })
