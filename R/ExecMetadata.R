@@ -33,7 +33,8 @@ setClass("ExecMetadata", slots = c(executionId      = "character",
                                    softwareApplication = "character",
                                    moduleDependencies  = "character",
                                    endTime             = "character",
-                                   errorMessages       = "character"))
+                                   errorMessage        = "character",
+                                   publishTime         = "character"))
 
 ############################
 ## ExecMetadata constructors
@@ -60,13 +61,13 @@ setMethod("ExecMetadata", signature("character"), function(programName) {
   execMeta@operatingSystem <- R.Version()$platform
   execMeta@runtime <- R.Version()$version.string
   execMeta@softwareApplication  <- programName
+  execMeta@endTime <- ""
+  execMeta@errorMessage <- ""
+  execMeta@publishTime <- ""
   # Get list of packages that recordr has loaded and store as characters, i.e.
   # "recordr 0.1, uuid 0.1-1, dataone 1.0.0, dataonelibs 1.0.0, XML 3.98-1.1, rJava 0.9-6"
   pkgs <- sessionInfo()$otherPkgs
   execMeta@moduleDependencies <- paste(lapply(pkgs, function(x) paste(x$Package, x$Version)), collapse = ', ')
-  execMeta@endTime <- ""
-  execMeta@errorMessages <- ""
-  
   return(execMeta)
 })
 
