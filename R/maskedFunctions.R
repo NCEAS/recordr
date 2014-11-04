@@ -105,30 +105,31 @@ setOldClass("textConnection", "connection")
 # record the provenance relationship of local objecct <- wasGeneratedBy <- script
 #
 #' @export
-setGeneric("recordr_write.table", function(x, file, ...) {
-  standardGeneric("recordr_write.table")
+setGeneric("recordr_write.csv", function(x, file, ...) {
+  standardGeneric("recordr_write.csv")
 })
 
-setMethod("recordr_write.table", signature("data.frame", "character"), function(x, file, ...) {
+setMethod("recordr_write.csv", signature("data.frame", "character"), function(x, file, ...) {
   
   # Call the original function that we are overriding
-  obj <- utils::write.table(x, file, ...)
+  obj <- utils::write.csv(x, file, ...)
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture()) {
-    cat(sprintf("recordr_write.table: recording prov for %s\n", file))
+    cat(sprintf("recordr_write.csv: recording prov for %s\n", file))
     scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
     d1Client <- get("d1Client", envir = as.environment(".recordr"))
     d1Pkg <- get("d1Pkg", envir = as.environment(".recordr"))
     setProvCapture(FALSE)
     derived.data <- convert.csv(d1Client, x)
     setProvCapture(TRUE)
-    #id.derived <- file
-    #programId <- scriptPath
+    #derivedDataId <- file
+    programId <- scriptPath
     outLines <- sprintf("%s wasGeneratedBy %s", basename(file), basename(scriptPath))
     #execMeta <- get("execMeta", envir = as.environment(".recordr"))
     runDir <- get("runDir", envir = as.environment(".recordr"))
     write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE)
+    
     #d1Object.result <- new(Class="D1Object", id.derived, derived.data, format.result, d1Client@mn.nodeid)
     #addData(d1Pkg, d1Object.result)
     #insertRelationship(d1Pkg, id.result, c(programId), "http://www.w3.org/ns/prov", "http://www.w3.org/ns/prov#wasGeneratedBy")
@@ -140,23 +141,24 @@ setMethod("recordr_write.table", signature("data.frame", "character"), function(
   return(obj)
 })
 
-setMethod("recordr_write.table", signature("data.frame", "textConnection"), function(x, file, ...) {
-  print("recordr_write.table for textConnection!!!")
-  obj <- utils::write.table(x, file, ...)
+setMethod("recordr_write.csv", signature("data.frame", "textConnection"), function(x, file, ...) {
+  #cat(sprintf("recordr_write.csv for textConnection\n"))
+  obj <- utils::write.csv(x, file, ...)
 })
 # Override the R 'read.csv' method
 # record the provenance relationship of local objecct <- wasGeneratedBy <- script
 #
 #' @export
-setGeneric("recordr_read.table", function(...) { 
-  standardGeneric("recordr_read.table")
+setGeneric("recordr_read.csv", function(file, ...) { 
+  standardGeneric("recordr_read.csv")
 })
 
-setMethod("recordr_read.table", signature("character"), function(...) {
-  df <- utils::read.table(file, ...)
+setMethod("recordr_read.csv", signature("character"), function(file, ...) {
+  df <- utils::read.csv(file, ...)
   # Record the provenance relationship between the user's script and the derived data file
   
   if (getProvCapture()) {
+    cat(sprintf("recordr_read.csv: recording prov for %s\n", file))
     scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
     outLines <- sprintf("%s used %s", basename(scriptPath), basename(file))
     runDir <- get("runDir", envir = as.environment(".recordr"))
@@ -165,9 +167,9 @@ setMethod("recordr_read.table", signature("character"), function(...) {
   return(df)
 })
 
-setMethod("recordr_read.table", signature("textConnection"), function(file, ...) {
-  print("recordr_read.table for textConnection")
-  obj <- utils::read.table(file, ...)
+setMethod("recordr_read.csv", signature("textConnection"), function(file, ...) {
+  print("recordr_read.csv for textConnection")
+  obj <- utils::read.csv(file, ...)
 })
 
 #' Disable or enable provenance capture temporarily
