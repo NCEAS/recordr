@@ -60,12 +60,12 @@ setMethod("Recordr", signature(), function(x) {
 #' @return the identifier for the DataONE datapackge created by this run
 #' @author slaughter
 #' @export
-setGeneric("record", function(recordr, filePath, ...) {
+setGeneric("record", function(recordr, filePath, tag="", ...) {
   standardGeneric("record")
 })
 
 #' @export
-setMethod("record", signature("Recordr", "character"), function(recordr, filePath, ...) {
+setMethod("record", signature("Recordr", "character"), function(recordr, filePath, tag="", ...) {
 
   # Create an environment on the search path that will store the overridden 
   # funnction names. These overridden functions are the ones that Recordr will
@@ -83,6 +83,10 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
   assign("runDir", recordr@runDir, envir = as.environment(".recordr"))
   recordrEnv <- as.environment(".recordr")
   recordrEnv$execMeta <- ExecMetadata(filePath)
+  ellipsisArgs <- list(...)
+  if (tag != "") {
+    recordrEnv$execMeta@tag <- tag
+  }
   # Create an empty D1 datapackage object and make it globally available, i.e. available
   # to the masking functions.
   mnNodeId <- "urn:node:mnDemo5"
@@ -134,11 +138,12 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
   # Create the run metadata directory for this record()
   dir.create(sprintf("%s/%s", recordr@runDir, recordrEnv$execMeta@executionId), recursive = TRUE)
   file.create(sprintf("%s/%s/prov.txt", recordr@runDir, recordrEnv$execMeta@executionId))
-  
   # Source the user's script, passing in arguments that they intended for the 'source' call.
   setProvCapture(TRUE)
   result = tryCatch({
-    base::source(filePath, ...)
+    cat(sprintf("Sourcing file %s", filePath))
+    base::source(filePath, local=FALSE, ...)
+    cat(sprintf("Done sourcing file"))
   }, warning = function(warningCond) {
     slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
     cat(sprintf("Warning:: %s", recordrEnv$execMeta@errorMessage))
@@ -174,23 +179,26 @@ setMethod("listRuns", signature("Recordr"), function(recordr, quiet=FALSE) {
   dirs <- list.files(recordr@runDir)
   if (length(dirs) == 0) {
     df <- data.frame(script = character(), 
-                     publishTime = character(),
-                     errorMessage = character(),
+                     tag = character(),
                      startTime = character(),
                      endTime = character(),
                      execId = character(),
-                     packageId = character(), row.names = NULL)
+                     packageId = character(), 
+                     publishTime = character(),
+                     errorMessage = character(),
+                     row.names = NULL)
     return(df)
   }
   
+  tagLength = 15
   scriptNameLength = 20
   errorMsgLength = 30
-  fmt <- "%-20s %-19s %-30s %-19s %-19s %-36s %-36s\n"
+  fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
   #fmt <- paste("%-", sprintf("%2d", scriptNameLength), "s", "%-19s %-", sprintf("%2d", errorMsgLength), "s %-19s %-19s %-36s %-36s")
   
   # Loop through the run directories. The sub-directories are the name
   # of the executionId for that execution.
-  if (! quiet) cat(sprintf(fmt, "Script", "Published Time", "Error Messages", "StartTime", "EndTime", "Run Identifier", "Package Identifier"), sep = " ")    
+  if (! quiet) cat(sprintf(fmt, "Script", "Tag", "StartTime", "EndTime", "Run Identifier", "Package Identifier", "Published Time", "Error Messages"), sep = " ")    
   for (d in dirs) {
       execMeta <- readExecMeta(recordr, d)
       if (! is.null(execMeta)) {
@@ -204,15 +212,16 @@ setMethod("listRuns", signature("Recordr"), function(recordr, quiet=FALSE) {
         packageId <-  emValues["datapackageId"]
         publishTime <- emValues["publishTime"]
         errorMessage <- emValues["errorMessage"]
+        tag          <- emValues["tag"]
         # R sprint doesn't truncate strings accourding to the specified sprintf format
         #if (!quiet) cat(sprintf(fmt, strtrim(script, scriptNameLength), publishTime, strtrim(errorMessage, errorMsgLength), startTime, endTime, execId, packageId, publishTime), sep = " ")
-        if (!quiet) cat(sprintf(fmt, strtrim(script, scriptNameLength), publishTime, strtrim(errorMessage, errorMsgLength), startTime, endTime, execId, packageId), sep = " ")
+        if (!quiet) cat(sprintf(fmt, strtrim(script, scriptNameLength), tag, startTime, endTime, execId, packageId, publishTime, strtrim(errorMessage, errorMsgLength)), sep = " ")
         
         if(exists("runMeta")) {
-          runMeta <- rbind(runMeta, data.frame(script=script, publishTime=publishTime, errorMessage=errorMessage, startTime=startTime, endTime=endTime, executionId=execId, datapackageId=packageId, row.names = NULL))
+          runMeta <- rbind(runMeta, data.frame(script=script, tag=tag, startTime=startTime, endTime=endTime, executionId=execId, datapackageId=packageId, publishTime=publishTime, errorMessage=errorMessage, row.names = NULL))
         }
         else {
-          runMeta <- data.frame(script=script, publishTime=publishTime, errorMessage=errorMessage, startTime=startTime, endTime=endTime, executionId=execId, datapackageId=packageId, row.names = NULL)
+          runMeta <- data.frame(script=script, tag=tag, startTime=startTime, endTime=endTime, executionId=execId, datapackageId=packageId, publishTime=publishTime, errorMessage=errorMessage, row.names = NULL)
         }
       }
   }

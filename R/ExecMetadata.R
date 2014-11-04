@@ -24,6 +24,7 @@
 #' @author slaughter
 #' @export
 setClass("ExecMetadata", slots = c(executionId      = "character",
+                                   tag              = "character",
                                    datapackageId    = "character",
                                    accountName      = "character",
                                    hostId           = "character",
@@ -54,6 +55,7 @@ setMethod("ExecMetadata", signature("character"), function(programName) {
   ## create new MNode object and insert uri endpoint
   execMeta <- new("ExecMetadata")  
   execMeta@executionId <- UUIDgenerate()
+  execMeta@tag         <- ""
   execMeta@datapackageId <- UUIDgenerate()
   execMeta@accountName <- Sys.info()["user"]
   execMeta@hostId <- Sys.info()["nodename"]
