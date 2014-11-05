@@ -130,11 +130,7 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
   # override R functions
   assign("read.csv",  recordr::recordr_read.csv,  envir = as.environment(".recordr"))
   assign("write.csv", recordr::recordr_write.csv, envir = as.environment(".recordr"))
-  # Make a copy of the execution metadata object to our temp environment, so it is globally accessable
-  # Warning: changes to this local object will NOT be made in the copy in env ".recordr"
 
-  #assign("execMeta", ExecMetadata(filePath), envir = as.environment(".recordr"), inherits = FALSE)
-  
   # Create the run metadata directory for this record()
   dir.create(sprintf("%s/%s", recordr@runDir, recordrEnv$execMeta@executionId), recursive = TRUE)
   file.create(sprintf("%s/%s/prov.txt", recordr@runDir, recordrEnv$execMeta@executionId))
@@ -198,7 +194,7 @@ setMethod("listRuns", signature("Recordr"), function(recordr, quiet=FALSE) {
   
   # Loop through the run directories. The sub-directories are the name
   # of the executionId for that execution.
-  if (! quiet) cat(sprintf(fmt, "Script", "Tag", "StartTime", "EndTime", "Run Identifier", "Package Identifier", "Published Time", "Error Messages"), sep = " ")    
+  if (! quiet) cat(sprintf(fmt, "Script", "Tag", "Start Time", "End Time", "Run Identifier", "Package Identifier", "Published Time", "Error Message"), sep = " ")    
   for (d in dirs) {
       execMeta <- readExecMeta(recordr, d)
       if (! is.null(execMeta)) {
@@ -213,18 +209,18 @@ setMethod("listRuns", signature("Recordr"), function(recordr, quiet=FALSE) {
         publishTime <- emValues["publishTime"]
         errorMessage <- emValues["errorMessage"]
         tag          <- emValues["tag"]
-        # R sprint doesn't truncate strings accourding to the specified sprintf format
-        #if (!quiet) cat(sprintf(fmt, strtrim(script, scriptNameLength), publishTime, strtrim(errorMessage, errorMsgLength), startTime, endTime, execId, packageId, publishTime), sep = " ")
+
         if (!quiet) cat(sprintf(fmt, strtrim(script, scriptNameLength), tag, startTime, endTime, execId, packageId, publishTime, strtrim(errorMessage, errorMsgLength)), sep = " ")
         
         if(exists("runMeta")) {
-          runMeta <- rbind(runMeta, data.frame(script=script, tag=tag, startTime=startTime, endTime=endTime, executionId=execId, datapackageId=packageId, publishTime=publishTime, errorMessage=errorMessage, row.names = NULL))
+          runMeta <- rbind(runMeta, data.frame(script=script, tag=tag, startTime=startTime, endTime=endTime, executionId=execId, datapackageId=packageId, publishTime=publishTime, errorMessage=errorMessage, row.names = NULL, stringsAsFactors = FALSE))
         }
         else {
-          runMeta <- data.frame(script=script, tag=tag, startTime=startTime, endTime=endTime, executionId=execId, datapackageId=packageId, publishTime=publishTime, errorMessage=errorMessage, row.names = NULL)
+          runMeta <- data.frame(script=script, tag=tag, startTime=startTime, endTime=endTime, executionId=execId, datapackageId=packageId, publishTime=publishTime, errorMessage=errorMessage, row.names = NULL, stringsAsFactors = FALSE)
         }
       }
   }
+  
   return(runMeta)
 })
 
