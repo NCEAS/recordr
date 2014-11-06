@@ -160,68 +160,243 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
   return(d1Pkg)
 })
 
-#' List all recorded runs
-#' @param quiet if TRUE, don't print information to the script
-## @returnType data frame containing the run information  
-## 
-## @author slaughter
-#' @export
-setGeneric("listRuns", function(recordr, quiet=FALSE) {
-  standardGeneric("listRuns")
+#' Select runs that match search parameters
+#' @param runIds a list of execution identifiers
+#' @param script name of script to match (can be a regex)
+#' @param startTime match executions that started after this time (inclusive)
+#' @param endTime match executions that ended before this time (inclusive)
+#' @param tag text of tag to match (can be a regex)
+#' @param errorMessage text of error message to match (can be a regex)
+#' @param matchType if "specific" then at least one search criteria must be specified and matched
+#' @author slaughter
+## @export
+setGeneric("selectRuns", function(recordr, ...) {
+  standardGeneric("selectRuns")
 })
 
-setMethod("listRuns", signature("Recordr"), function(recordr, quiet=FALSE) {
-  # Find all run directories, i.e. (~/.recordr/runs/*)
+setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", script = "", startTime = "", endTime = "", tag = "", errorMessage = "", matchType="specific") {
+  
   dirs <- list.files(recordr@runDir)
+  df <- data.frame(script = character(), 
+                   tag = character(),
+                   startTime = character(),
+                   endTime = character(),
+                   execId = character(),
+                   packageId = character(), 
+                   publishTime = character(),
+                   errorMessage = character(),
+                   row.names = NULL)
   if (length(dirs) == 0) {
-    df <- data.frame(script = character(), 
-                     tag = character(),
-                     startTime = character(),
-                     endTime = character(),
-                     execId = character(),
-                     packageId = character(), 
-                     publishTime = character(),
-                     errorMessage = character(),
-                     row.names = NULL)
     return(df)
   }
   
+  matchTypes <- c("specific", "non-specific")
+  if (! is.element(matchType, matchTypes)) {
+    msg <- paste("Invalid argument 'matchTypes', must be one of: ", matchTypes)
+    warn(msg)
+    return(df)
+  }
+  for (d in dirs) {
+    execMeta <- readExecMeta(recordr, d)
+    if (! is.null(execMeta)) {
+      emValues <- execMeta[["value"]]
+      names(emValues) <- execMeta[["name"]]
+      # TODO: get pubTime
+      thisScript <- emValues["softwareApplication"]
+      thisStartTime <-  emValues["startTime"]
+      thisEndTime <-  emValues["endTime"]
+      thisExecId <-  emValues["executionId"]
+      thisPackageId <-  emValues["datapackageId"]
+      thisPublishTime <- emValues["publishTime"]
+      thisErrorMessage <- emValues["errorMessage"]
+      thisTag          <- emValues["tag"]
+      
+      match = FALSE
+      # Test each selection argument separately. 
+      # The selection criteria are applied in an "and" relationship to each other
+      # so exclude this run as soon as any test doesn't match.
+      #
+      # Check for matching run identifiers in argument 'runIds'. If found, then
+      # continue to other tests
+      if (runIds[1] != "" ){
+        if(!is.element(thisExecId, runIds)) {
+          next
+        }
+        match = TRUE
+      }
+      # Check for match with argument 'script'
+      if (script != "") {
+        # seearch for parameter 'tag' (a regex) in current tag string
+        if (length(grep(script, thisScript)) == 0) {
+          next
+        }
+        match = TRUE
+      }
+      # Check for match with argument 'startTime'
+      if (startTime != "") {
+        # Current run started before specified time, so skip it
+        if (as.POSIXlt(thisStartTime) < as.POSIXlt(startTime)) {
+          next
+        }
+        match = TRUE
+      }
+      # Check for match with argument 'endTime'
+      if (endTime != "") {
+        # This run ended after specified time, so skip it
+        if (as.POSIXlt(thisEndTime) > as.POSIXlt(endTime)) {          
+          next
+        }
+        match = TRUE
+      }
+      # Check for match with argument 'tag'
+      if (tag != "") {
+        # seearch for parameter 'tag' (a regex) in current tag string
+        if (length(grep(tag, thisTag)) == 0) {
+          next
+        }
+        match = TRUE
+      }
+      # Check for match with argument 'errorMessage'
+      if (errorMessage != "") {
+        # seearch for parameter 'tag' (a regex) in current tag string
+        if (length(grep(errorMessage, thisErrorMessage)) == 0) {
+          next
+        }
+        match = TRUE
+      }
+      
+      # If "specific" matching was specified, then a definite match has to have been made.
+      if (matchType == "specific") {
+        if(match == FALSE) {
+          next
+        }
+      }
+
+      if(exists("runMeta")) {
+        runMeta <- rbind(runMeta, data.frame(script=thisScript, tag=thisTag, startTime=thisStartTime, endTime=thisEndTime, executionId=thisExecId, datapackageId=thisPackageId, publishTime=thisPublishTime, errorMessage=thisErrorMessage, row.names = NULL, stringsAsFactors = FALSE))
+      }
+      else {
+        runMeta <- data.frame(script=thisScript, tag=thisTag, startTime=thisStartTime, endTime=thisEndTime, executionId=thisExecId, datapackageId=thisPackageId, publishTime=thisPublishTime, errorMessage=thisErrorMessage, row.names = NULL, stringsAsFactors = FALSE)
+      }
+    }
+  }
+  # If we didn't match any runs, return an emply data frame
+  if (!exists("runMeta")) {
+    return(df)
+  } else {
+    return(runMeta)
+  }
+})
+
+#' Delete runs that match search parameters
+#' #' @param runIds a list of execution identifiers
+#' @param script name of script to match (can be a regex)
+#' @param startTime match executions that started after this time (inclusive)
+#' @param endTime match executions that ended before this time (inclusive)
+#' @param tag text of tag to match (can be a regex)
+#' @param errorMessage text of error message to match (can be a regex)
+#' @param noop don't delete execution directories
+#' @param quiet don't print any informational messages to the display
+#' @author slaughter
+#' @export
+setGeneric("deleteRuns", function(recordr, ...) {
+  standardGeneric("deleteRuns")
+})
+
+setMethod("deleteRuns", signature("Recordr"), function(recordr, runIds = "", script = "", startTime = "", endTime = "", tag = "", errorMessage = "", noop = FALSE, quiet = FALSE) {
+
   tagLength = 15
   scriptNameLength = 20
   errorMsgLength = 30
   fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
-  #fmt <- paste("%-", sprintf("%2d", scriptNameLength), "s", "%-19s %-", sprintf("%2d", errorMsgLength), "s %-19s %-19s %-36s %-36s")
+  #fmt <- paste("%.", sprintf("%2d", scriptNameLength), "s", "%.20s %-19s %-19s %-36s %-36s", "%.", sprintf("%2d", errorMsgLength), "s", "\n")
   
-  # Loop through the run directories. The sub-directories are the name
-  # of the executionId for that execution.
-  if (! quiet) cat(sprintf(fmt, "Script", "Tag", "Start Time", "End Time", "Run Identifier", "Package Identifier", "Published Time", "Error Message"), sep = " ")    
-  for (d in dirs) {
-      execMeta <- readExecMeta(recordr, d)
-      if (! is.null(execMeta)) {
-        emValues <- execMeta[["value"]]
-        names(emValues) <- execMeta[["name"]]
-        # TODO: get pubTime
-        script <- emValues["softwareApplication"]
-        startTime <-  emValues["startTime"]
-        endTime <-  emValues["endTime"]
-        execId <-  emValues["executionId"]
-        packageId <-  emValues["datapackageId"]
-        publishTime <- emValues["publishTime"]
-        errorMessage <- emValues["errorMessage"]
-        tag          <- emValues["tag"]
-
-        if (!quiet) cat(sprintf(fmt, strtrim(script, scriptNameLength), tag, startTime, endTime, execId, packageId, publishTime, strtrim(errorMessage, errorMsgLength)), sep = " ")
-        
-        if(exists("runMeta")) {
-          runMeta <- rbind(runMeta, data.frame(script=script, tag=tag, startTime=startTime, endTime=endTime, executionId=execId, datapackageId=packageId, publishTime=publishTime, errorMessage=errorMessage, row.names = NULL, stringsAsFactors = FALSE))
-        }
-        else {
-          runMeta <- data.frame(script=script, tag=tag, startTime=startTime, endTime=endTime, executionId=execId, datapackageId=packageId, publishTime=publishTime, errorMessage=errorMessage, row.names = NULL, stringsAsFactors = FALSE)
-        }
+  runs <- selectRuns(recordr, runIds=runIds, script=script, startTime=startTime, endTime=endTime, tag=tag, errorMessage=errorMessage, matchType="specific")
+  if (nrow(runs) == 0) {
+    if (!quiet) {
+      cat(sprintf("No runs matched search criteria."))
+    }
+    return(runs)
+  } else {
+    if (!quiet) {
+      if (noop) {
+        cat(sprintf("The following %d rows would have been deleted:\n", nrow(runs)))
+      } else {
+        cat(sprintf("The following %d rows have been deleted:\n", nrow(runs)))
       }
+    }
   }
   
-  return(runMeta)
+  if (! quiet) cat(sprintf(fmt, "Script", "Tag", "Start Time", "End Time", "Run Identifier", "Package Identifier", "Published Time", "Error Message"), sep = " ")
+  # Loop through selected runs
+  for(i in 1:nrow(runs)) {
+    row <- runs[i,]
+    thisScript       <- row["script"]
+    thisStartTime    <- row["startTime"]
+    thisEndTime      <- row["endTime"]
+    thisExecId       <- row["executionId"]
+    thisPackageId    <- row["datapackageId"]
+    thisPublishTime  <- row["publishTime"]
+    thisErrorMessage <- row["errorMessage"]
+    thisTag         <- row["tag"]
+    thisRunDir <- sprintf("%s/%s", recordr@runDir, thisExecId)
+    if (!noop) {
+      if(thisRunDir == recordr@runDir || thisRunDir == "") {
+        stop(sprintf("Error determining directory to remove, directory: %s", thisRunDir))
+      }
+      unlink(thisRunDir, recursive = TRUE)
+    }
+    if (!quiet) cat(sprintf(fmt, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime, thisEndTime, thisExecId, thisPackageId, thisPublishTime, strtrim(thisErrorMessage, errorMsgLength)), sep = " ")
+  }
+  return(runs)
+})
+  
+#' List all recorded runs
+#' @param script name of script to match (can be a regex)
+#' @param startTime match executions that started after this time (inclusive)
+#' @param endTime match executions that ended before this time (inclusive)
+#' @param tag text of tag to match (can be a regex)
+#' @param errorMessage text of error message to match (can be a regex)
+#' @param quiet don't print any informational messages to the display
+## @returnType data frame containing the run information  
+## 
+## @author slaughter
+#' @export
+setGeneric("listRuns", function(recordr, ...) {
+  standardGeneric("listRuns")
+})
+
+setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTime = "", endTime = "", tag = "", errorMessage = "", quiet=FALSE) {
+
+  tagLength = 15
+  scriptNameLength = 20
+  errorMsgLength = 30
+  fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
+  
+  #fmt <- paste("%.", sprintf("%2d", scriptNameLength), "s", "%.20s %-19s %-19s %-36s %-36s", "%.", sprintf("%2d", errorMsgLength), "s", "\n")
+  runs <- selectRuns(recordr, script=script, startTime=startTime, endTime=endTime, tag=tag, errorMessage=errorMessage, matchType="non-specific")
+  if (nrow(runs) == 0) {
+    if (!quiet) {
+      cat(sprintf("No runs matched search criteria."))
+    }
+    return(runs)
+  }
+  if (! quiet) cat(sprintf(fmt, "Script", "Tag", "Start Time", "End Time", "Run Identifier", "Package Identifier", "Published Time", "Error Message"), sep = " ")
+  # Loop through selected runs
+  for(i in 1:nrow(runs)) {
+    row <- runs[i,]
+    thisScript       <- row["script"]
+    thisStartTime    <- row["startTime"]
+    thisEndTime      <- row["endTime"]
+    thisExecId       <- row["executionId"]
+    thisPackageId    <- row["datapackageId"]
+    thisPublishTime  <- row["publishTime"]
+    thisErrorMessage <- row["errorMessage"]
+    thisTag         <- row["tag"]
+
+    if (!quiet) cat(sprintf(fmt, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime, thisEndTime, thisExecId, thisPackageId, thisPublishTime, strtrim(thisErrorMessage, errorMsgLength)), sep = " ")
+  }
+  return(runs)
 })
 
 #' View the contents of a DataONE data package
@@ -264,7 +439,6 @@ setMethod("view", signature("Recordr"), function(recordr, id) {
       }
     }
   }
-  
   # Return the data package (not implemented yet)
 })
 
