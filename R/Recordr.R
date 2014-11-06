@@ -174,7 +174,9 @@ setGeneric("selectRuns", function(recordr, ...) {
   standardGeneric("selectRuns")
 })
 
-setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", script = "", startTime = "", endTime = "", tag = "", errorMessage = "", matchType="specific") {
+setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", script = "", startTime = "", endTime = "", tag = "", errorMessage = "", matchType="specific", orderBy = "") {
+  
+  colNames = c("script", "tag", "startTime", "endTime", "execId", "packageId", "publishTime", "errorMessage")
   
   # Find all run directories
   dirs <- list.files(recordr@runDir)
@@ -187,6 +189,17 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
                    publishTime = character(),
                    errorMessage = character(),
                    row.names = NULL)
+  
+  # Is the column that the user specified for ordering correct?
+  if (orderBy != "") {
+    if (! is.element(orderBy, colNames)) {
+      cat(sprintf("Invalid column name: %s\n", orderBy))
+      cat(sprintf("Please use one of the following column names: "))
+      cat(colNames)
+      cat(sprintf("\n"))
+      return(df)
+    }
+  }
   # Return an empty data frame if no run directories exist
   if (length(dirs) == 0) {
     return(df)
@@ -288,6 +301,10 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
   if (!exists("runMeta")) {
     return(df)
   } else {
+    if (orderBy != "") {
+      colStr <- paste("runMeta[order(runMeta$", orderBy, "),]", sep="")
+      runMeta <- eval(parse(text=colStr))
+    }
     return(runMeta)
   }
 })
@@ -362,9 +379,9 @@ setGeneric("listRuns", function(recordr, ...) {
   standardGeneric("listRuns")
 })
 
-setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTime = "", endTime = "", tag = "", errorMessage = "", quiet=FALSE) {
+setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTime = "", endTime = "", tag = "", errorMessage = "", quiet=FALSE, orderBy = "") {
 
-  runs <- selectRuns(recordr, script=script, startTime=startTime, endTime=endTime, tag=tag, errorMessage=errorMessage, matchType="non-specific")
+  runs <- selectRuns(recordr, script=script, startTime=startTime, endTime=endTime, tag=tag, errorMessage=errorMessage, matchType="non-specific", orderBy=orderBy)
 
   if (nrow(runs) == 0) {
     if (!quiet) {
