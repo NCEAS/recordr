@@ -83,7 +83,7 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
   assign("runDir", recordr@runDir, envir = as.environment(".recordr"))
   recordrEnv <- as.environment(".recordr")
   recordrEnv$execMeta <- ExecMetadata(filePath)
-  ellipsisArgs <- list(...)
+  # ellipsisArgs <- list(...)
   if (tag != "") {
     recordrEnv$execMeta@tag <- tag
   }
@@ -176,6 +176,7 @@ setGeneric("selectRuns", function(recordr, ...) {
 
 setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", script = "", startTime = "", endTime = "", tag = "", errorMessage = "", matchType="specific") {
   
+  # Find all run directories
   dirs <- list.files(recordr@runDir)
   df <- data.frame(script = character(), 
                    tag = character(),
@@ -186,16 +187,19 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
                    publishTime = character(),
                    errorMessage = character(),
                    row.names = NULL)
+  # Return an empty data frame if no run directories exist
   if (length(dirs) == 0) {
     return(df)
   }
   
+  # MatchType controls which run directories are included if no search parameters are specified.
   matchTypes <- c("specific", "non-specific")
   if (! is.element(matchType, matchTypes)) {
     msg <- paste("Invalid argument 'matchTypes', must be one of: ", matchTypes)
     warn(msg)
     return(df)
   }
+  
   for (d in dirs) {
     execMeta <- readExecMeta(recordr, d)
     if (! is.null(execMeta)) {
@@ -305,12 +309,6 @@ setGeneric("deleteRuns", function(recordr, ...) {
 
 setMethod("deleteRuns", signature("Recordr"), function(recordr, runIds = "", script = "", startTime = "", endTime = "", tag = "", errorMessage = "", noop = FALSE, quiet = FALSE) {
 
-  tagLength = 15
-  scriptNameLength = 20
-  errorMsgLength = 30
-  fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
-  #fmt <- paste("%.", sprintf("%2d", scriptNameLength), "s", "%.20s %-19s %-19s %-36s %-36s", "%.", sprintf("%2d", errorMsgLength), "s", "\n")
-  
   runs <- selectRuns(recordr, runIds=runIds, script=script, startTime=startTime, endTime=endTime, tag=tag, errorMessage=errorMessage, matchType="specific")
   if (nrow(runs) == 0) {
     if (!quiet) {
@@ -327,18 +325,14 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, runIds = "", scr
     }
   }
   
-  if (! quiet) cat(sprintf(fmt, "Script", "Tag", "Start Time", "End Time", "Run Identifier", "Package Identifier", "Published Time", "Error Message"), sep = " ")
+  if (! quiet) {
+    printRun(headerOnly=TRUE)
+  }
+  
   # Loop through selected runs
   for(i in 1:nrow(runs)) {
     row <- runs[i,]
-    thisScript       <- row["script"]
-    thisStartTime    <- row["startTime"]
-    thisEndTime      <- row["endTime"]
-    thisExecId       <- row["executionId"]
-    thisPackageId    <- row["datapackageId"]
-    thisPublishTime  <- row["publishTime"]
-    thisErrorMessage <- row["errorMessage"]
-    thisTag         <- row["tag"]
+    thisExecId <- row["executionId"]
     thisRunDir <- sprintf("%s/%s", recordr@runDir, thisExecId)
     if (!noop) {
       if(thisRunDir == recordr@runDir || thisRunDir == "") {
@@ -346,7 +340,9 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, runIds = "", scr
       }
       unlink(thisRunDir, recursive = TRUE)
     }
-    if (!quiet) cat(sprintf(fmt, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime, thisEndTime, thisExecId, thisPackageId, thisPublishTime, strtrim(thisErrorMessage, errorMsgLength)), sep = " ")
+    if (! quiet) {
+      printRun(row)
+    }
   }
   return(runs)
 })
@@ -368,23 +364,49 @@ setGeneric("listRuns", function(recordr, ...) {
 
 setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTime = "", endTime = "", tag = "", errorMessage = "", quiet=FALSE) {
 
-  tagLength = 15
-  scriptNameLength = 20
-  errorMsgLength = 30
-  fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
-  
-  #fmt <- paste("%.", sprintf("%2d", scriptNameLength), "s", "%.20s %-19s %-19s %-36s %-36s", "%.", sprintf("%2d", errorMsgLength), "s", "\n")
   runs <- selectRuns(recordr, script=script, startTime=startTime, endTime=endTime, tag=tag, errorMessage=errorMessage, matchType="non-specific")
+
   if (nrow(runs) == 0) {
     if (!quiet) {
       cat(sprintf("No runs matched search criteria."))
     }
     return(runs)
   }
-  if (! quiet) cat(sprintf(fmt, "Script", "Tag", "Start Time", "End Time", "Run Identifier", "Package Identifier", "Published Time", "Error Message"), sep = " ")
-  # Loop through selected runs
-  for(i in 1:nrow(runs)) {
-    row <- runs[i,]
+
+  if (!quiet) {
+    if (!quiet) printRun(headerOnly = TRUE)
+    # Loop through selected runs
+    for(i in 1:nrow(runs)) {
+      row <- runs[i,]
+      printRun(row)
+    }
+  }
+  
+  return(runs)
+})
+
+# Internal function used to print execution metadata for a single run
+# For the fields that can have variable width content, specify a maximum
+# length that will be displayed.
+# @param row the row (character vector) to print
+# @param headerOnly if TRUE then only the header line is printed, if FALSE then only the row is printed
+# authoer: slaughter
+
+printRun <- function(row=list(), headerOnly = FALSE) {
+  
+  tagLength = 20
+  scriptNameLength = 20
+  errorMsgLength = 30
+  
+  #fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
+  fmt <- paste("%-", sprintf("%2d", scriptNameLength), "s", 
+               " %-", sprintf("%2d", tagLength), "s",
+               " %-19s %-19s %-36s %-36s %-19s",
+               " %-", sprintf("%2d", errorMsgLength), "s", "\n", sep="")
+  
+  if (headerOnly) {
+    cat(sprintf(fmt, "Script", "Tag", "Start Time", "End Time", "Run Identifier", "Package Identifier", "Published Time", "Error Message"), sep = " ")
+  } else {
     thisScript       <- row["script"]
     thisStartTime    <- row["startTime"]
     thisEndTime      <- row["endTime"]
@@ -393,11 +415,10 @@ setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTi
     thisPublishTime  <- row["publishTime"]
     thisErrorMessage <- row["errorMessage"]
     thisTag         <- row["tag"]
-
-    if (!quiet) cat(sprintf(fmt, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime, thisEndTime, thisExecId, thisPackageId, thisPublishTime, strtrim(thisErrorMessage, errorMsgLength)), sep = " ")
+    cat(sprintf(fmt, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime, 
+                thisEndTime, thisExecId, thisPackageId, thisPublishTime, strtrim(thisErrorMessage, errorMsgLength)), sep = " ")
   }
-  return(runs)
-})
+}
 
 #' View the contents of a DataONE data package
 #' @param identifier of the data package
