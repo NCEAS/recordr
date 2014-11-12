@@ -96,9 +96,18 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
   slotValues <- as.character(lapply(slotNames, function(x) eval(slot(execMeta, x))))
   df <- data.frame(name = slotNames, value = slotValues)
   provCaptureEnabled <- getProvCapture()
-  write.csv(df, sprintf("%s/%s/%s", recordr@runDir, execMeta@executionId, "execMetadata.csv", row.names = FALSE))
+  outDir <- sprintf("%s/%s", recordr@runDir, execMeta@executionId)
+  
+  if (! file.exists(outDir)) {
+    dir.create(outDir, recursive = TRUE)
+  }
+  # Disable provenance capture while we write out this housekeeping file
+  setProvCapture(FALSE)
+  outFilePath <- sprintf("%s/%s", outDir, "execMetadata.csv")
+  write.csv(df, outFilePath, row.names = TRUE)
+  setProvCapture(provCaptureEnabled)
+  return(outFilePath)
 })
-
 
 #' Read Execution metadata from disk
 #' @param identifier the run identifier to read execution metadata for
@@ -112,10 +121,24 @@ setGeneric("readExecMeta", function(recordr, executionId) {
 
 setMethod("readExecMeta", signature("Recordr", "character"), function(recordr, executionId) {
   filePath <- sprintf("%s/%s/%s", recordr@runDir, executionId, "execMetadata.csv")
-  #cat(sprintf("reading execution metadata file: %s\n", filePath))
   if (file.exists(filePath)) {
-    read.csv(filePath, stringsAsFactors=FALSE)
+    mdf <- read.csv(filePath, stringsAsFactors=FALSE)
+    execMeta <- new("ExecMetadata")  
+    execMeta@executionId         <- mdf[mdf$name == "executionId", "value" ]
+    execMeta@tag                 <- mdf[mdf$name == "tag", "value"]
+    execMeta@datapackageId       <- mdf[mdf$name == "datapackageId", "value"]
+    execMeta@accountName         <- mdf[mdf$name == "accountName", "value"]
+    execMeta@hostId              <- mdf[mdf$name == "hostId", "value"]
+    execMeta@startTime           <- mdf[mdf$name == "startTime", "value"]
+    execMeta@operatingSystem     <- mdf[mdf$name == "operatingSystem", "value"]
+    execMeta@runtime             <- mdf[mdf$name == "runtime", "value"]
+    execMeta@softwareApplication <- mdf[mdf$name == "softwareApplication", "value"]
+    execMeta@endTime             <- mdf[mdf$name == "endTime", "value"]
+    execMeta@errorMessage        <- mdf[mdf$name == "errorMessage", "value"]
+    execMeta@publishTime         <- mdf[mdf$name == "publishTime", "value"]
+    execMeta@moduleDependencies  <- mdf[mdf$name == "moduleDependencies", "value"]
   } else {
     return(NULL)
   }
+  return(execMeta)
 })
