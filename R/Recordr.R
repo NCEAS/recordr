@@ -92,7 +92,7 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
   mnNodeId <- "urn:node:mnDemo5"
   d1Client <- D1Client("DEV", mnNodeId)
   d1Pkg <- new(Class="DataPackage", packageId=recordrEnv$execMeta@datapackageId)
-  
+
   # Build a D1Object that will contain the script we are recording
   currentTime <- format(Sys.time(), "%Y%m%d%H%M%s")
   programId <- paste("r_test_program", currentTime, "1", sep=".")
@@ -130,16 +130,15 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
   # override R functions
   assign("read.csv",  recordr::recordr_read.csv,  envir = as.environment(".recordr"))
   assign("write.csv", recordr::recordr_write.csv, envir = as.environment(".recordr"))
-
+  
   # Create the run metadata directory for this record()
   dir.create(sprintf("%s/%s", recordr@runDir, recordrEnv$execMeta@executionId), recursive = TRUE)
   file.create(sprintf("%s/%s/prov.txt", recordr@runDir, recordrEnv$execMeta@executionId))
   # Source the user's script, passing in arguments that they intended for the 'source' call.
   setProvCapture(TRUE)
   result = tryCatch({
-    cat(sprintf("Sourcing file %s", filePath))
+    #cat(sprintf("Sourcing file %s\n", filePath))
     base::source(filePath, local=FALSE, ...)
-    cat(sprintf("Done sourcing file"))
   }, warning = function(warningCond) {
     slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
     cat(sprintf("Warning:: %s", recordrEnv$execMeta@errorMessage))
@@ -189,14 +188,12 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
                    publishTime = character(),
                    errorMessage = character(),
                    row.names = NULL)
-  
+    
   # Is the column that the user specified for ordering correct?
   if (orderBy != "") {
     if (! is.element(orderBy, colNames)) {
-      cat(sprintf("Invalid column name: %s\n", orderBy))
-      cat(sprintf("Please use one of the following column names: "))
-      cat(colNames)
-      cat(sprintf("\n"))
+      cat(sprintf("Invalid column name: \"%s\"\n", orderBy))
+      cat(sprintf("Please use one of the following column names: \"%s\"\n", paste(colNames, collapse = '", "')))
       return(df)
     }
   }
@@ -209,24 +206,23 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
   matchTypes <- c("specific", "non-specific")
   if (! is.element(matchType, matchTypes)) {
     msg <- paste("Invalid argument 'matchTypes', must be one of: ", matchTypes)
-    warn(msg)
+    message(msg)
     return(df)
   }
   
+  # Loop through run directories
   for (d in dirs) {
+    # Create an execution metadata object for this run
     execMeta <- readExecMeta(recordr, d)
     if (! is.null(execMeta)) {
-      emValues <- execMeta[["value"]]
-      names(emValues) <- execMeta[["name"]]
-      # TODO: get pubTime
-      thisScript <- emValues["softwareApplication"]
-      thisStartTime <-  emValues["startTime"]
-      thisEndTime <-  emValues["endTime"]
-      thisExecId <-  emValues["executionId"]
-      thisPackageId <-  emValues["datapackageId"]
-      thisPublishTime <- emValues["publishTime"]
-      thisErrorMessage <- emValues["errorMessage"]
-      thisTag          <- emValues["tag"]
+      thisScript       <- execMeta@softwareApplication
+      thisTag          <- execMeta@tag
+      thisStartTime    <- execMeta@startTime
+      thisEndTime      <- execMeta@endTime
+      thisExecId       <- execMeta@executionId
+      thisPackageId    <- execMeta@datapackageId
+      thisPublishTime  <- execMeta@publishTime
+      thisErrorMessage <- execMeta@errorMessage
       
       match = FALSE
       # Test each selection argument separately. 
@@ -335,9 +331,9 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, runIds = "", scr
   } else {
     if (!quiet) {
       if (noop) {
-        cat(sprintf("The following %d rows would have been deleted:\n", nrow(runs)))
+        cat(sprintf("The following %d runs would have been deleted:\n", nrow(runs)))
       } else {
-        cat(sprintf("The following %d rows have been deleted:\n", nrow(runs)))
+        cat(sprintf("The following %d runs have been deleted:\n", nrow(runs)))
       }
     }
   }
@@ -379,7 +375,7 @@ setGeneric("listRuns", function(recordr, ...) {
   standardGeneric("listRuns")
 })
 
-setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTime = "", endTime = "", tag = "", errorMessage = "", quiet=FALSE, orderBy = "") {
+setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTime = "", endTime = "", tag = "", errorMessage = "", quiet=FALSE, orderBy = "startTime") {
 
   runs <- selectRuns(recordr, script=script, startTime=startTime, endTime=endTime, tag=tag, errorMessage=errorMessage, matchType="non-specific", orderBy=orderBy)
 
@@ -391,6 +387,7 @@ setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTi
   }
 
   if (!quiet) {
+    # Print header line
     if (!quiet) printRun(headerOnly = TRUE)
     # Loop through selected runs
     for(i in 1:nrow(runs)) {
@@ -457,9 +454,7 @@ setMethod("view", signature("Recordr"), function(recordr, id) {
   for (d in dirs) {
     execMeta <- readExecMeta(recordr, d)
     if (! is.null(execMeta)) {
-      emValues <- execMeta[["value"]]
-      names(emValues) <- execMeta[["name"]]
-      packageId <-  emValues["datapackageId"]
+      packageId <-  execMeta@datapackageId
       if (id == packageId) {
         cat(sprintf("This package was created by run: %s\n", d))
         thisRunDir <- sprintf("%s/%s", recordr@runDir, d)
