@@ -30,7 +30,7 @@ setMethod("recordr_source", "character", function (file, local = FALSE, echo = v
     setwd(dirname(file))
   }
   
-  cat(sprintf("recordr_source: Sourcing file: %s", file))
+  #cat(sprintf("recordr_source: Sourcing file: %s\n", file))
   
   base::source(file, local, echo, print.eval, verbose, prompt.echo,
                max.deparse.length, chdir, encoding,continue.echo, skip.echo,
@@ -63,7 +63,7 @@ setMethod("recordr_getD1Object", "D1Client", function(x, identifier) {
   # i.e. insertRelationship
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture()) {
-    cat(sprintf("recordr_getD1Obj: recording prov for: %s\n", identifier))
+    #cat(sprintf("recordr_getD1Obj: recording prov for: %s\n", identifier))
     scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
     ##d1Client <- get("d1Client", envir = as.environment(".recordr"))
     ##d1Pkg <- get("d1Pkg", envir = as.environment(".recordr"))
@@ -85,8 +85,7 @@ setGeneric("recordr_createD1Object", function(x, d1Object, ...) {
 
 setMethod("recordr_createD1Object", signature("D1Client", "D1Object"), function(x, d1Object, ...) {
   
-  cat(sprintf("recordr_createD1Object"))
-  
+  #cat(sprintf("recordr_createD1Object"))
   d1o <- dataone::getD1Object(x, identifier)
   
   # Record the provenance relationship between the downloaded D1 object and the executing script
@@ -116,7 +115,7 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture()) {
-    cat(sprintf("recordr_write.csv: recording prov for %s\n", file))
+    #cat(sprintf("recordr_write.csv: recording prov for %s\n", file))
     scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
     d1Client <- get("d1Client", envir = as.environment(".recordr"))
     d1Pkg <- get("d1Pkg", envir = as.environment(".recordr"))
@@ -158,7 +157,7 @@ setMethod("recordr_read.csv", signature("character"), function(file, ...) {
   # Record the provenance relationship between the user's script and the derived data file
   
   if (getProvCapture()) {
-    cat(sprintf("recordr_read.csv: recording prov for %s\n", file))
+    #cat(sprintf("recordr_read.csv: recording prov for %s\n", file))
     scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
     outLines <- sprintf("%s used %s", basename(scriptPath), basename(file))
     runDir <- get("runDir", envir = as.environment(".recordr"))
@@ -178,15 +177,28 @@ setMethod("recordr_read.csv", signature("textConnection"), function(file, ...) {
 #' A state variable in the ".recordr" environment is used to
 #' temporarily disable provenance capture so that housekeeping tasks
 #' will not have provenance information recorded for them.
+#' Return the state of provenance capture: TRUE is enalbed, FALSE is disabled
+#' @param enable logical variable used to enable or disable provenance capture
+#' @author slaughter
 #' @export
 setGeneric("setProvCapture", function(enable) {
   standardGeneric("setProvCapture")
 })
 
 setMethod("setProvCapture", signature("logical"), function(enable) {
+  # If the '.recordr' environment hasn't been created, then we are calling this
+  # function outside the context of record(), so don't attempt to update the environment
+  if (is.element(".recordr", base::search())) {
     assign("provCaptureEnabled", enable, envir = as.environment(".recordr"))
+    return(enable)
+  } else {
+    # If we were able to update "provCaptureEnabled" state variable because env ".recordr"
+    # didn't exist, then provenance capture is certainly not enabled.
+    return(FALSE)
+  }
 })
 
+#' Return current state of provenance capture
 #' @export
 setGeneric("getProvCapture", function(x) {
   standardGeneric("getProvCapture")
@@ -195,11 +207,16 @@ setGeneric("getProvCapture", function(x) {
 setMethod("getProvCapture", signature(), function(x) {
   # The default state for provenance capture is enabled = FALSE. Currently in this package,
   # provenance capture is only enabled when the record() function is running.
-  #cat(exists(".recordr", mode = "environment"))
-  if (exists("provCaptureEnabled", envir = as.environment(".recordr"), inherits = FALSE )) {
-      enabled <- get("provCaptureEnabled", envir = as.environment(".recordr"))
+  #
+  # If the '.recordr' environment hasn't been created, then we are calling this
+  # function outside the context of record(), so don't attempt to read from the environment.
+  if (is.element(".recordr", base::search())) {
+    if (exists("provCaptureEnabled", where = ".recordr", inherits = FALSE )) {
+      enabled <- base::get("provCaptureEnabled", envir = as.environment(".recordr"))
+    } else {
+      enabled <- FALSE
+    }
   } else {
-    #assign("provCaptureEnabled", TRUE, envir = as.environment(".recordr"))
     enabled <- FALSE
   }
   return(enabled)
