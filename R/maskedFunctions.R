@@ -69,7 +69,7 @@ setMethod("recordr_getD1Object", "D1Client", function(x, identifier) {
     ##d1Pkg <- get("d1Pkg", envir = as.environment(".recordr"))
     outLines <- sprintf("%s used %s", basename(scriptPath), identifier)
     runDir <- get("runDir", envir = as.environment(".recordr"))
-    write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE) 
+    write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE)
   }
   
   return(d1o)
@@ -115,7 +115,7 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture()) {
-    #cat(sprintf("recordr_write.csv: recording prov for %s\n", file))
+    cat(sprintf("recordr_write.csv: recording prov for %s\n", file))
     scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
     d1Client <- get("d1Client", envir = as.environment(".recordr"))
     d1Pkg <- get("d1Pkg", envir = as.environment(".recordr"))
@@ -126,8 +126,11 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     programId <- scriptPath
     outLines <- sprintf("%s wasGeneratedBy %s", basename(file), basename(scriptPath))
     #execMeta <- get("execMeta", envir = as.environment(".recordr"))
-    runDir <- get("runDir", envir = as.environment(".recordr"))
-    write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE)
+    recordrEnv <- as.environment(".recordr")
+    write(outLines, sprintf("%s/%s/prov.txt", recordrEnv$runDir, recordrEnv$execMeta@executionId), append = TRUE)
+    
+    saveFileInfo(file)
+    archiveFile(file)
     
     #d1Object.result <- new(Class="D1Object", id.derived, derived.data, format.result, d1Client@mn.nodeid)
     #addData(d1Pkg, d1Object.result)
@@ -157,11 +160,15 @@ setMethod("recordr_read.csv", signature("character"), function(file, ...) {
   # Record the provenance relationship between the user's script and the derived data file
   
   if (getProvCapture()) {
-    #cat(sprintf("recordr_read.csv: recording prov for %s\n", file))
+    cat(sprintf("recordr_read.csv: recording prov for %s\n", file))
     scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
     outLines <- sprintf("%s used %s", basename(scriptPath), basename(file))
     runDir <- get("runDir", envir = as.environment(".recordr"))
+    recordrEnv <- as.environment(".recordr")
     write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE)
+    
+    saveFileInfo(file)
+    archiveFile(file)
   }
   return(df)
 })
@@ -221,3 +228,49 @@ setMethod("getProvCapture", signature(), function(x) {
   }
   return(enabled)
 })
+
+setMethod("publish", signature("Recordr", "character", "MNode"), function(recordr, packageId, MNode) {
+  print(paste("publishing package: ", packageId))
+})
+
+# Save local file information
+saveFileInfo <- function(file) {
+  
+  # Disable provenance capture while we read/write file info
+  provEnabled <- getProvCapture()
+  setProvCapture(FALSE)
+  
+  # Construct directory/filename to store file info
+  recordrEnv <- as.environment(".recordr")
+  infoFile <- sprintf("%s/%s/fileInfo.csv", recordrEnv$runDir, recordrEnv$execMeta@executionId)
+  
+  filePath <- normalizePath(file)
+  # get info for this file. file.info stores dates as POSIXct, so convert them to strings
+  # so that they don't get written out as an integer timestamp, i.e. milliseconds since ref date
+  rawInfo <- base::file.info(filePath)
+  thisFstats <- data.frame(size=rawInfo[["size"]], 
+                           mtime=as.character(rawInfo[["mtime"]]), 
+                           ctime=as.character(rawInfo[["ctime"]]), 
+                           uname=rawInfo[["uname"]],
+                           stringsAsFactors=FALSE, row.names=NULL)
+  rownames(thisFstats) <- c(filePath)
+  
+  # Read in the stored file info for this execution. This file contains info for all
+  # files used by this execution. Rowname of data frame is the file path.
+  print(thisFstats)
+  if (file.exists(infoFile)) {
+    fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
+      # Replace or add the entry for this file
+      fstats[filePath, ] <- thisFstats
+  } else {
+    # First file recorded, just write one file info out
+    fstats <- thisFstats
+  }
+  
+  # Save file info to run directory
+  write.csv(fstats, infoFile, row.names = TRUE)
+  setProvCapture(provEnabled)
+}
+
+archiveFile <- function(file) {
+}

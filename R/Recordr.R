@@ -152,6 +152,10 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
     d1Pkg <- get("d1Pkg", envir = as.environment(".recordr"))
     resourceMap <- d1Pkg@jDataPackage$serializePackage()
     write(resourceMap, file = sprintf("%s/%s/resourceMap.xml", recordr@runDir, recordrEnv$execMeta@executionId))
+    
+    # Save file info for the script that was run
+    saveFileInfo(filePath)
+    archiveFile(filePath)
   })
 
   # return a datapackage object
@@ -297,6 +301,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
   if (!exists("runMeta")) {
     return(df)
   } else {
+    # Order the run metadata by the specified column
     if (orderBy != "") {
       colStr <- paste("runMeta[order(runMeta$", orderBy, "),]", sep="")
       runMeta <- eval(parse(text=colStr))
@@ -468,6 +473,19 @@ setMethod("view", signature("Recordr"), function(recordr, id) {
           cat(sprintf("----------\n"))
           writeLines(provData)
         }
+        
+        fileNameLength = 30
+        # "%-30s %-10d %-19s\n"
+        fmt <- paste("%-", sprintf("%2d", fileNameLength), "s", 
+                     " %-12s %-19s\n", sep="")
+        cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time"), sep = " ")
+        infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
+        fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
+        #fstats <- order
+        # Print out file information
+        for (i in 1:nrow(fstats)) {
+          cat(sprintf(fmt, strtrim(basename(rownames(fstats)[i]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
+        }
         break
       }
     }
@@ -485,6 +503,3 @@ setGeneric("publish", function(recordr, packageId, MNode) {
   standardGeneric("publish")
 })
 
-setMethod("publish", signature("Recordr", "character", "MNode"), function(recordr, packageId, MNode) {
-  print(paste("publishing package: ", packageId))
-})
