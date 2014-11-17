@@ -53,6 +53,120 @@ setMethod("Recordr", signature(), function(x) {
 ## Methods
 ##########################
 
+#' Begin recording provenance for an R session. 
+#' @description
+#' This method starts the recording process and the method endRecord() completes it.
+#' @param Recordr object
+#' @param tag a string that is associated with this run
+#' @param scriptPath the script path (only used internally when startRecord() is called from record())
+#' @author slaughter
+#' @export
+setGeneric("startRecord", function(recordr, tag="", scriptPath="", ...) {
+  standardGeneric("startRecord")
+})
+
+#' @export
+setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptPath="", ...) {
+  
+  # Check if a recording session has already been started.
+  if (is.element(".recordr", base::search())) {
+    message("A Recordr session is already active. Please run endRecord() if you wish to close this session.")
+    return(NULL)
+  }
+  # Create an environment on the search path that will store the overridden 
+  # funnction names. These overridden functions are the ones that Recordr will
+  # record provenance information for. This mechanism is similiar to a callback,
+  # so that when the user script calls these functions, the Recordr version will be
+  # called first, provenance relationships will be determined and recorded by Recordr,
+  # then the Recordr version will call the native R function.
+  # Using this mechanism, the DataONE and R methods and functions
+  # are only overridden while the record function is running, allowing the user to use DataONE
+  # and R normally from their interactive R session.
+  attach(NULL, name=".recordr")
+  recordrEnv <- as.environment(".recordr")
+  # If no scriptName is passed to startRecord(), then we are running in the R console, and R
+  # itself is the top level program we are running.
+  currentTime <- format(Sys.time(), "%Y%m%d%H%M%s")
+  if (scriptPath == "") {
+    recordrEnv$scriptPath <- R.Version()$version.string
+    script = ""
+  } else {
+    recordrEnv$scriptPath <- scriptPath
+    script <- paste(readLines(recordrEnv$scriptPath), collapse = '')
+  }
+  
+  recordrEnv$execMeta <- ExecMetadata(recordrEnv$scriptPath, tag=tag)
+  recordrEnv$runDir <- recordr@runDir
+  # Create an empty D1 datapackage object and make it globally available, i.e. available
+  # to the masking functions.
+  # TODO: Read memmber node from configuration API
+  recordrEnv$mnNodeId <- "urn:node:mnDemo5"
+  recordrEnv$d1Client <- D1Client("DEV", mnNodeId)
+  recordrEnv$d1Pkg <- new(Class="DataPackage", packageId=recordrEnv$execMeta@datapackageId)
+  
+  # Build a D1Object that will contain the script we are recording
+  # TODO: Replace this prototype code with data package calls
+  programId <- paste("r_test_program", currentTime, "1", sep=".")
+  scriptFmt <- "text/plain"
+  programD1Obj <- new(Class="D1Object", programId, script, scriptFmt, recordrEnv$mnNodeId)
+  # Set access control on the action object to be public
+  setPublicAccess(programD1Obj)
+  # Create a metadata object
+  metadata <- paste(readLines("~/.recordr/metadata.xml"), collapse = '')
+  metadataFmt <- "eml://ecoinformatics.org/eml-2.1.1"
+  
+  # Build a D1Object for the metadata, and upload it to the MN
+  metadataId <- paste("r_test_mta", currentTime, "1", sep=".")
+  metadataD1Obj <- new("D1Object", metadataId, metadata, metadataFmt, recordrEnv$mnNodeId)
+  addData(recordrEnv$d1Pkg, programD1Obj)
+  addData(recordrEnv$d1Pkg, metadataD1Obj)
+  ##insertRelationship(d1Pkg, metadataId, c(id.dat, id.result, programId))
+  
+  # Override R functions
+  recordrEnv$source <- recordr::recordr_source
+  # override DataONE V1.1.0 methods
+  recordrEnv$getD1Object <- recordr::recordr_getD1Object
+  recordrEnv$createD1Object <- recordr::recordr_createD1Object
+  # override R functions
+  recordrEnv$read.csv <- recordr::recordr_read.csv
+  recordrEnv$write.csv <- recordr::recordr_write.csv
+  
+  # Create the run metadata directory for this record()
+  dir.create(sprintf("%s/%s", recordr@runDir, recordrEnv$execMeta@executionId), recursive = TRUE)
+  file.create(sprintf("%s/%s/prov.txt", recordr@runDir, recordrEnv$execMeta@executionId))
+  
+  setProvCapture(TRUE)
+  # The Recordr provenance capture capability is now setup and when startRecord() returns, the
+  # user can continue to work in the calling context, i.e. the console and provenance will be
+  # capture until endRecord() is called.
+})
+
+#' End the recording session that was started by startRecord()
+#' Prepare and return a DataPackage that contains all derived products created during the 
+#' session and all recorded provenance relationships
+#' @param Recordr object
+#' @return pkg a DataONE data package
+#' @author slaughter
+#' @export
+setGeneric("endRecord", function(recordr) {
+  standardGeneric("endRecord")
+})
+
+#' @export
+setMethod("endRecord", signature("Recordr"), function(recordr) {
+  
+  # Check if a recording session is active
+  if (! is.element(".recordr", base::search())) {
+    message("A Recordr session is not currently active.")
+    return(NULL)
+  }
+  
+  recordrEnv <- as.environment(".recordr")
+  d1Pkg <- recordrEnv$d1Pkg
+  detach(".recordr")
+  return(d1Pkg)
+})
+
 #' Record provenance for an R script execution and create a DataONE DataPackage that
 #' contains this provenance information and all derived products create by the script
 #' @param Recordr object
@@ -67,76 +181,11 @@ setGeneric("record", function(recordr, filePath, tag="", ...) {
 #' @export
 setMethod("record", signature("Recordr", "character"), function(recordr, filePath, tag="", ...) {
 
-  # Create an environment on the search path that will store the overridden 
-  # funnction names. These overridden functions are the ones that Recordr will
-  # record provenance information for. This mechanism is similiar to a callback,
-  # so that when the user script calls these functions, the Recordr version will be
-  # called first, provenance relationships will be determined and recorded by Recordr,
-  # then the Recordr version will call the native R function.
-  # Using this mechanism, the DataONE and R methods and functions
-  # are only overridden while the record function is running, allowing the user to use DataONE
-  # and R normally from their interactive R session.
-  attach(NULL, name=".recordr")
-  
-  # Remove the environment from the R search path. 
-  on.exit(detach(".recordr"))
-  assign("runDir", recordr@runDir, envir = as.environment(".recordr"))
+  startRecord(recordr, tag, filePath)
   recordrEnv <- as.environment(".recordr")
-  recordrEnv$execMeta <- ExecMetadata(filePath)
-  # ellipsisArgs <- list(...)
-  if (tag != "") {
-    recordrEnv$execMeta@tag <- tag
-  }
-  # Create an empty D1 datapackage object and make it globally available, i.e. available
-  # to the masking functions.
-  mnNodeId <- "urn:node:mnDemo5"
-  d1Client <- D1Client("DEV", mnNodeId)
-  d1Pkg <- new(Class="DataPackage", packageId=recordrEnv$execMeta@datapackageId)
-
-  # Build a D1Object that will contain the script we are recording
-  currentTime <- format(Sys.time(), "%Y%m%d%H%M%s")
-  programId <- paste("r_test_program", currentTime, "1", sep=".")
-  script <- paste(readLines(filePath), collapse = '')
-  scriptFmt <- "text/plain"
-  programD1Obj <- new(Class="D1Object", programId, script, scriptFmt, mnNodeId)
-  
-  # Set access control on the action object to be public
-  setPublicAccess(programD1Obj)
-  # Create a metadata object
-  metadata <- paste(readLines("~/.recordr/metadata.xml"), collapse = '')
-  metadataFmt <- "eml://ecoinformatics.org/eml-2.1.1"
-  
-  ## Build a D1Object for the metadata, and upload it to the MN
-  metadataId <- paste("r_test_mta", currentTime, "1", sep=".")
-  metadataD1Obj <- new("D1Object", metadataId, metadata, metadataFmt, mnNodeId)
-  addData(d1Pkg,programD1Obj)
-  addData(d1Pkg,metadataD1Obj)
-  ##insertRelationship(d1Pkg, metadataId, c(id.dat, id.result, programId))
-  
-  # Copy the client and data package to the ".recordr" environment so that they
-  # will be available to the overriding functions, i.e. "recordr_write.csv"
-  assign("d1Client", d1Client, envir = as.environment(".recordr"))
-  assign("d1Pkg", d1Pkg, envir = as.environment(".recordr"))
-  # Remove the original copies, as only the copies in the ".recordr" environment
-  # will be used now.
-  rm(d1Client)
-  rm(d1Pkg)
-
-  assign("scriptPath", filePath, envir = as.environment(".recordr"))
-  assign("source", recordr::recordr_source, envir = as.environment(".recordr"))
-  # override DataONE V1.1.0 methods
-  assign("getD1Object", recordr::recordr_getD1Object, envir = as.environment(".recordr"))
-  assign("createD1Object", recordr::recordr_createD1Object, envir = as.environment(".recordr"))
-  # override R functions
-  assign("read.csv",  recordr::recordr_read.csv,  envir = as.environment(".recordr"))
-  assign("write.csv", recordr::recordr_write.csv, envir = as.environment(".recordr"))
-  
-  # Create the run metadata directory for this record()
-  dir.create(sprintf("%s/%s", recordr@runDir, recordrEnv$execMeta@executionId), recursive = TRUE)
-  file.create(sprintf("%s/%s/prov.txt", recordr@runDir, recordrEnv$execMeta@executionId))
-  # Source the user's script, passing in arguments that they intended for the 'source' call.
   setProvCapture(TRUE)
-  result = tryCatch({
+  # Source the user's script, passing in arguments that they intended for the 'source' call.
+  result = tryCatch ({
     #cat(sprintf("Sourcing file %s\n", filePath))
     base::source(filePath, local=FALSE, ...)
   }, warning = function(warningCond) {
@@ -146,21 +195,23 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
     slot(recordrEnv$execMeta, "errorMessage") <- errorCond$message
     cat(sprintf("Error:: %s", recordrEnv$execMeta@errorMessage))
   }, finally = {
+    # Disable provenance capture while some housekeeping is done
     setProvCapture(FALSE)
     recordrEnv$execMeta@endTime <- as.character(Sys.time())
     writeExecMeta(recordr, recordrEnv$execMeta)
-    d1Pkg <- get("d1Pkg", envir = as.environment(".recordr"))
-    resourceMap <- d1Pkg@jDataPackage$serializePackage()
+    resourceMap <- recordrEnv$d1Pkg@jDataPackage$serializePackage()
     write(resourceMap, file = sprintf("%s/%s/resourceMap.xml", recordr@runDir, recordrEnv$execMeta@executionId))
     
     # Save file info for the script that was run
     saveFileInfo(filePath)
     archiveFile(filePath)
+    
+    # Stop recording provenance and finalize the data package
+    pkg <- endRecord(recordr)
+    # return a datapackage object
+    
+    return(pkg)
   })
-
-  # return a datapackage object
-  #return(recordrEnv$execMeta@datapackageId)
-  return(d1Pkg)
 })
 
 #' Select runs that match search parameters
@@ -481,7 +532,9 @@ setMethod("view", signature("Recordr"), function(recordr, id) {
         cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time"), sep = " ")
         infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
         fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
-        #fstats <- order
+        # Order the list of files by file most recently modified
+        # Note: we could also sort by basename of the file: fstats[order(basename(rownames(fstats))),]
+        fstats <- fstats[order(fstats$mtime),]
         # Print out file information
         for (i in 1:nrow(fstats)) {
           cat(sprintf(fmt, strtrim(basename(rownames(fstats)[i]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
