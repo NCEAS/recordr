@@ -162,6 +162,16 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   }
   
   recordrEnv <- as.environment(".recordr")
+  # Disable provenance capture while some housekeeping is done
+  setProvCapture(FALSE)
+  recordrEnv <- as.environment(".recordr")
+  recordrEnv$execMeta@endTime <- as.character(Sys.time())
+  writeExecMeta(recordr, recordrEnv$execMeta)
+  if (recordrEnv$d1Pkg@jDataPackage != NULL) {
+    resourceMap <- recordrEnv$d1Pkg@jDataPackage$serializePackage()
+    write(resourceMap, file = sprintf("%s/%s/resourceMap.xml", recordr@runDir, recordrEnv$execMeta@executionId))
+  }
+  
   d1Pkg <- recordrEnv$d1Pkg
   detach(".recordr")
   return(d1Pkg)
@@ -197,15 +207,9 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
   }, finally = {
     # Disable provenance capture while some housekeeping is done
     setProvCapture(FALSE)
-    recordrEnv$execMeta@endTime <- as.character(Sys.time())
-    writeExecMeta(recordr, recordrEnv$execMeta)
-    resourceMap <- recordrEnv$d1Pkg@jDataPackage$serializePackage()
-    write(resourceMap, file = sprintf("%s/%s/resourceMap.xml", recordr@runDir, recordrEnv$execMeta@executionId))
-    
     # Save file info for the script that was run
     saveFileInfo(filePath)
     archiveFile(filePath)
-    
     # Stop recording provenance and finalize the data package
     pkg <- endRecord(recordr)
     # return a datapackage object
@@ -243,9 +247,18 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
                    publishTime = character(),
                    errorMessage = character(),
                    row.names = NULL)
-    
+  
+  sortOrder = "ascending"
   # Is the column that the user specified for ordering correct?
   if (orderBy != "") {
+    # Check if column name to sort by is prefaced with a "-", which indicates descending column oroder
+    if (grepl("^\\s*-", orderBy)) {
+        sortOrder <- "descending"
+        orderBy <- sub("^\\s*-", "", orderBy)
+    } else if (grepl("^\\s*\\+", orderBy)) {
+      sortOrder <- "ascending"
+      orderBy <- sub("^\\s*\\+", "", orderBy)
+    }
     if (! is.element(orderBy, colNames)) {
       cat(sprintf("Invalid column name: \"%s\"\n", orderBy))
       cat(sprintf("Please use one of the following column names: \"%s\"\n", paste(colNames, collapse = '", "')))
@@ -354,7 +367,12 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
   } else {
     # Order the run metadata by the specified column
     if (orderBy != "") {
-      colStr <- paste("runMeta[order(runMeta$", orderBy, "),]", sep="")
+      if (sortOrder == "descending") {
+        colStr <- paste("runMeta[order(runMeta$", orderBy, ", decreasing=TRUE),]", sep="")
+      }
+      else {
+        colStr <- paste("runMeta[order(runMeta$", orderBy, "),]", sep="")
+      }
       runMeta <- eval(parse(text=colStr))
     }
     return(runMeta)
