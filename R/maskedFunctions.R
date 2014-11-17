@@ -115,22 +115,15 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture()) {
-    cat(sprintf("recordr_write.csv: recording prov for %s\n", file))
-    scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
-    d1Client <- get("d1Client", envir = as.environment(".recordr"))
-    d1Pkg <- get("d1Pkg", envir = as.environment(".recordr"))
-    setProvCapture(FALSE)
-    derived.data <- convert.csv(d1Client, x)
-    setProvCapture(TRUE)
-    #derivedDataId <- file
-    programId <- scriptPath
-    outLines <- sprintf("%s wasGeneratedBy %s", basename(file), basename(scriptPath))
-    #execMeta <- get("execMeta", envir = as.environment(".recordr"))
+    #cat(sprintf("recordr_write.csv: recording prov for %s\n", file))
     recordrEnv <- as.environment(".recordr")
+    setProvCapture(FALSE)
+    derived.data <- convert.csv(recordrEnv$d1Client, x)
+    outLines <- sprintf("%s wasGeneratedBy %s", basename(file), basename(recordrEnv$scriptPath))
     write(outLines, sprintf("%s/%s/prov.txt", recordrEnv$runDir, recordrEnv$execMeta@executionId), append = TRUE)
-    
     saveFileInfo(file)
     archiveFile(file)
+    setProvCapture(TRUE)
     
     #d1Object.result <- new(Class="D1Object", id.derived, derived.data, format.result, d1Client@mn.nodeid)
     #addData(d1Pkg, d1Object.result)
@@ -160,7 +153,7 @@ setMethod("recordr_read.csv", signature("character"), function(file, ...) {
   # Record the provenance relationship between the user's script and the derived data file
   
   if (getProvCapture()) {
-    cat(sprintf("recordr_read.csv: recording prov for %s\n", file))
+    #cat(sprintf("recordr_read.csv: recording prov for %s\n", file))
     scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
     outLines <- sprintf("%s used %s", basename(scriptPath), basename(file))
     runDir <- get("runDir", envir = as.environment(".recordr"))
@@ -174,7 +167,7 @@ setMethod("recordr_read.csv", signature("character"), function(file, ...) {
 })
 
 setMethod("recordr_read.csv", signature("textConnection"), function(file, ...) {
-  print("recordr_read.csv for textConnection")
+  #print("recordr_read.csv for textConnection")
   obj <- utils::read.csv(file, ...)
 })
 
@@ -186,6 +179,7 @@ setMethod("recordr_read.csv", signature("textConnection"), function(file, ...) {
 #' will not have provenance information recorded for them.
 #' Return the state of provenance capture: TRUE is enalbed, FALSE is disabled
 #' @param enable logical variable used to enable or disable provenance capture
+#' @return enabled a logical indicating the state of provenance capture: TRUE=enabled, FALSE=disabled
 #' @author slaughter
 #' @export
 setGeneric("setProvCapture", function(enable) {
@@ -206,6 +200,7 @@ setMethod("setProvCapture", signature("logical"), function(enable) {
 })
 
 #' Return current state of provenance capture
+#' @return enabled a logical indicating the state of provenance capture: TRUE=enabled, FALSE=disabled
 #' @export
 setGeneric("getProvCapture", function(x) {
   standardGeneric("getProvCapture")
@@ -257,7 +252,6 @@ saveFileInfo <- function(file) {
   
   # Read in the stored file info for this execution. This file contains info for all
   # files used by this execution. Rowname of data frame is the file path.
-  print(thisFstats)
   if (file.exists(infoFile)) {
     fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
       # Replace or add the entry for this file
