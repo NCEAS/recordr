@@ -46,16 +46,16 @@ setClass("ExecMetadata", slots = c(executionId      = "character",
 #' @return the ExecMetadata object
 #' @author slaughter
 #' @export
-setGeneric("ExecMetadata", function(programName) {
+setGeneric("ExecMetadata", function(programName, tag="") {
   standardGeneric("ExecMetadata")
 })
 
-setMethod("ExecMetadata", signature("character"), function(programName) {
+setMethod("ExecMetadata", signature("character"), function(programName, tag="") {
   
   ## create new MNode object and insert uri endpoint
   execMeta <- new("ExecMetadata")  
   execMeta@executionId <- UUIDgenerate()
-  execMeta@tag         <- ""
+  execMeta@tag         <- tag
   execMeta@datapackageId <- UUIDgenerate()
   execMeta@accountName <- Sys.info()["user"]
   execMeta@hostId <- Sys.info()["nodename"]
@@ -122,7 +122,11 @@ setGeneric("readExecMeta", function(recordr, executionId) {
 setMethod("readExecMeta", signature("Recordr", "character"), function(recordr, executionId) {
   filePath <- sprintf("%s/%s/%s", recordr@runDir, executionId, "execMetadata.csv")
   if (file.exists(filePath)) {
+    # Temporarily disable provenance capture while we read in execution metadata
+    provCaptureEnabled <- getProvCapture()
+    setProvCapture(FALSE)
     mdf <- read.csv(filePath, stringsAsFactors=FALSE)
+    setProvCapture(provCaptureEnabled)
     execMeta <- new("ExecMetadata")  
     execMeta@executionId         <- mdf[mdf$name == "executionId", "value" ]
     execMeta@tag                 <- mdf[mdf$name == "tag", "value"]
