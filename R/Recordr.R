@@ -489,26 +489,27 @@ printRun <- function(row=list(), headerOnly = FALSE) {
   #fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
   fmt <- paste("%-", sprintf("%2d", scriptNameLength), "s", 
                " %-", sprintf("%2d", tagLength), "s",
-               " %-19s %-19s %-36s %-36s %-19s",
+               " %-19s %-19s %-36s %-19s",
                " %-", sprintf("%2d", errorMsgLength), "s", "\n", sep="")
   
   if (headerOnly) {
-    cat(sprintf(fmt, "Script", "Tag", "Start Time", "End Time", "Run Identifier", "Package Identifier", "Published Time", "Error Message"), sep = " ")
+    cat(sprintf(fmt, "Script", "Tag", "Start Time", "End Time", "Run Identifier", "Published Time", "Error Message"), sep = " ")
   } else {
     thisScript       <- row["script"]
     thisStartTime    <- row["startTime"]
     thisEndTime      <- row["endTime"]
     thisExecId       <- row["executionId"]
-    thisPackageId    <- row["datapackageId"]
+    #thisPackageId    <- row["datapackageId"]
     thisPublishTime  <- row["publishTime"]
     thisErrorMessage <- row["errorMessage"]
     thisTag         <- row["tag"]
     cat(sprintf(fmt, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime, 
-                thisEndTime, thisExecId, thisPackageId, thisPublishTime, strtrim(thisErrorMessage, errorMsgLength)), sep = " ")
+                thisEndTime, thisExecId, thisPublishTime, strtrim(thisErrorMessage, errorMsgLength)), sep = " ")
   }
 }
 
-#' View the contents of a DataONE data package
+#' View detailed information for an execution
+#' @description Detailed information for an execution and any packags created by that exectution are printed to the display.
 #' @param identifier of the data package
 ## @returnType DataPackage  
 ## 
@@ -519,47 +520,48 @@ setGeneric("view", function(recordr, id) {
 })
 
 setMethod("view", signature("Recordr"), function(recordr, id) {
-  cat(sprintf("DataOne DataPackage\n"))
-  cat(sprintf("===================\n"))
-  cat(sprintf("Package identifier: %s\n", id))
+  cat(sprintf("Information for execution: %s\n", id))
   
   # Find the data package in the recordr run directories
-  dirs <- list.files(recordr@runDir)
-  for (d in dirs) {
-    execMeta <- readExecMeta(recordr, d)
-    if (! is.null(execMeta)) {
-      packageId <-  execMeta@datapackageId
-      if (id == packageId) {
-        cat(sprintf("This package was created by run: %s\n", d))
-        thisRunDir <- sprintf("%s/%s", recordr@runDir, d)
-        # Print out the text file that contains the relationships
-        # TODO: read prov relationships directly from the data package object
-        #       that was read in
-        provFile <- sprintf("%s/prov.txt", thisRunDir)
-        if(file.exists(provFile)) {
-          provData <- readLines(provFile)
-          cat(sprintf("\nProvenance\n"))
-          cat(sprintf("----------\n"))
-          writeLines(provData)
-        }
-        
-        fileNameLength = 30
-        # "%-30s %-10d %-19s\n"
-        fmt <- paste("%-", sprintf("%2d", fileNameLength), "s", 
-                     " %-12s %-19s\n", sep="")
-        cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time"), sep = " ")
-        infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
-        fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
-        # Order the list of files by file most recently modified
-        # Note: we could also sort by basename of the file: fstats[order(basename(rownames(fstats))),]
-        fstats <- fstats[order(fstats$mtime),]
-        # Print out file information
-        for (i in 1:nrow(fstats)) {
-          cat(sprintf(fmt, strtrim(basename(rownames(fstats)[i]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
-        }
-        break
-      }
+  #dirs <- list.files(recordr@runDir)
+  thisRunDir <- sprintf("%s/%s", recordr@runDir, id)
+  if (! file.exists(thisRunDir)) {
+    msg <- sprintf("Directory not found for execution identifier: %s", id)
+    stop(msg)
+  }
+  
+  execMeta <- readExecMeta(recordr, id)
+  if (! is.null(execMeta)) {
+    packageId <-  execMeta@datapackageId
+    cat(sprintf("Package identifier: %s\n", packageId))
+    # Print out the text file that contains the relationships
+    # TODO: read prov relationships directly from the data package object
+    #       that was read in
+    provFile <- sprintf("%s/prov.txt", thisRunDir)
+    if(file.exists(provFile)) {
+      provData <- readLines(provFile)
+      cat(sprintf("\nProvenance\n"))
+      cat(sprintf("----------\n"))
+      writeLines(provData)
     }
+    
+    fileNameLength = 30
+    # "%-30s %-10d %-19s\n"
+    fmt <- paste("%-", sprintf("%2d", fileNameLength), "s", 
+                 " %-12s %-19s\n", sep="")
+    cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time"), sep = " ")
+    infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
+    fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
+    # Order the list of files by file most recently modified
+    # Note: we could also sort by basename of the file: fstats[order(basename(rownames(fstats))),]
+    fstats <- fstats[order(fstats$mtime),]
+    # Print out file information
+    for (i in 1:nrow(fstats)) {
+      cat(sprintf(fmt, strtrim(basename(rownames(fstats)[i]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
+    }
+  } else {
+    msg <- sprintf("Unable to read execution metadata from working directory: %s", thisRunDir)
+    stop(msg)
   }
   # Return the data package (not implemented yet)
 })
