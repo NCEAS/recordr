@@ -34,7 +34,7 @@ write.csv(data.frame(x=1:10, y=11:20), file = inFile)
 test_that("Can record a script execution", {
   # Check that tests have been setup
   expect_that(uuidTag, is_a("character"))
-  recordr <- Recordr()
+  recordr <- new("Recordr")
   pkg <- record(recordr, scriptPath, tag=uuidTag)
   expect_that(class(pkg)[1], equals("DataPackage"))
   # Check the D1 package created by the record() call
@@ -44,7 +44,7 @@ test_that("Can record a script execution", {
 })
 
 test_that("Can list a script execution", {
-  recordr <- Recordr()
+  recordr <- new("Recordr")
   # List the single run
   mdf <- listRuns(recordr, tag=uuidTag, quiet = TRUE)
   # If we successfully listed the run, then the returned data
@@ -54,7 +54,7 @@ test_that("Can list a script execution", {
 })
 
 test_that("Can delete a script execution", {
-  recordr <- Recordr()
+  recordr <- new("Recordr")
   # Delete the single run
   mdf <- deleteRuns(recordr, tag=uuidTag, quiet = TRUE)
   # If we deleted the run, then the returned data
@@ -62,4 +62,3 @@ test_that("Can delete a script execution", {
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
 })
-

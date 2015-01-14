@@ -12,7 +12,7 @@ test_that("Can create an ExecMetadaa object", {
 })
 
 test_that("Can persist an ExecMetadaa object", {
-  rc <- Recordr()
+  rc <- new("Recordr")
   execMeta <- ExecMetadata(scriptPath)
   filePath <- writeExecMeta(rc, execMeta)
   expect_that(file.exists(filePath), is_true())
@@ -20,7 +20,7 @@ test_that("Can persist an ExecMetadaa object", {
 })
 
 test_that("Can retrieve an ExecMetadata object", {
-  rc <- Recordr()
+  rc <- new("Recordr")
   mdf <- listRuns(rc, quiet = TRUE)
   if (nrow(mdf) == 0) {
     warning("Unable to test ExecMetadata retrieval because no runs have been recorded")
