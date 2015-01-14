@@ -88,7 +88,7 @@ setGeneric("writeExecMeta", function(recordr, execMeta, ...) {
 })
 
 setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(recordr, execMeta, ...) {
-  #print(sprintf("writeExecMeta: writing file %s/%s/execMetadata.csv", recordr@runDir, execMeta@executionId))
+  #print(sprintf("writeExecMeta: writing file %s/runs/%s/execMetadata.csv", recordr@recordrDir, execMeta@executionId))
   
   # Get values from all the slots for the execution metadata, in order.
   # There is probably an easier way to do this!
@@ -96,7 +96,7 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
   slotValues <- as.character(lapply(slotNames, function(x) eval(slot(execMeta, x))))
   df <- data.frame(name = slotNames, value = slotValues)
   provCaptureEnabled <- getProvCapture()
-  outDir <- sprintf("%s/%s", recordr@runDir, execMeta@executionId)
+  outDir <- sprintf("%s/runs/%s", recordr@recordrDir, execMeta@executionId)
   
   if (! file.exists(outDir)) {
     dir.create(outDir, recursive = TRUE)
@@ -120,7 +120,7 @@ setGeneric("readExecMeta", function(recordr, executionId) {
 })
 
 setMethod("readExecMeta", signature("Recordr", "character"), function(recordr, executionId) {
-  filePath <- sprintf("%s/%s/%s", recordr@runDir, executionId, "execMetadata.csv")
+  filePath <- sprintf("%s/runs/%s/%s", recordr@recordrDir, executionId, "execMetadata.csv")
   if (file.exists(filePath)) {
     # Temporarily disable provenance capture while we read in execution metadata
     provCaptureEnabled <- getProvCapture()

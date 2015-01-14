@@ -18,35 +18,25 @@
 #   limitations under the License.
 #
 
-library(dataone)
-
 #' Recordr provides methods for capturing, managing and publishing R processing provenance.
-#' @slot recordrDir ion value of type \code{"character"}, containing a path to the Recordr working directory
-#' @slot runDir value of type \code{"character"}, containing the path of the sub-directory that contains every run directory
+#' @slot recordrDir value of type \code{"character"} containing a path to the Recordr working directory
 #' @rdname Recordr-class
 #' @author slaughter
+#' @import dataone
+#' @import datapackage
+#' @import uuid
+#' @import tools
+#' @include Constants.R
 #' @export
-setClass("Recordr", slots = c(recordrDir = "character",
-                              runDir = "character")
+setClass("Recordr", slots = c(recordrDir = "character")
 )
-#########################
-## Recordr constructors
-#########################
 
-#' @return the Recordr object
-#' @author slaughter
-#' @export
-setGeneric("Recordr", function(x) {
-  standardGeneric("Recordr")
-})
-
-setMethod("Recordr", signature(), function(x) {
+#' Initialize a Recorder object
+setMethod("initialize", signature = "Recordr", definition = function(.Object,
+                                                                     recordrDir = normalizePath("~/.recordr")) {
   
-  # Create a new Recordr object
-  recordr <- new("Recordr")  
-  recordr@recordrDir <- "~/.recordr"
-  recordr@runDir <- sprintf("%s/runs", recordr@recordrDir)
-  return(recordr)
+  .Object@recordrDir <- recordrDir
+  return(.Object)
 })
 
 ##########################
@@ -88,52 +78,50 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   # itself is the top level program we are running.
   currentTime <- format(Sys.time(), "%Y%m%d%H%M%s")
   if (scriptPath == "") {
-    recordrEnv$scriptPath <- R.Version()$version.string
-    script = ""
+    recordrEnv$scriptPath = ""
+    recordrEnv$programId <- R.Version()$version.string
+    script = charToRaw("")
   } else {
     recordrEnv$scriptPath <- scriptPath
-    script <- paste(readLines(recordrEnv$scriptPath), collapse = '')
+    recordrEnv$programId <- sprintf("%s_%s", basename(scriptPath), UUIDgenerate() )
+    script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = ''))
   }
   
   recordrEnv$execMeta <- ExecMetadata(recordrEnv$scriptPath, tag=tag)
-  recordrEnv$runDir <- recordr@runDir
   # Create an empty D1 datapackage object and make it globally available, i.e. available
-  # to the masking functions.
+  # to the masking functions, e.g. "recordr_write.csv".
   # TODO: Read memmber node from configuration API
   recordrEnv$mnNodeId <- "urn:node:mnDemo5"
-  recordrEnv$d1Client <- D1Client("DEV", mnNodeId)
-  recordrEnv$d1Pkg <- new(Class="DataPackage", packageId=recordrEnv$execMeta@datapackageId)
+  recordrEnv$dataPkg <- new(Class="DataPackage", packageId=recordrEnv$execMeta@datapackageId)
   
-  # Build a D1Object that will contain the script we are recording
-  # TODO: Replace this prototype code with data package calls
-  programId <- paste("r_test_program", currentTime, "1", sep=".")
+  # Store the provONE relationship: execution -> prov:qualifiedAssociation -> association
+  associationId <- sprintf("%s_%s", "association", UUIDgenerate())
+  insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=associationId, predicate=provQualifiedAssociation)
+  
+  # Create a data package object for the program that we are running and store it.
   scriptFmt <- "text/plain"
-  programD1Obj <- new(Class="D1Object", programId, script, scriptFmt, recordrEnv$mnNodeId)
+  programD1Obj <- new("DataObject", recordrEnv$programId, script, scriptFmt, recordrEnv$execMeta@accountName, recordrEnv$mnNodeId)
   # Set access control on the action object to be public
-  setPublicAccess(programD1Obj)
-  # Create a metadata object
-  metadata <- paste(readLines("~/.recordr/metadata.xml"), collapse = '')
-  metadataFmt <- "eml://ecoinformatics.org/eml-2.1.1"
+  #setPublicAccess(programD1Obj)
   
-  # Build a D1Object for the metadata, and upload it to the MN
-  metadataId <- paste("r_test_mta", currentTime, "1", sep=".")
-  metadataD1Obj <- new("D1Object", metadataId, metadata, metadataFmt, recordrEnv$mnNodeId)
-  addData(recordrEnv$d1Pkg, programD1Obj)
-  addData(recordrEnv$d1Pkg, metadataD1Obj)
-  ##insertRelationship(d1Pkg, metadataId, c(id.dat, id.result, programId))
+  # Store the Prov relationship: association -> prov:hadPlan -> program
+  addData(recordrEnv$dataPkg, programD1Obj)
+  insertRelationship(recordrEnv$dataPkg, subjectID=programId, objectIDs=recordrEnv$programId, predicate=provHadPlan)
+  
+  # Store the Prov relationship: association -> prov:agent -> user
+  insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@accountName , predicate=provAgent)
   
   # Override R functions
-  recordrEnv$source <- recordr::recordr_source
+  #recordrEnv$source <- recordr::recordr_source
   # override DataONE V1.1.0 methods
-  recordrEnv$getD1Object <- recordr::recordr_getD1Object
-  recordrEnv$createD1Object <- recordr::recordr_createD1Object
+  #recordrEnv$getD1Object <- recordr::recordr_getD1Object
+  #recordrEnv$createD1Object <- recordr::recordr_createD1Object
   # override R functions
   recordrEnv$read.csv <- recordr::recordr_read.csv
   recordrEnv$write.csv <- recordr::recordr_write.csv
   
   # Create the run metadata directory for this record()
-  dir.create(sprintf("%s/%s", recordr@runDir, recordrEnv$execMeta@executionId), recursive = TRUE)
-  file.create(sprintf("%s/%s/prov.txt", recordr@runDir, recordrEnv$execMeta@executionId))
+  dir.create(sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId), recursive = TRUE)
   
   setProvCapture(TRUE)
   # The Recordr provenance capture capability is now setup and when startRecord() returns, the
@@ -237,7 +225,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
   colNames = c("script", "tag", "startTime", "endTime", "execId", "packageId", "publishTime", "errorMessage")
   
   # Find all run directories
-  dirs <- list.files(recordr@runDir)
+  dirs <- list.files(sprintf("%s/runs", recordr@recordrDir))
   df <- data.frame(script = character(), 
                    tag = character(),
                    startTime = character(),
@@ -420,9 +408,9 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, runIds = "", scr
   for(i in 1:nrow(runs)) {
     row <- runs[i,]
     thisExecId <- row["executionId"]
-    thisRunDir <- sprintf("%s/%s", recordr@runDir, thisExecId)
+    thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, thisExecId)
     if (!noop) {
-      if(thisRunDir == recordr@runDir || thisRunDir == "") {
+      if(thisRunDir == sprintf("%s/runs", recordr@recordrDir) || thisRunDir == "") {
         stop(sprintf("Error determining directory to remove, directory: %s", thisRunDir))
       }
       unlink(thisRunDir, recursive = TRUE)
@@ -518,13 +506,13 @@ printRun <- function(row=list(), headerOnly = FALSE) {
 setGeneric("view", function(recordr, id) {
   standardGeneric("view")
 })
-
+# 
 setMethod("view", signature("Recordr"), function(recordr, id) {
   cat(sprintf("Information for execution: %s\n", id))
   
   # Find the data package in the recordr run directories
   #dirs <- list.files(recordr@runDir)
-  thisRunDir <- sprintf("%s/%s", recordr@runDir, id)
+  thisRunDir <- sprintf("%s/runs/%s", sprintf("%s/runs/%s", recordr@recordrDir), id)
   if (! file.exists(thisRunDir)) {
     msg <- sprintf("Directory not found for execution identifier: %s", id)
     stop(msg)
