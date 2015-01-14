@@ -57,8 +57,8 @@ setMethod("ExecMetadata", signature("character"), function(programName, tag="") 
   execMeta@executionId <- UUIDgenerate()
   execMeta@tag         <- tag
   execMeta@datapackageId <- UUIDgenerate()
-  execMeta@accountName <- Sys.info()["user"]
-  execMeta@hostId <- Sys.info()["nodename"]
+  execMeta@accountName <- Sys.info()[['user']]
+  execMeta@hostId <- Sys.info()[['nodename']]
   execMeta@startTime <- as.character(Sys.time())
   execMeta@operatingSystem <- R.Version()$platform
   execMeta@runtime <- R.Version()$version.string
