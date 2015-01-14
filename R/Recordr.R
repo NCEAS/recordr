@@ -63,6 +63,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
     message("A Recordr session is already active. Please run endRecord() if you wish to close this session.")
     return(NULL)
   }
+  
   # Create an environment on the search path that will store the overridden 
   # funnction names. These overridden functions are the ones that Recordr will
   # record provenance information for. This mechanism is similiar to a callback,
@@ -149,20 +150,26 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
     return(NULL)
   }
   
+  on.exit(detach(".recordr"))
   recordrEnv <- as.environment(".recordr")
-  # Disable provenance capture while some housekeeping is done
-  setProvCapture(FALSE)
-  recordrEnv <- as.environment(".recordr")
-  recordrEnv$execMeta@endTime <- as.character(Sys.time())
-  writeExecMeta(recordr, recordrEnv$execMeta)
-  if (recordrEnv$d1Pkg@jDataPackage != NULL) {
-    resourceMap <- recordrEnv$d1Pkg@jDataPackage$serializePackage()
-    write(resourceMap, file = sprintf("%s/%s/resourceMap.xml", recordr@runDir, recordrEnv$execMeta@executionId))
+  runDir <- sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId)
+  if (!file.exists(runDir)) {
+      # Create the run metadata directory for this record()
+      dir.create(runDir, recursive = TRUE)
   }
   
-  d1Pkg <- recordrEnv$d1Pkg
-  detach(".recordr")
-  return(d1Pkg)
+  # Disable provenance capture while some housekeeping is done
+  setProvCapture(FALSE)
+  recordrEnv$execMeta@endTime <- as.character(Sys.time())
+  writeExecMeta(recordr, recordrEnv$execMeta)
+  # Generate a uuid for this serialization object
+  serializationId = sprintf("%s_%s", "resourceMap", UUIDgenerate())
+  filePath <- sprintf("%s/%s.rdf", runDir, serializationId)
+  status <- serializePackage(recordrEnv$dataPkg, file=filePath, id=serializationId)
+  
+  # Save the package object to the local environment
+  dataPkg <- recordrEnv$dataPkg
+  return(dataPkg)
 })
 
 #' Record provenance for an R script execution and create a DataONE DataPackage that
@@ -201,7 +208,9 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
     # Stop recording provenance and finalize the data package
     pkg <- endRecord(recordr)
     # return a datapackage object
-    
+    if (is.element(".recordr", base::search())) {
+      detach(".recordr")
+    }
     return(pkg)
   })
 })
@@ -525,13 +534,13 @@ setMethod("view", signature("Recordr"), function(recordr, id) {
     # Print out the text file that contains the relationships
     # TODO: read prov relationships directly from the data package object
     #       that was read in
-    provFile <- sprintf("%s/prov.txt", thisRunDir)
-    if(file.exists(provFile)) {
-      provData <- readLines(provFile)
-      cat(sprintf("\nProvenance\n"))
-      cat(sprintf("----------\n"))
-      writeLines(provData)
-    }
+#     provFile <- sprintf("%s/prov.txt", thisRunDir)
+#     if(file.exists(provFile)) {
+#       provData <- readLines(provFile)
+#       cat(sprintf("\nProvenance\n"))
+#       cat(sprintf("----------\n"))
+#       writeLines(provData)
+#     }
     
     fileNameLength = 30
     # "%-30s %-10d %-19s\n"

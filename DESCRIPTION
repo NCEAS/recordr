@@ -10,11 +10,20 @@ Authors@R: c( person("Lauren", "Walker", role = c("aut", "cre"), email =
 Description: What the package does (one paragraph)
 Depends:
     R (>= 3.1.0),
-    dataone (>= 1.0.0),
-    uuid (>= 0.1-1)
+    dataone (>= 1.0.0)
+Imports:
+    uuid (>= 0.1-1),
+    datapackage (>= 0.1)
 Suggests:
     knitr,
     testthat
 License: Apache License 2.0
 URL: https://github.com/NCEAS/recordr
 BugReports: https://github.com/NCEAS/recordr/issues
+Collate:
+    'Constants.R'
+    'Recordr.R'
+    'ExecMetadata.R'
+    'maskedFunctions.R'
+    'onLoad.R'
+    'recordr-package.R'

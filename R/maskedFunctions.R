@@ -7,40 +7,40 @@
 # called.
 # See the 'record' method to see how the overriding of the methods is performed.
 #
-library(dataone)
-## @include Recordr.R
+#' @import dataone
+#' @include Constants.R
 
 # Override the 'source' function so that recordr can detect when the user's script sources another script
 #' @export
-setGeneric("recordr_source", function(file, ...) {
-  standardGeneric("recordr_source")
-})
-
-setMethod("recordr_source", "character", function (file, local = FALSE, echo = verbose, print.eval = echo,
-                                                   verbose = getOption("verbose"), prompt.echo = getOption("prompt"),
-                                                   max.deparse.length = 150, chdir = FALSE, encoding = getOption("encoding"),
-                                                   continue.echo = getOption("continue"), skip.echo = 0,
-                                                   keep.source = getOption("keep.source")) {
-  if(length(verbose) == 0)
-    verbose = FALSE
-  
-  if(chdir) {
-    cwd = getwd()
-    on.exit(setwd(cwd))
-    setwd(dirname(file))
-  }
-  
-  #cat(sprintf("recordr_source: Sourcing file: %s\n", file))
-  
-  base::source(file, local, echo, print.eval, verbose, prompt.echo,
-               max.deparse.length, chdir, encoding,continue.echo, skip.echo,
-               keep.source)
-  
-  # Record the provenance relationship between the sourcing script and the sourced script
-  # as 'sourced script <- wasInflucedBy <- sourcing script
-  # i.e. insertRelationship
-
-})
+# setGeneric("recordr_source", function(file, ...) {
+#   standardGeneric("recordr_source")
+# })
+# 
+# setMethod("recordr_source", "character", function (file, local = FALSE, echo = verbose, print.eval = echo,
+#                                                    verbose = getOption("verbose"), prompt.echo = getOption("prompt"),
+#                                                    max.deparse.length = 150, chdir = FALSE, encoding = getOption("encoding"),
+#                                                    continue.echo = getOption("continue"), skip.echo = 0,
+#                                                    keep.source = getOption("keep.source")) {
+#   if(length(verbose) == 0)
+#     verbose = FALSE
+#   
+#   if(chdir) {
+#     cwd = getwd()
+#     on.exit(setwd(cwd))
+#     setwd(dirname(file))
+#   }
+#   
+#   #cat(sprintf("recordr_source: Sourcing file: %s\n", file))
+#   
+#   base::source(file, local, echo, print.eval, verbose, prompt.echo,
+#                max.deparse.length, chdir, encoding,continue.echo, skip.echo,
+#                keep.source)
+#   
+#   # Record the provenance relationship between the sourcing script and the sourced script
+#   # as 'sourced script <- wasInflucedBy <- sourcing script
+#   # i.e. insertRelationship
+# 
+# })
 
 # Override the DataONE 'MNODE:create' method
 #setMethod("recordr_create", signature("MNode", "character"), function(mnode, pid, filepath, sysmeta) {
@@ -50,51 +50,51 @@ setMethod("recordr_source", "character", function (file, local = FALSE, echo = v
 # Override the rdataone 'getD1Object' method
 # record the provenance relationship of script <- used <- D1Object
 #
-#' @export
-setGeneric("recordr_getD1Object", function(x, identifier, ...) { 
-  standardGeneric("recordr_getD1Object")
-})
+##' @export
+# setGeneric("recordr_getD1Object", function(x, identifier, ...) { 
+#   standardGeneric("recordr_getD1Object")
+# })
+# 
+# setMethod("recordr_getD1Object", "D1Client", function(x, identifier) {
+#   d1o <- dataone::getD1Object(x, identifier)
+#   
+#   # Record the provenance relationship between the downloaded D1 object and the executing script
+#   # as 'script <- used <- D1Object
+#   # i.e. insertRelationship
+#   # Record the provenance relationship between the user's script and the derived data file
+#   if (getProvCapture()) {
+#     #cat(sprintf("recordr_getD1Obj: recording prov for: %s\n", identifier))
+#     scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
+#     ##d1Client <- get("d1Client", envir = as.environment(".recordr"))
+#     ##dataPkg <- get("dataPkg", envir = as.environment(".recordr"))
+#     outLines <- sprintf("%s used %s", basename(scriptPath), identifier)
+#     runDir <- get("runDir", envir = as.environment(".recordr"))
+#     write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE)
+#   }
+#   
+#   return(d1o)
+# })
 
-setMethod("recordr_getD1Object", "D1Client", function(x, identifier) {
-  d1o <- dataone::getD1Object(x, identifier)
-  
-  # Record the provenance relationship between the downloaded D1 object and the executing script
-  # as 'script <- used <- D1Object
-  # i.e. insertRelationship
-  # Record the provenance relationship between the user's script and the derived data file
-  if (getProvCapture()) {
-    #cat(sprintf("recordr_getD1Obj: recording prov for: %s\n", identifier))
-    scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
-    ##d1Client <- get("d1Client", envir = as.environment(".recordr"))
-    ##d1Pkg <- get("d1Pkg", envir = as.environment(".recordr"))
-    outLines <- sprintf("%s used %s", basename(scriptPath), identifier)
-    runDir <- get("runDir", envir = as.environment(".recordr"))
-    write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE)
-  }
-  
-  return(d1o)
-})
-
-# Override the rdataone 'getD1Object' method
+# Override the rdataone 'createD1Object' method
 # record the provenance relationship of script <- used <- D1Object
 #
-#' @export
-setGeneric("recordr_createD1Object", function(x, d1Object, ...) { 
-  standardGeneric("recordr_createD1Object")
-})
-
-setMethod("recordr_createD1Object", signature("D1Client", "D1Object"), function(x, d1Object, ...) {
-  
-  #cat(sprintf("recordr_createD1Object"))
-  d1o <- dataone::getD1Object(x, identifier)
-  
-  # Record the provenance relationship between the downloaded D1 object and the executing script
-  # as 'script <- used <- D1Object
-  # i.e. insertRelationship
-  
-  return(d1o)
-  
-})
+##' @export
+# setGeneric("recordr_createD1Object", function(x, d1Object, ...) { 
+#   standardGeneric("recordr_createD1Object")
+# })
+# 
+# setMethod("recordr_createD1Object", signature("D1Client", "D1Object"), function(x, d1Object, ...) {
+#   
+#   #cat(sprintf("recordr_createD1Object"))
+#   d1o <- dataone::getD1Object(x, identifier)
+#   
+#   # Record the provenance relationship between the downloaded D1 object and the executing script
+#   # as 'script <- used <- D1Object
+#   # i.e. insertRelationship
+#   
+#   return(d1o)
+#   
+# })
 
 # Register "textConnection" as an S4 class so that we use it in the
 # method signatures below.
@@ -102,7 +102,6 @@ setOldClass("textConnection", "connection")
 
 # Override the R 'write.csv' method
 # record the provenance relationship of local objecct <- wasGeneratedBy <- script
-#
 #' @export
 setGeneric("recordr_write.csv", function(x, file, ...) {
   standardGeneric("recordr_write.csv")
@@ -118,20 +117,20 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     #cat(sprintf("recordr_write.csv: recording prov for %s\n", file))
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
-    derived.data <- convert.csv(recordrEnv$d1Client, x)
-    outLines <- sprintf("%s wasGeneratedBy %s", basename(file), basename(recordrEnv$scriptPath))
-    write(outLines, sprintf("%s/%s/prov.txt", recordrEnv$runDir, recordrEnv$execMeta@executionId), append = TRUE)
-    saveFileInfo(file)
-    archiveFile(file)
+    user <- recordrEnv$execMeta@accountName
+    # TODO: replace this with a user configurable faciltiy to specify how to generate identifiers
+    datasetId <- sprintf("%s_%s.%s", tools::file_path_sans_ext(basename(file)), UUIDgenerate(), tools::file_ext(file))
+    con <- textConnection("data", "w")
+    write.csv(x, file=con, row.names = FALSE, ...)
+    close(con)
+    csvdata <- charToRaw(paste(data, collapse="\n"))
+    # Create a data package object for the derived dataset
+    dataFmt <- "text/csv"
+    dataObj <- new("DataObject", datasetId, csvdata, dataFmt, user, recordrEnv$mnNodeId)
+    # Record prov:wasGeneratedBy relationship between the execution and the output dataset
+    addData(recordrEnv$dataPkg, dataObj)
+    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provWasGeneratedBy)
     setProvCapture(TRUE)
-    
-    #d1Object.result <- new(Class="D1Object", id.derived, derived.data, format.result, d1Client@mn.nodeid)
-    #addData(d1Pkg, d1Object.result)
-    #insertRelationship(d1Pkg, id.result, c(programId), "http://www.w3.org/ns/prov", "http://www.w3.org/ns/prov#wasGeneratedBy")
-    
-    # Replace the data package in the ".recordr" environment
-    #rm("d1Pkg", envir = as.environment(".test"))
-    #assign("d1Pkg", d1Pkg, envir = as.environment(".recordr"))
   }
   return(obj)
 })
@@ -154,14 +153,14 @@ setMethod("recordr_read.csv", signature("character"), function(file, ...) {
   
   if (getProvCapture()) {
     #cat(sprintf("recordr_read.csv: recording prov for %s\n", file))
-    scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
-    outLines <- sprintf("%s used %s", basename(scriptPath), basename(file))
-    runDir <- get("runDir", envir = as.environment(".recordr"))
     recordrEnv <- as.environment(".recordr")
-    write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE)
-    
-    saveFileInfo(file)
-    archiveFile(file)
+    setProvCapture(FALSE)
+        
+    # TODO: replace this with a user configurable faciltiy to specify how to generate identifiers
+    datasetId <- sprintf("%s_%s", basename(file), UUIDgenerate())
+    # Record prov:wasUsedBy relationship between the input dataset and the execution
+    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv@execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
+    setProvCapture(TRUE)
   }
   return(df)
 })
