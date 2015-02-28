@@ -10,8 +10,37 @@
 #' @import dataone
 #' @include Constants.R
 
-# Override the 'source' function so that recordr can detect when the user's script sources another script
+#' Override the DataONE MNode::get function so that recordr can record when the user's script uses a DataONE dataset
 #' @export
+setGeneric("recordr_D1MNodeGet", function(node, pid) {
+  standardGeneric("recordr_D1MNodeGet")
+})
+
+setMethod("recordr_D1MNodeGet", signature("MNode", "character"), function(node, pid) {
+  
+  # Call the masked function to retrieve the DataONE object
+  cat(sprintf("In recordr_D1MNodeGet\n"))
+  d1o <- dataone::get(node, pid)
+  
+  # Write provenance info for this object to the DataPackage object.
+  if (getProvCapture()) {
+    recordrEnv <- as.environment(".recordr")
+    setProvCapture(FALSE)
+    
+    # Record the DataONE resolve service endpoint + pid for the object of the RDF triple
+    D1_resolve_pid <- sprintf("%s/%s", D1_CN_Resolve_URL, pid)
+    cat(sprintf("recordr_D1MNodeGet: recording prov for %s\n", D1_resolve_pid))
+    
+    # Record prov:used relationship between the input dataset and the execution
+    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=D1_resolve_pid, predicate=provUsed)
+    setProvCapture(TRUE)
+  }
+  return(d1o)
+  
+})
+    
+# Override the 'source' function so that recordr can detect when the user's script sources another script
+## @export
 # setGeneric("recordr_source", function(file, ...) {
 #   standardGeneric("recordr_source")
 # })
