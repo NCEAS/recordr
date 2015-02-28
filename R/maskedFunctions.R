@@ -138,19 +138,19 @@ setGeneric("recordr_write.csv", function(x, file, ...) {
 
 setMethod("recordr_write.csv", signature("data.frame", "character"), function(x, file, ...) {
   
+  #cat(sprintf("In recordr_write.csv\n"))
   # Call the original function that we are overriding
   obj <- utils::write.csv(x, file, ...)
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture()) {
-    #cat(sprintf("recordr_write.csv: recording prov for %s\n", file))
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
     user <- recordrEnv$execMeta@accountName
-    # TODO: replace this with a user configurable faciltiy to specify how to generate identifiers
-    datasetId <- sprintf("%s_%s.%s", tools::file_path_sans_ext(basename(file)), UUIDgenerate(), tools::file_ext(file))
-    con <- textConnection("data", "w")
-    write.csv(x, file=con, row.names = FALSE, ...)
+    #datasetId <- sprintf("%s_%s.%s", tools::file_path_sans_ext(basename(file)), UUIDgenerate(), tools::file_ext(file))
+    datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    con <- textConnection("data", "w", local=TRUE)
+    utils::write.csv(x, file=con, ...)
     close(con)
     csvdata <- charToRaw(paste(data, collapse="\n"))
     # Create a data package object for the derived dataset
@@ -159,6 +159,7 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
     addData(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provWasGeneratedBy)
+    saveFileInfo(file)
     setProvCapture(TRUE)
   }
   return(obj)
@@ -168,34 +169,54 @@ setMethod("recordr_write.csv", signature("data.frame", "textConnection"), functi
   #cat(sprintf("recordr_write.csv for textConnection\n"))
   obj <- utils::write.csv(x, file, ...)
 })
-# Override the R 'read.csv' method
-# record the provenance relationship of local objecct <- wasGeneratedBy <- script
-#
+
+#' Override the R 'read.csv' method 
+#' @description record the provenance relationship of local objecct <- wasGeneratedBy <- script
 #' @export
-setGeneric("recordr_read.csv", function(file, ...) { 
+setGeneric("recordr_read.csv", function(...) { 
   standardGeneric("recordr_read.csv")
 })
 
-setMethod("recordr_read.csv", signature("character"), function(file, ...) {
-  df <- utils::read.csv(file, ...)
-  # Record the provenance relationship between the user's script and the derived data file
+setMethod("recordr_read.csv", signature(), function(...) {
+  #cat(sprintf("In recordr_read.csv\n"))
+  dataRead <- utils::read.csv(...)
+  # Record the provenance relationship between the user's script and an input data file.
+  # If the user didn't specify a data file, i.e. they are reading from a text connection,
+  # then exit, as we don't track provenance for text connections. With read.csv, a
+  # text connection can be specified by omitting the 'file' argument and specifying the
+  # 'text' argument.
+  argList <- list(...)
+  argListLen <- length(argList)
+  if (!"file" %in% names(argList) && "text" %in% names(argList)) {
+    #cat(sprintf("text connection: %s", argList$text))
+    return(dataRead)
+  } else if ("file" %in% names(argList)) {
+    #cat(sprintf("file: %s\n", argList$file))
+    fileArg <- argList$file
+  } else if (!"file" %in% names(argList) && !"text" %in% names(argList)) {
+    #cat(sprintf("file: %s\n", argList[1]))
+    fileArg <- argList[1]
+  } else {
+    cat(paste0("Error: unknown arguments passed to record_read.csv: ", argList))
+  }
   
   if (getProvCapture()) {
-    #cat(sprintf("recordr_read.csv: recording prov for %s\n", file))
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
-        
     # TODO: replace this with a user configurable faciltiy to specify how to generate identifiers
-    datasetId <- sprintf("%s_%s", basename(file), UUIDgenerate())
+    #datasetId <- sprintf("%s_%s", basename(fileArg), UUIDgenerate())
+    datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Record prov:wasUsedBy relationship between the input dataset and the execution
-    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv@execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
+    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
+    saveFileInfo(fileArg)
+    
     setProvCapture(TRUE)
   }
-  return(df)
+  return(dataRead)
 })
 
 setMethod("recordr_read.csv", signature("textConnection"), function(file, ...) {
-  #print("recordr_read.csv for textConnection")
+  print("recordr_read.csv for textConnection\n")
   obj <- utils::read.csv(file, ...)
 })
 
