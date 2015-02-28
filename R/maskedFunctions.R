@@ -19,7 +19,7 @@ setGeneric("recordr_D1MNodeGet", function(node, pid) {
 setMethod("recordr_D1MNodeGet", signature("MNode", "character"), function(node, pid) {
   
   # Call the masked function to retrieve the DataONE object
-  cat(sprintf("In recordr_D1MNodeGet\n"))
+  #cat(sprintf("In recordr_D1MNodeGet\n"))
   d1o <- dataone::get(node, pid)
   
   # Write provenance info for this object to the DataPackage object.
@@ -28,9 +28,7 @@ setMethod("recordr_D1MNodeGet", signature("MNode", "character"), function(node, 
     setProvCapture(FALSE)
     
     # Record the DataONE resolve service endpoint + pid for the object of the RDF triple
-    D1_resolve_pid <- sprintf("%s/%s", D1_CN_Resolve_URL, pid)
-    cat(sprintf("recordr_D1MNodeGet: recording prov for %s\n", D1_resolve_pid))
-    
+    D1_resolve_pid <- sprintf("%s/%s", D1_CN_Resolve_URL, pid)    
     # Record prov:used relationship between the input dataset and the execution
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=D1_resolve_pid, predicate=provUsed)
     setProvCapture(TRUE)
@@ -79,7 +77,7 @@ setMethod("recordr_D1MNodeGet", signature("MNode", "character"), function(node, 
 # Override the rdataone 'getD1Object' method
 # record the provenance relationship of script <- used <- D1Object
 #
-##' @export
+## @export
 # setGeneric("recordr_getD1Object", function(x, identifier, ...) { 
 #   standardGeneric("recordr_getD1Object")
 # })
@@ -107,7 +105,7 @@ setMethod("recordr_D1MNodeGet", signature("MNode", "character"), function(node, 
 # Override the rdataone 'createD1Object' method
 # record the provenance relationship of script <- used <- D1Object
 #
-##' @export
+## @export
 # setGeneric("recordr_createD1Object", function(x, d1Object, ...) { 
 #   standardGeneric("recordr_createD1Object")
 # })
@@ -237,13 +235,13 @@ setGeneric("setProvCapture", function(enable) {
 
 setMethod("setProvCapture", signature("logical"), function(enable) {
   # If the '.recordr' environment hasn't been created, then we are calling this
-  # function outside the context of record(), so don't attempt to update the environment
+  # function outside the context of record(), so don't attempt to update the environment'
   if (is.element(".recordr", base::search())) {
-    assign("provCaptureEnabled", enable, envir = as.environment(".recordr"))
+    assign("provCaptureEnabled", enable, envir = as.environment(".recordr"))    
     return(enable)
   } else {
     # If we were able to update "provCaptureEnabled" state variable because env ".recordr"
-    # didn't exist, then provenance capture is certainly not enabled.
+    # didn't exist, then provenance capture is certainly not enabled.    
     return(FALSE)
   }
 })
@@ -286,8 +284,7 @@ saveFileInfo <- function(file) {
   
   # Construct directory/filename to store file info
   recordrEnv <- as.environment(".recordr")
-  infoFile <- sprintf("%s/%s/fileInfo.csv", recordrEnv$runDir, recordrEnv$execMeta@executionId)
-  
+  infoFile <- sprintf("%s/runs/%s/fileInfo.csv", recordrEnv$recordrDir, recordrEnv$execMeta@executionId)
   filePath <- normalizePath(file)
   # get info for this file. file.info stores dates as POSIXct, so convert them to strings
   # so that they don't get written out as an integer timestamp, i.e. milliseconds since ref date
@@ -298,7 +295,6 @@ saveFileInfo <- function(file) {
                            uname=rawInfo[["uname"]],
                            stringsAsFactors=FALSE, row.names=NULL)
   rownames(thisFstats) <- c(filePath)
-  
   # Read in the stored file info for this execution. This file contains info for all
   # files used by this execution. Rowname of data frame is the file path.
   if (file.exists(infoFile)) {
@@ -309,7 +305,6 @@ saveFileInfo <- function(file) {
     # First file recorded, just write one file info out
     fstats <- thisFstats
   }
-  
   # Save file info to run directory
   write.csv(fstats, infoFile, row.names = TRUE)
   setProvCapture(provEnabled)

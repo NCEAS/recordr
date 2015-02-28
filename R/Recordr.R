@@ -56,7 +56,7 @@ setGeneric("startRecord", function(recordr, tag="", scriptPath="", ...) {
 })
 
 #' @export
-setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptPath="", ...) {
+setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptPath=as.character(NA), ...) {
   
   # Check if a recording session has already been started.
   if (is.element(".recordr", base::search())) {
@@ -78,13 +78,14 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   # If no scriptName is passed to startRecord(), then we are running in the R console, and R
   # itself is the top level program we are running.
   currentTime <- format(Sys.time(), "%Y%m%d%H%M%s")
-  if (scriptPath == "") {
+  if (is.na(scriptPath)) {
     recordrEnv$scriptPath = ""
     recordrEnv$programId <- R.Version()$version.string
-    script = charToRaw("")
+    script = "R console commands"
   } else {
     recordrEnv$scriptPath <- scriptPath
-    recordrEnv$programId <- sprintf("%s_%s", basename(scriptPath), UUIDgenerate() )
+    #recordrEnv$programId <- sprintf("%s_%s", basename(scriptPath), UUIDgenerate() )
+    recordrEnv$programId <- sprintf("urn:uuid:%s", UUIDgenerate())
     script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = ''))
   }
   
@@ -96,34 +97,40 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   recordrEnv$dataPkg <- new(Class="DataPackage", packageId=recordrEnv$execMeta@datapackageId)
   
   # Store the provONE relationship: execution -> prov:qualifiedAssociation -> association
-  associationId <- sprintf("%s_%s", "association", UUIDgenerate())
+  #associationId <- sprintf("%s_%s", "association", UUIDgenerate())
+  associationId <- sprintf("urn:uuid:%s", UUIDgenerate())
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=associationId, predicate=provQualifiedAssociation)
   
   # Create a data package object for the program that we are running and store it.
   scriptFmt <- "text/plain"
   programD1Obj <- new("DataObject", recordrEnv$programId, script, scriptFmt, recordrEnv$execMeta@accountName, recordrEnv$mnNodeId)
+                      function(.Object, id, dataobj=NA, format=NA, user=NA, mnNodeId=NA, filename=as.character(NA))
   # Set access control on the action object to be public
   #setPublicAccess(programD1Obj)
   
   # Store the Prov relationship: association -> prov:hadPlan -> program
   addData(recordrEnv$dataPkg, programD1Obj)
-  insertRelationship(recordrEnv$dataPkg, subjectID=programId, objectIDs=recordrEnv$programId, predicate=provHadPlan)
+  insertRelationship(recordrEnv$dataPkg, subjectID=associationId, objectIDs=recordrEnv$programId, predicate=provHadPlan)
   
   # Store the Prov relationship: association -> prov:agent -> user
-  insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@accountName , predicate=provAgent)
+  insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@accountName , predicate=provAgent, objectType=xsdString)
   
   # Override R functions
   #recordrEnv$source <- recordr::recordr_source
+  
   # override DataONE V1.1.0 methods
   #recordrEnv$getD1Object <- recordr::recordr_getD1Object
   #recordrEnv$createD1Object <- recordr::recordr_createD1Object
+  # override DataONE v2.0 methods
+  recordrEnv$get <- recordr::recordr_D1MNodeGet
   # override R functions
   recordrEnv$read.csv <- recordr::recordr_read.csv
   recordrEnv$write.csv <- recordr::recordr_write.csv
   
   # Create the run metadata directory for this record()
   dir.create(sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId), recursive = TRUE)
-  
+  # Put recordr working directory in so masked functions can access it.
+  recordrEnv$recordrDir <- recordr@recordrDir
   setProvCapture(TRUE)
   # The Recordr provenance capture capability is now setup and when startRecord() returns, the
   # user can continue to work in the calling context, i.e. the console and provenance will be
@@ -167,8 +174,10 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   filePath <- sprintf("%s/%s.rdf", runDir, serializationId)
   status <- serializePackage(recordrEnv$dataPkg, file=filePath, id=serializationId)
   
-  # Save the package object to the local environment
+  # Save the package object to the run directory
   dataPkg <- recordrEnv$dataPkg
+  filePath <- sprintf("%s/%s.pkg", runDir, recordrEnv$execMeta@datapackageId)
+  saveRDS(dataPkg, file=filePath)
   return(dataPkg)
 })
 
@@ -202,14 +211,11 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
   }, finally = {
     # Disable provenance capture while some housekeeping is done
     setProvCapture(FALSE)
-    # Save file info for the script that was run
-    saveFileInfo(filePath)
-    archiveFile(filePath)
     # Stop recording provenance and finalize the data package
     pkg <- endRecord(recordr)
     # return a datapackage object
     if (is.element(".recordr", base::search())) {
-      detach(".recordr")
+      detach(".recordr", unload=TRUE)
     }
     return(pkg)
   })
@@ -521,7 +527,7 @@ setMethod("view", signature("Recordr"), function(recordr, id) {
   
   # Find the data package in the recordr run directories
   #dirs <- list.files(recordr@runDir)
-  thisRunDir <- sprintf("%s/runs/%s", sprintf("%s/runs/%s", recordr@recordrDir), id)
+  thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
   if (! file.exists(thisRunDir)) {
     msg <- sprintf("Directory not found for execution identifier: %s", id)
     stop(msg)
@@ -531,16 +537,11 @@ setMethod("view", signature("Recordr"), function(recordr, id) {
   if (! is.null(execMeta)) {
     packageId <-  execMeta@datapackageId
     cat(sprintf("Package identifier: %s\n", packageId))
-    # Print out the text file that contains the relationships
-    # TODO: read prov relationships directly from the data package object
-    #       that was read in
-#     provFile <- sprintf("%s/prov.txt", thisRunDir)
-#     if(file.exists(provFile)) {
-#       provData <- readLines(provFile)
-#       cat(sprintf("\nProvenance\n"))
-#       cat(sprintf("----------\n"))
-#       writeLines(provData)
-#     }
+    packageFile <- sprintf("%s/%s.pkg", thisRunDir, packageId)
+    # Deserialize saved data package
+    pkg <- readRDS(file=packageFile)
+    relations <- getRelationships(pkg)
+    print(relations)
     
     fileNameLength = 30
     # "%-30s %-10d %-19s\n"

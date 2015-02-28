@@ -54,7 +54,7 @@ setMethod("ExecMetadata", signature("character"), function(programName, tag="") 
   
   ## create new MNode object and insert uri endpoint
   execMeta <- new("ExecMetadata")  
-  execMeta@executionId <- UUIDgenerate()
+  execMeta@executionId <- sprintf("urn:uuid:%s", UUIDgenerate())
   execMeta@tag         <- tag
   execMeta@datapackageId <- UUIDgenerate()
   execMeta@accountName <- Sys.info()[['user']]
