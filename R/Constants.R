@@ -12,3 +12,8 @@ provAgent                <- sprintf("%s%s", provNS, "Agent")
 provONE_NS               <- "http://purl.org/provone/"
 provONEprogram           <- sprintf("%s%s", provONE_NS, "Program")
 provONEexecution         <- sprintf("%s%s", provONE_NS, "Execution")
+
+xsdString                <- sprintf("http://www.w3.org/2001/XMLSchema#string")
+
+D1_CN_URL <- "https://cn.dataone.org/cn/v1"
+D1_CN_Resolve_URL <- sprintf("%s/%s", D1_CN_URL, "resolve")

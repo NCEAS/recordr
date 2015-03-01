@@ -113,8 +113,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   insertRelationship(recordrEnv$dataPkg, subjectID=associationId, objectIDs=recordrEnv$programId, predicate=provHadPlan)
   
   # Store the Prov relationship: association -> prov:agent -> user
-  insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@accountName , predicate=provAgent, objectType=xsdString)
-  
+  insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@accountName , predicate=provAgent, objectType="literal")
   # Override R functions
   #recordrEnv$source <- recordr::recordr_source
   
@@ -549,7 +548,7 @@ setMethod("view", signature("Recordr"), function(recordr, id) {
                  " %-12s %-19s\n", sep="")
     cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time"), sep = " ")
     infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
-    fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
+    fstats <- getFileInfo(recordr, id)
     # Order the list of files by file most recently modified
     # Note: we could also sort by basename of the file: fstats[order(basename(rownames(fstats))),]
     fstats <- fstats[order(fstats$mtime),]

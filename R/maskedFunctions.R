@@ -157,7 +157,7 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
     addData(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provWasGeneratedBy)
-    saveFileInfo(file)
+    saveFileInfo(datasetId, file)
     setProvCapture(TRUE)
   }
   return(obj)
@@ -206,7 +206,7 @@ setMethod("recordr_read.csv", signature(), function(...) {
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Record prov:wasUsedBy relationship between the input dataset and the execution
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
-    saveFileInfo(fileArg)
+    saveFileInfo(datasetId, fileArg)
     
     setProvCapture(TRUE)
   }
@@ -276,7 +276,7 @@ setMethod("publish", signature("Recordr", "character", "MNode"), function(record
 })
 
 # Save local file information
-saveFileInfo <- function(file) {
+saveFileInfo <- function(dataObjId, file) {
   
   # Disable provenance capture while we read/write file info
   provEnabled <- getProvCapture()
@@ -289,7 +289,7 @@ saveFileInfo <- function(file) {
   # get info for this file. file.info stores dates as POSIXct, so convert them to strings
   # so that they don't get written out as an integer timestamp, i.e. milliseconds since ref date
   rawInfo <- base::file.info(filePath)
-  thisFstats <- data.frame(size=rawInfo[["size"]], 
+  thisFstats <- data.frame(dataObjId=dataObjId, size=rawInfo[["size"]], 
                            mtime=as.character(rawInfo[["mtime"]]), 
                            ctime=as.character(rawInfo[["ctime"]]), 
                            uname=rawInfo[["uname"]],
@@ -308,6 +308,23 @@ saveFileInfo <- function(file) {
   # Save file info to run directory
   write.csv(fstats, infoFile, row.names = TRUE)
   setProvCapture(provEnabled)
+}
+
+# Retrieved all previously stored information for local files 
+getFileInfo <- function(recordr, id) {
+  # Disable provenance capture while we read/write file info
+  provEnabled <- getProvCapture()
+  setProvCapture(FALSE)
+  thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
+  infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
+  fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
+  if (! file.exists(infoFile)) {
+    msg <- sprintf("Information file %s not found for execution identifier: %s", infoFile, id)
+    stop(msg)
+  }
+  fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
+  setProvCapture(provEnabled)
+  return(fstats)
 }
 
 archiveFile <- function(file) {

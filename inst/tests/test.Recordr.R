@@ -1,5 +1,6 @@
 testthat::context("Recordr tests")
 
+
 test_that("Recordr library loads", {
   library(recordr)
   expect_true(length(ls("package:recordr")) > 1)
@@ -24,6 +25,7 @@ createLocalRWScript <- function(scriptPath, inFile, outFile) {
 # files for which the testing harness must know the locations.
 # The uuid tag is used so that different tests can manipulate the same run, so that
 # each test performs one operation (i.e. create, list, delete a run)
+library(uuid)
 uuidTag <- UUIDgenerate()
 scriptPath <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".R")
 inFile  <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".csv")
@@ -38,7 +40,7 @@ test_that("Can record a script execution", {
   pkg <- record(recordr, scriptPath, tag=uuidTag)
   expect_that(class(pkg)[1], equals("DataPackage"))
   # Check the D1 package created by the record() call
-  pkgIdNull <- pkg@packageId == ""
+  pkgIdNull <- pkg@sysmeta@identifier == ""
   expect_that(pkgIdNull, is_false())
   expect_that(pkg, is_a("DataPackage"))
 })
