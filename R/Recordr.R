@@ -26,6 +26,8 @@
 #' @import datapackage
 #' @import uuid
 #' @import tools
+#' @import digest
+#' @import XML
 #' @include Constants.R
 #' @export
 setClass("Recordr", slots = c(recordrDir = "character")
@@ -103,8 +105,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   
   # Create a data package object for the program that we are running and store it.
   scriptFmt <- "text/plain"
-  programD1Obj <- new("DataObject", recordrEnv$programId, script, scriptFmt, recordrEnv$execMeta@accountName, recordrEnv$mnNodeId)
-                      function(.Object, id, dataobj=NA, format=NA, user=NA, mnNodeId=NA, filename=as.character(NA))
+  programD1Obj <- new("DataObject", id=recordrEnv$programId, dataobj=script, format=scriptFmt, user=recordrEnv$execMeta@accountName, mnNodeId=recordrEnv$mnNodeId)
   # Set access control on the action object to be public
   #setPublicAccess(programD1Obj)
   
@@ -169,7 +170,8 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   recordrEnv$execMeta@endTime <- as.character(Sys.time())
   writeExecMeta(recordr, recordrEnv$execMeta)
   # Generate a uuid for this serialization object
-  serializationId = sprintf("%s_%s", "resourceMap", UUIDgenerate())
+  #serializationId = sprintf("%s_%s", "resourceMap", UUIDgenerate())
+  serializationId = recordrEnv$execMeta@datapackageId
   filePath <- sprintf("%s/%s.rdf", runDir, serializationId)
   status <- serializePackage(recordrEnv$dataPkg, file=filePath, id=serializationId)
   
@@ -229,7 +231,7 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
 #' @param errorMessage text of error message to match (can be a regex)
 #' @param matchType if "specific" then at least one search criteria must be specified and matched
 #' @author slaughter
-## @export
+#' @export
 setGeneric("selectRuns", function(recordr, ...) {
   standardGeneric("selectRuns")
 })
@@ -451,7 +453,7 @@ setGeneric("listRuns", function(recordr, ...) {
   standardGeneric("listRuns")
 })
 
-setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTime = "", endTime = "", tag = "", errorMessage = "", quiet=FALSE, orderBy = "startTime") {
+setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTime = "", endTime = "", tag = "", errorMessage = "", quiet=FALSE, orderBy = "-startTime") {
 
   runs <- selectRuns(recordr, script=script, startTime=startTime, endTime=endTime, tag=tag, errorMessage=errorMessage, matchType="non-specific", orderBy=orderBy)
 
@@ -491,7 +493,7 @@ printRun <- function(row=list(), headerOnly = FALSE) {
   #fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
   fmt <- paste("%-", sprintf("%2d", scriptNameLength), "s", 
                " %-", sprintf("%2d", tagLength), "s",
-               " %-19s %-19s %-36s %-19s",
+               " %-19s %-19s %-45s %-19s",
                " %-", sprintf("%2d", errorMsgLength), "s", "\n", sep="")
   
   if (headerOnly) {
@@ -512,16 +514,17 @@ printRun <- function(row=list(), headerOnly = FALSE) {
 
 #' View detailed information for an execution
 #' @description Detailed information for an execution and any packags created by that exectution are printed to the display.
-#' @param identifier of the data package
-## @returnType DataPackage  
-## 
+#' @param recordr a Recordr object
+#' @param identifier show files and provenance relationships for this identifier
+#' @param showProv a boolean value: if TRUE then all provenance relationships, if FALSE show only input/output related relationships
+#
 #' @author slaughter
 #' @export
-setGeneric("view", function(recordr, id) {
+setGeneric("view", function(recordr, id, ...) {
   standardGeneric("view")
 })
 # 
-setMethod("view", signature("Recordr"), function(recordr, id) {
+setMethod("view", signature("Recordr"), function(recordr, id, showProv=FALSE) {
   cat(sprintf("Information for execution: %s\n", id))
   
   # Find the data package in the recordr run directories
@@ -537,10 +540,13 @@ setMethod("view", signature("Recordr"), function(recordr, id) {
     packageId <-  execMeta@datapackageId
     cat(sprintf("Package identifier: %s\n", packageId))
     packageFile <- sprintf("%s/%s.pkg", thisRunDir, packageId)
+    if(!is.na(execMeta@publishTime)) {
+      cat(sprintf("This run was published to DatONE at: %s\n", execMeta@publishTime))
+    } else {
+      cat(sprintf("This run has not been published\n"))
+    }
     # Deserialize saved data package
     pkg <- readRDS(file=packageFile)
-    relations <- getRelationships(pkg)
-    print(relations)
     
     fileNameLength = 30
     # "%-30s %-10d %-19s\n"
@@ -556,6 +562,14 @@ setMethod("view", signature("Recordr"), function(recordr, id) {
     for (i in 1:nrow(fstats)) {
       cat(sprintf(fmt, strtrim(basename(rownames(fstats)[i]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
     }
+    
+    # Print provenance relationships
+    if(showProv) {
+      cat(sprintf("\nProvenance relationships:\n"))
+      relations <- getRelationships(pkg)
+      print(relations)
+    }
+    
   } else {
     msg <- sprintf("Unable to read execution metadata from working directory: %s", thisRunDir)
     stop(msg)
@@ -563,13 +577,216 @@ setMethod("view", signature("Recordr"), function(recordr, id) {
   # Return the data package (not implemented yet)
 })
 
-## @param identifier The node identifier with which this node is registered in DataONE
-## @returnType DataPackage  
-## @return the DataPackage object containing all provenance relationships and derived data for this run
-## 
-## @author slaughter
-## @export
-setGeneric("publish", function(recordr, packageId, MNode) {
+#' Publish a recordr'd execution to DataONE
+#' @param recordr a Recordr object
+#' @param identifier the execution identifier for the package to upload to DataONE
+#' @param assignDOI a boolean value: if TRUE, assign DOI values for system metadata, otherwise assign uuid values
+#' @param update a boolean value: if TRUE, republish a previously published execution
+#' 
+#' @author slaughter
+#' @export
+setGeneric("publish", function(recordr, id, ...) {
   standardGeneric("publish")
 })
 
+setMethod("publish", signature("Recordr"), function(recordr, id, assignDOI=FALSE, update=FALSE) {
+  
+  runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
+  if (! file.exists(runDir)) {
+    msg <- sprintf("A directory was not found for execution identifier: %s", id)
+    stop(msg)
+  }
+  
+  node <- "urn:node:mnTestKNB"
+  cm <- CertificateManager()
+  isExpired <- isCertExpired(cm)
+  user <- showClientSubject(cm)
+  cn <- CNode("STAGING2")                     # Use Testing repository
+  message(sprintf("Obtaining member node information for %s", node))
+  mn <- getMNode(cn, node)    # Use Testing repository
+#   message(sprintf("DataONE member node %s status: %s", node, mn@state))
+
+  execMeta <- readExecMeta(recordr, id)
+  if (! is.null(execMeta)) {
+    packageId <-  execMeta@datapackageId
+    cat(sprintf("Package identifier: %s\n", packageId))
+    packageFile <- sprintf("%s/%s.pkg", runDir, packageId)
+    # Deserialize saved data package
+    pkg <- readRDS(file=packageFile)
+  }
+  
+  # See if this execution has been published before
+  if (!is.na(execMeta@publishTime)) {
+    msg <- sprintf("The datapackage for this execution was published on %s\nThe datapackage id is %s", execMeta@publishTime, packageId)
+    stop(msg)
+  }
+  
+  # Stop if the DataONE certificate is expired
+  if(isExpired) {
+    stop("Please create a valid DataONE certificate before calling publish()")
+  }
+  
+  # Upload each data object that was added to the datapackage
+  for (dataObjId in getIdentifiers(pkg)) {
+    dataObj <- getMember(pkg, dataObjId)
+    message(sprintf("Uploading id: %s\n", dataObjId))
+    # upload data zip to the data repository
+    # TODO: Hangle datapackage objects where data object resides on disk (currently recordr::record() doesn't save objects this way)
+    dataFile <- tempfile()
+    # write out data object to file so we can get checksum and pass data to DataONE create
+    dataBytes <- getData(pkg, dataObjId)
+    writeBin(dataBytes, dataFile)
+    # get access policy, replicate nodes from configuration id
+    sysmeta <- createSysmeta(mn, dataFile, dataObjId, format=getFormatId(dataObj), public=TRUE, replicate=TRUE, user=user)
+    sysmetaStr <- serializeSystemMetadata(sysmeta)
+    writeLines(sysmetaStr, sprintf("%s/sysmeta_%s.xml", runDir, dataObjId))
+    
+    # Upload the data to the MN using create(), checking for success and a returned identifier
+    returnId <- dataone::create(mn, dataObjId, dataFile, sysmeta)
+    if (is.null(returnId) || !grepl(dataObjId, xmlValue(xmlRoot(returnId)))) {
+     # TODO: Process the error
+     message(paste0("Error on returned identifier: ", returnId))
+    }
+  }
+  
+  # create metadata for the directory
+  # TODO: Create project specific metadata templates, use configuration API to fill in
+  mdfile <- sprintf("%s/metadata.R", path.expand("~"), recordr@recordrDir)
+  success <- source(mdfile, local=TRUE)
+  
+  # Generate a unique identifier for the metadatobject
+  if (assignDOI) {
+    metadata_id <- generateIdentifier(mn, "DOI")
+    # TODO: check if we actually got one, if not then error
+    system <- "doi"
+  } else {
+    metadata_id <- paste0("urn:uuid:", UUIDgenerate())
+    system <- "uuid"
+  }
+  
+  eml <- makeEML(metadata_id, system, title, creators, abstract, methodDescription, geo_coverage, temp_coverage)
+  eml_xml <- as(eml, "XMLInternalElementNode")
+  #print(eml_xml)
+  # Write the eml file to the execution directory
+  eml_file <- sprintf("%s/%s.eml", runDir, metadata_id)
+  saveXML(eml_xml, file = eml_file)
+  #message(sprintf("Saved EML to file: %s\n", eml_file))
+  
+  # upload metadata to the repository
+  format="eml://ecoinformatics.org/eml-2.1.1"
+  
+  sysmeta <- createSysmeta(mn, eml_file, metadata_id, format, public=TRUE, replicate=TRUE, user=user)
+  #sysmetaStr <- serializeSystemMetadata(sysmeta)
+  #writeLines(sysmetaStr, sprintf("%s/sysmeta_%s.xml", runDir, metadata_id))
+  
+  returnId <- dataone::create(mn, metadata_id, eml_file, sysmeta)
+  if (is.null(returnId) || !grepl(metadata_id, xmlValue(xmlRoot(returnId)))) {
+    # TODO: Process the error
+    message(paste0("Error on returned identifier: ", returnId))
+  } else {
+    message(sprintf("Uploaded metadata with id: %s\n", metadata_id))
+  }
+  
+  data_id_list <- getIdentifiers(pkg)
+  mdo <- new("DataObject", id=metadata_id, filename=eml_file, format=format, user=user, mnNodeId=node)  
+  addData(pkg, mdo)
+  #unlink(eml_file)
+  insertRelationship(pkg, subjectID=metadata_id, objectIDs=data_id_list)
+  serializationId <- execMeta@datapackageId
+  
+  # create and upload the resource map for this datapackage
+  resMapFn <- sprintf("%s/%s.rdf", runDir, serializationId)
+  status <- serializePackage(pkg, resMapFn, id=serializationId)
+  #message(paste0("serializing package to file: ", resMapFn))
+  message(sprintf("Uploading resource map with id: %s\n", serializationId))
+  
+  format <- "http://www.openarchives.org/ore/terms"
+  sysmeta <- createSysmeta(mn, resMapFn, serializationId, format, public=TRUE, replicate=TRUE, user=user)
+  sysmetaStr <- serializeSystemMetadata(sysmeta)
+  writeLines(sysmetaStr, sprintf("%s/sysmeta_%s.xml", runDir, serializationId))
+  returnId <- dataone::create(mn, serializationId, resMapFn, sysmeta)
+  if (is.null(returnId) || !grepl(serializationId, xmlValue(xmlRoot(returnId)))) {
+    # TODO: Process the error
+    message(paste0("Error on returned identifier: ", returnId))
+  }
+  
+  # Record the time that this execution was published
+  execMeta@publishTime <- as.character(Sys.time())
+  mdFilePath <- writeExecMeta(recordr, execMeta)
+  
+  #unlink(tf)
+})
+
+#' Create a minimal EML document.
+#' Creating EML should be more complete, but this minimal example will suffice to create a valid document.
+makeEML <- function(id, system, title, creators, abstract=NA, methodDescription=NA, geo_coverage=NA, temp_coverage=NA) {
+  #dt <- eml_dataTable(dat, description=description)
+  creator <- new("ListOfcreator", lapply(as.list(with(creators, paste(given, " ", surname, " ", "<", email, ">", sep=""))), as, "creator"))
+  ds <- new("dataset",
+            title = title,
+            abstract = abstract,
+            creator = creator,
+            contact = as(creator[[1]], "contact"),
+            #coverage = new("coverage"),
+            pubDate = as.character(Sys.Date())
+            #dataTable = c(dt),
+            #methods = new("methods"))
+  )
+  if (!is.na(methodDescription)) {
+    ms <- new("methodStep", description=methodDescription)
+    listms <- new("ListOfmethodStep", list(ms))
+    ds@methods <- new("methods", methodStep=listms)
+  }
+  ds@coverage <- coverageElement(geo_coverage, temp_coverage)
+  eml <- new("eml",
+             packageId = id,
+             system = system,
+             dataset = ds)
+  return(eml)
+}
+
+createSysmeta <- function(mn, filename, identifier, format, public=TRUE, replicate=TRUE, user=NA) {
+    
+  if(is.na(user)) {
+    stop("A username must be specified for SystemMetadata object.")
+  }
+  # Create SystemMetadata for the object
+  size <- file.info(filename)$size
+  sha1 <- digest(filename, algo="sha1", serialize=FALSE, file=TRUE)
+  sysmeta <- new("SystemMetadata", identifier=identifier, formatId=format, size=size, submitter=user, rightsHolder=user, checksum=sha1, 
+                 originMemberNode=mn@identifier, authoritativeMemberNode=mn@identifier)
+  sysmeta@replicationAllowed <- replicate
+  sysmeta@numberReplicas <- 2
+  sysmeta@preferredNodes <- list("urn:node:mnUCSB1", "urn:node:mnUNM1", "urn:node:mnORC1")
+  if (public) {
+    sysmeta <- addAccessRule(sysmeta, "public", "read")
+  }
+  
+  return(sysmeta)
+
+}
+
+#' Create a geographic coverage element from a description and bounding coordinates
+geoCoverage <- function(geoDescription, west, east, north, south) {
+  bc <- new("boundingCoordinates", westBoundingCoordinate=west, eastBoundingCoordinate=east, northBoundingCoordinate=north, southBoundingCoordinate=south)
+  geoDescription="Southeast Alaska"
+  gc <- new("geographicCoverage", geographicDescription=geoDescription, boundingCoordinates=bc)
+  return(gc)
+}
+
+## Create a temporal coverage object
+temporalCoverage <- function(begin, end) {
+  bsd <- new("singleDateTime", calendarDate=begin)
+  b <- new("beginDate", bsd)
+  esd <- new("singleDateTime", calendarDate=end)
+  e <- new("endDate", esd)
+  rod <- new("rangeOfDates", beginDate=b, endDate=e)
+  temp_coverage <- new("temporalCoverage", rangeOfDates=rod)
+  return(temp_coverage)
+}
+
+#' Create a coverage element
+coverageElement <- function(gc, tempc) {
+  coverage <- new("coverage", geographicCoverage=gc, temporalCoverage=tempc)
+  return(coverage)
+}

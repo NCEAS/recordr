@@ -53,7 +53,7 @@ setGeneric("ExecMetadata", function(programName, tag="") {
 setMethod("ExecMetadata", signature("character"), function(programName, tag="") {
   
   ## create new MNode object and insert uri endpoint
-  execMeta <- new("ExecMetadata")  
+  execMeta <- new("ExecMetadata")
   execMeta@executionId <- sprintf("urn:uuid:%s", UUIDgenerate())
   execMeta@tag         <- tag
   execMeta@datapackageId <- UUIDgenerate()
@@ -65,7 +65,7 @@ setMethod("ExecMetadata", signature("character"), function(programName, tag="") 
   execMeta@softwareApplication  <- programName
   execMeta@endTime <- ""
   execMeta@errorMessage <- ""
-  execMeta@publishTime <- ""
+  execMeta@publishTime <- as.character(NA)
   # Get list of packages that recordr has loaded and store as characters, i.e.
   # "recordr 0.1, uuid 0.1-1, dataone 1.0.0, dataonelibs 1.0.0, XML 3.98-1.1, rJava 0.9-6"
   pkgs <- sessionInfo()$otherPkgs

@@ -271,10 +271,6 @@ setMethod("getProvCapture", signature(), function(x) {
   return(enabled)
 })
 
-setMethod("publish", signature("Recordr", "character", "MNode"), function(recordr, packageId, MNode) {
-  print(paste("publishing package: ", packageId))
-})
-
 # Save local file information
 saveFileInfo <- function(dataObjId, file) {
   
