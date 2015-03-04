@@ -28,6 +28,7 @@
 #' @import tools
 #' @import digest
 #' @import XML
+#' @import EML
 #' @include Constants.R
 #' @export
 setClass("Recordr", slots = c(recordrDir = "character")
@@ -83,12 +84,13 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   if (is.na(scriptPath)) {
     recordrEnv$scriptPath = ""
     recordrEnv$programId <- R.Version()$version.string
-    script = "R console commands"
+    script = charToRaw("R console commands")
   } else {
     recordrEnv$scriptPath <- scriptPath
     #recordrEnv$programId <- sprintf("%s_%s", basename(scriptPath), UUIDgenerate() )
     recordrEnv$programId <- sprintf("urn:uuid:%s", UUIDgenerate())
-    script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = ''))
+    #script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = ''))
+    script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = '\n'))
   }
   
   recordrEnv$execMeta <- ExecMetadata(recordrEnv$scriptPath, tag=tag)
@@ -96,8 +98,9 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   # to the masking functions, e.g. "recordr_write.csv".
   # TODO: Read memmber node from configuration API
   recordrEnv$mnNodeId <- "urn:node:mnDemo5"
-  recordrEnv$dataPkg <- new(Class="DataPackage", packageId=recordrEnv$execMeta@datapackageId)
-  
+  #recordrEnv$dataPkg <- new("DataPackage", packageId=recordrEnv$execMeta@datapackageId)
+  recordrEnv$dataPkg <- DataPackage(packageId=recordrEnv$execMeta@datapackageId)
+    
   # Store the provONE relationship: execution -> prov:qualifiedAssociation -> association
   #associationId <- sprintf("%s_%s", "association", UUIDgenerate())
   associationId <- sprintf("urn:uuid:%s", UUIDgenerate())
@@ -116,10 +119,10 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   # Store the Prov relationship: association -> prov:agent -> user
   insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@accountName , predicate=provAgent, objectType="literal")
   # Override R functions
-  #recordrEnv$source <- recordr::recordr_source
+  recordrEnv$source <- recordr::recordr_source
   
   # override DataONE V1.1.0 methods
-  #recordrEnv$getD1Object <- recordr::recordr_getD1Object
+  recordrEnv$getD1Object <- recordr::recordr_getD1Object
   #recordrEnv$createD1Object <- recordr::recordr_createD1Object
   # override DataONE v2.0 methods
   recordrEnv$get <- recordr::recordr_D1MNodeGet
@@ -135,6 +138,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   # The Recordr provenance capture capability is now setup and when startRecord() returns, the
   # user can continue to work in the calling context, i.e. the console and provenance will be
   # capture until endRecord() is called.
+  
 })
 
 #' End the recording session that was started by startRecord()
@@ -169,16 +173,15 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   setProvCapture(FALSE)
   recordrEnv$execMeta@endTime <- as.character(Sys.time())
   writeExecMeta(recordr, recordrEnv$execMeta)
-  # Generate a uuid for this serialization object
-  #serializationId = sprintf("%s_%s", "resourceMap", UUIDgenerate())
+  # Use the datapackage id as the resourceMap id
   serializationId = recordrEnv$execMeta@datapackageId
   filePath <- sprintf("%s/%s.rdf", runDir, serializationId)
   status <- serializePackage(recordrEnv$dataPkg, file=filePath, id=serializationId)
   
   # Save the package object to the run directory
-  dataPkg <- recordrEnv$dataPkg
   filePath <- sprintf("%s/%s.pkg", runDir, recordrEnv$execMeta@datapackageId)
-  saveRDS(dataPkg, file=filePath)
+  saveRDS(recordrEnv$dataPkg, file=filePath)
+  dataPkg <- recordrEnv$dataPkg
   return(dataPkg)
 })
 
@@ -196,12 +199,20 @@ setGeneric("record", function(recordr, filePath, tag="", ...) {
 #' @export
 setMethod("record", signature("Recordr", "character"), function(recordr, filePath, tag="", ...) {
 
+  # Check if a recording session is active
+  if ( is.element(".recordr", base::search())) {
+    detach(".recordr")
+  }
+  
   startRecord(recordr, tag, filePath)
   recordrEnv <- as.environment(".recordr")
   setProvCapture(TRUE)
   # Source the user's script, passing in arguments that they intended for the 'source' call.
   result = tryCatch ({
     #cat(sprintf("Sourcing file %s\n", filePath))
+    # Because we are calling the 'source' function with the packageId, the overridden function
+    # for 'source' will not be called, and a provenance entry for this 'source' will not be
+    # recorded.
     base::source(filePath, local=FALSE, ...)
   }, warning = function(warningCond) {
     slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
@@ -569,7 +580,6 @@ setMethod("view", signature("Recordr"), function(recordr, id, showProv=FALSE) {
       relations <- getRelationships(pkg)
       print(relations)
     }
-    
   } else {
     msg <- sprintf("Unable to read execution metadata from working directory: %s", thisRunDir)
     stop(msg)
@@ -582,7 +592,6 @@ setMethod("view", signature("Recordr"), function(recordr, id, showProv=FALSE) {
 #' @param identifier the execution identifier for the package to upload to DataONE
 #' @param assignDOI a boolean value: if TRUE, assign DOI values for system metadata, otherwise assign uuid values
 #' @param update a boolean value: if TRUE, republish a previously published execution
-#' 
 #' @author slaughter
 #' @export
 setGeneric("publish", function(recordr, id, ...) {
@@ -603,8 +612,10 @@ setMethod("publish", signature("Recordr"), function(recordr, id, assignDOI=FALSE
   user <- showClientSubject(cm)
   cn <- CNode("STAGING2")                     # Use Testing repository
   message(sprintf("Obtaining member node information for %s", node))
-  mn <- getMNode(cn, node)    # Use Testing repository
-#   message(sprintf("DataONE member node %s status: %s", node, mn@state))
+  mn <- getMNode(cn, node)
+  if (is.null(mn)) {
+    stop(sprintf("Member node %s encounted an error on the get() request", node))
+  }
 
   execMeta <- readExecMeta(recordr, id)
   if (! is.null(execMeta)) {

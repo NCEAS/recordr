@@ -13,7 +13,10 @@ Depends:
     dataone (>= 1.0.0)
 Imports:
     uuid (>= 0.1-1),
-    datapackage (>= 0.1)
+    datapackage (>= 0.1),
+    digest,
+    XML,
+    EML
 Suggests:
     knitr,
     testthat
