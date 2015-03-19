@@ -96,13 +96,15 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   recordrEnv$execMeta <- ExecMetadata(recordrEnv$scriptPath, tag=tag)
   # Create an empty D1 datapackage object and make it globally available, i.e. available
   # to the masking functions, e.g. "recordr_write.csv".
-  # TODO: Read memmber node from configuration API
+  # TODO: Read memmber node from session API
   recordrEnv$mnNodeId <- "urn:node:mnDemo5"
+  # TODO: use new() initialization when datapackage is fixed - currently using new() causing
+  # an old object to be reused!!!
   #recordrEnv$dataPkg <- new("DataPackage", packageId=recordrEnv$execMeta@datapackageId)
   recordrEnv$dataPkg <- DataPackage(packageId=recordrEnv$execMeta@datapackageId)
     
+  # Add the ProvONE Execution type
   # Store the provONE relationship: execution -> prov:qualifiedAssociation -> association
-  #associationId <- sprintf("%s_%s", "association", UUIDgenerate())
   associationId <- sprintf("urn:uuid:%s", UUIDgenerate())
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=associationId, predicate=provQualifiedAssociation)
   
@@ -113,11 +115,18 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   #setPublicAccess(programD1Obj)
   
   # Store the Prov relationship: association -> prov:hadPlan -> program
+  # TODO: this needs to be the script that was run by recordr. If startRecord()/endRecord was used, then this is a list of commands
+  # that was captured and written to the execution directory.
   addData(recordrEnv$dataPkg, programD1Obj)
   insertRelationship(recordrEnv$dataPkg, subjectID=associationId, objectIDs=recordrEnv$programId, predicate=provHadPlan)
+  # Record relationship identifying this id as a provone:Execution
+  insertRelationship(recordrEnv$dataPkg, subjectID=associationId, objectIDs=provAssociation, predicate=rdfType, objectType="uri")
   
   # Store the Prov relationship: association -> prov:agent -> user
-  insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@accountName , predicate=provAgent, objectType="literal")
+  # TODO: when available, check session API for orchid and use that instead of user, i.e.
+  #   insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@orcid, predicate=provAgent, objectType="uri")
+  userId <- recordrEnv$execMeta@accountName
+  insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=userId, predicate=provAgent, objectType="literal", dataTypeU=xsdString)
   # Override R functions
   recordrEnv$source <- recordr::recordr_source
   
@@ -134,11 +143,15 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   dir.create(sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId), recursive = TRUE)
   # Put recordr working directory in so masked functions can access it.
   recordrEnv$recordrDir <- recordr@recordrDir
+  # Record relationship identifying this id as a provone:Execution
+  insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=provONEexecution, predicate=rdfType, objectType="uri")
+  # Record relationship between the Exectution and the User
+  insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=userId, predicate=provWasAssociatedWith, objectType="uri")
   setProvCapture(TRUE)
   # The Recordr provenance capture capability is now setup and when startRecord() returns, the
   # user can continue to work in the calling context, i.e. the console and provenance will be
   # capture until endRecord() is called.
-  
+  invisible()
 })
 
 #' End the recording session that was started by startRecord()
@@ -178,11 +191,11 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   filePath <- sprintf("%s/%s.rdf", runDir, serializationId)
   status <- serializePackage(recordrEnv$dataPkg, file=filePath, id=serializationId)
   
-  # Save the package object to the run directory
+  # Serialize/Save the entire package object to the run directory
   filePath <- sprintf("%s/%s.pkg", runDir, recordrEnv$execMeta@datapackageId)
   saveRDS(recordrEnv$dataPkg, file=filePath)
   dataPkg <- recordrEnv$dataPkg
-  return(dataPkg)
+  invisible(dataPkg)
 })
 
 #' Record provenance for an R script execution and create a DataONE DataPackage that
@@ -229,7 +242,7 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
     if (is.element(".recordr", base::search())) {
       detach(".recordr", unload=TRUE)
     }
-    return(pkg)
+    invisible(pkg)
   })
 })
 
@@ -446,7 +459,7 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, runIds = "", scr
       printRun(row)
     }
   }
-  return(runs)
+  invisible(runs)
 })
   
 #' List all recorded runs
@@ -485,7 +498,7 @@ setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTi
     }
   }
   
-  return(runs)
+  invisible(runs)
 })
 
 # Internal function used to print execution metadata for a single run
@@ -585,6 +598,7 @@ setMethod("view", signature("Recordr"), function(recordr, id, showProv=FALSE) {
     stop(msg)
   }
   # Return the data package (not implemented yet)
+  invisible(pkg)
 })
 
 #' Publish a recordr'd execution to DataONE
@@ -698,11 +712,11 @@ setMethod("publish", signature("Recordr"), function(recordr, id, assignDOI=FALSE
     message(sprintf("Uploaded metadata with id: %s\n", metadata_id))
   }
   
-  data_id_list <- getIdentifiers(pkg)
+  dataIds <- getIdentifiers(pkg)
   mdo <- new("DataObject", id=metadata_id, filename=eml_file, format=format, user=user, mnNodeId=node)  
   addData(pkg, mdo)
   #unlink(eml_file)
-  insertRelationship(pkg, subjectID=metadata_id, objectIDs=data_id_list)
+  insertRelationship(pkg, subjectID=metadata_id, objectIDs=dataIds)
   serializationId <- execMeta@datapackageId
   
   # create and upload the resource map for this datapackage
@@ -726,6 +740,7 @@ setMethod("publish", signature("Recordr"), function(recordr, id, assignDOI=FALSE
   mdFilePath <- writeExecMeta(recordr, execMeta)
   
   #unlink(tf)
+  invisible(metadata_id)
 })
 
 #' Create a minimal EML document.

@@ -31,6 +31,8 @@ setMethod("recordr_D1MNodeGet", signature("MNode", "character"), function(node, 
     D1_resolve_pid <- sprintf("%s/%s", D1_CN_Resolve_URL, pid)    
     # Record prov:used relationship between the input dataset and the execution
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=D1_resolve_pid, predicate=provUsed)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=D1_resolve_pid, objectIDs=provONEData, predicate=rdfType, objectType="uri")
     setProvCapture(TRUE)
   }
   return(d1o)
@@ -155,7 +157,9 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     dataObj <- new("DataObject", datasetId, csvdata, dataFmt, user, recordrEnv$mnNodeId)
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
     addData(recordrEnv$dataPkg, dataObj)
-    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provWasGeneratedBy)
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEData, predicate=rdfType, objectType="uri")
     saveFileInfo(datasetId, file)
     setProvCapture(TRUE)
   }
@@ -205,8 +209,9 @@ setMethod("recordr_read.csv", signature(), function(...) {
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Record prov:wasUsedBy relationship between the input dataset and the execution
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEData, predicate=rdfType, objectType="uri")
     saveFileInfo(datasetId, fileArg)
-    
     setProvCapture(TRUE)
   }
   return(dataRead)
@@ -236,7 +241,7 @@ setMethod("setProvCapture", signature("logical"), function(enable) {
   # If the '.recordr' environment hasn't been created, then we are calling this
   # function outside the context of record(), so don't attempt to update the environment'
   if (is.element(".recordr", base::search())) {
-    assign("provCaptureEnabled", enable, envir = as.environment(".recordr"))    
+    assign("provCaptureEnabled", enable, envir = as.environment(".recordr"))
     return(enable)
   } else {
     # If we were able to update "provCaptureEnabled" state variable because env ".recordr"
@@ -281,6 +286,7 @@ saveFileInfo <- function(dataObjId, file) {
   recordrEnv <- as.environment(".recordr")
   infoFile <- sprintf("%s/runs/%s/fileInfo.csv", recordrEnv$recordrDir, recordrEnv$execMeta@executionId)
   filePath <- normalizePath(file)
+  
   # get info for this file. file.info stores dates as POSIXct, so convert them to strings
   # so that they don't get written out as an integer timestamp, i.e. milliseconds since ref date
   rawInfo <- base::file.info(filePath)
