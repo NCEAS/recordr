@@ -16,8 +16,8 @@ provAgent                <- sprintf("%s%s", provNS, "Agent")
 provONE_NS               <- "http://purl.org/provone/2015/15/ontology#"
 provONEprogram           <- sprintf("%s%s", provONE_NS, "Program")
 provONEexecution         <- sprintf("%s%s", provONE_NS, "Execution")
-provONEData              <- sprintf("%s%s", provONE_NS, "Data")
-provONEUser              <- sprintf("%s%s", provONE_NS, "User")
+provONEdata              <- sprintf("%s%s", provONE_NS, "Data")
+provONEuser              <- sprintf("%s%s", provONE_NS, "User")
 
 xsdString                <- sprintf("http://www.w3.org/2001/XMLSchema#string")
 

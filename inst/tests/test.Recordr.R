@@ -35,14 +35,30 @@ write.csv(data.frame(x=1:10, y=11:20), file = inFile)
 
 test_that("Can record a script execution", {
   # Check that tests have been setup
-  expect_that(uuidTag, is_a("character"))
-  recordr <- new("Recordr")
+  expect_that(class(uuidTag), equals("character"))
+  recordr <- new("Recordr")  
   pkg <- record(recordr, scriptPath, tag=uuidTag)
-  expect_that(class(pkg)[1], equals("DataPackage"))
-  # Check the D1 package created by the record() call
-  pkgIdNull <- pkg@sysmeta@identifier == ""
-  expect_that(pkgIdNull, is_false())
+  
+  # Check the D1 package created by the record() call  
+  expect_that(is.null(pkg@sysmeta@identifier), is_false())
   expect_that(pkg, is_a("DataPackage"))
+  
+  # Test startRecord() / endRecord()
+  newTag <- UUIDgenerate()
+  executionId <- startRecord(recordr, tag=newTag)
+  myData <- read.csv(file=system.file("extdata/testData.csv", package="recordr"), sep=",", header=TRUE)
+  outData <- myData[myData$percent_cover > 35.0, ]
+  outFile <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".csv")
+  write.csv(file=outFile, outData)
+  # Record this run and check the resulting package
+  pkg <- endRecord(recordr)
+  expect_that(length(getIdentifiers(pkg)), equals(2))
+  
+  expect_that(class(pkg@sysmeta)[1], equals("SystemMetadata"))
+  mdf <- listRuns(recordr, tag=newTag, quiet = TRUE)
+  oneRow <- nrow(mdf) == 1
+  expect_that(oneRow, is_true())
+  expect_that(mdf[mdf$tag == newTag, 'executionId'], matches(executionId))
 })
 
 test_that("Can list a script execution", {

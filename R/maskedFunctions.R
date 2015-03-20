@@ -32,7 +32,7 @@ setMethod("recordr_D1MNodeGet", signature("MNode", "character"), function(node, 
     # Record prov:used relationship between the input dataset and the execution
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=D1_resolve_pid, predicate=provUsed)
     # Record relationship identifying this dataset as a provone:Data
-    insertRelationship(recordrEnv$dataPkg, subjectID=D1_resolve_pid, objectIDs=provONEData, predicate=rdfType, objectType="uri")
+    insertRelationship(recordrEnv$dataPkg, subjectID=D1_resolve_pid, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
     setProvCapture(TRUE)
   }
   return(d1o)
@@ -159,7 +159,7 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     addData(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
     # Record relationship identifying this dataset as a provone:Data
-    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEData, predicate=rdfType, objectType="uri")
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
     saveFileInfo(datasetId, file)
     setProvCapture(TRUE)
   }
@@ -210,7 +210,7 @@ setMethod("recordr_read.csv", signature(), function(...) {
     # Record prov:wasUsedBy relationship between the input dataset and the execution
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
     # Record relationship identifying this dataset as a provone:Data
-    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEData, predicate=rdfType, objectType="uri")
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
     saveFileInfo(datasetId, fileArg)
     setProvCapture(TRUE)
   }

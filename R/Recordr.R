@@ -51,15 +51,16 @@ setMethod("initialize", signature = "Recordr", definition = function(.Object,
 #' This method starts the recording process and the method endRecord() completes it.
 #' @param Recordr object
 #' @param tag a string that is associated with this run
-#' @param scriptPath the script path (only used internally when startRecord() is called from record())
+#' @param file the filename for the script to run (only used internally when startRecord() is called from record())
+#' @return execution identifier
 #' @author slaughter
 #' @export
-setGeneric("startRecord", function(recordr, tag="", scriptPath="", ...) {
+setGeneric("startRecord", function(recordr, ...) {
   standardGeneric("startRecord")
 })
 
 #' @export
-setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptPath=as.character(NA), ...) {
+setMethod("startRecord", signature("Recordr"), function(recordr, tag="", file=as.character(NA), console=TRUE) {
   
   # Check if a recording session has already been started.
   if (is.element(".recordr", base::search())) {
@@ -81,19 +82,21 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   # If no scriptName is passed to startRecord(), then we are running in the R console, and R
   # itself is the top level program we are running.
   currentTime <- format(Sys.time(), "%Y%m%d%H%M%s")
-  if (is.na(scriptPath)) {
-    recordrEnv$scriptPath = ""
-    recordrEnv$programId <- R.Version()$version.string
-    script = charToRaw("R console commands")
+  recordrEnv$programId <- sprintf("urn:uuid:%s", UUIDgenerate())
+  if(is.na(file)) {
+    recordrEnv$scriptPath <- ""
   } else {
-    recordrEnv$scriptPath <- scriptPath
-    #recordrEnv$programId <- sprintf("%s_%s", basename(scriptPath), UUIDgenerate() )
-    recordrEnv$programId <- sprintf("urn:uuid:%s", UUIDgenerate())
-    #script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = ''))
-    script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = '\n'))
+    if(console) stop("Can't specify file argument if running startRecord(), only console commands allowed")
+    recordrEnv$scriptPath <- file
+  }
+
+  # If user invoked recordr(), not startRecord()/endRecord(), then save the name of the file run
+  if (!console) {
+    recordrEnv$scriptPath <- file
   }
   
   recordrEnv$execMeta <- ExecMetadata(recordrEnv$scriptPath, tag=tag)
+  recordrEnv$execMeta@console <- console
   # Create an empty D1 datapackage object and make it globally available, i.e. available
   # to the masking functions, e.g. "recordr_write.csv".
   # TODO: Read memmber node from session API
@@ -107,26 +110,21 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   # Store the provONE relationship: execution -> prov:qualifiedAssociation -> association
   associationId <- sprintf("urn:uuid:%s", UUIDgenerate())
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=associationId, predicate=provQualifiedAssociation)
-  
-  # Create a data package object for the program that we are running and store it.
-  scriptFmt <- "text/plain"
-  programD1Obj <- new("DataObject", id=recordrEnv$programId, dataobj=script, format=scriptFmt, user=recordrEnv$execMeta@accountName, mnNodeId=recordrEnv$mnNodeId)
-  # Set access control on the action object to be public
-  #setPublicAccess(programD1Obj)
-  
-  # Store the Prov relationship: association -> prov:hadPlan -> program
-  # TODO: this needs to be the script that was run by recordr. If startRecord()/endRecord was used, then this is a list of commands
-  # that was captured and written to the execution directory.
-  addData(recordrEnv$dataPkg, programD1Obj)
-  insertRelationship(recordrEnv$dataPkg, subjectID=associationId, objectIDs=recordrEnv$programId, predicate=provHadPlan)
+  insertRelationship(recordrEnv$dataPkg, subjectID=associationId, objectIDs=recordrEnv$programId, predicate=provHadPlan)  
   # Record relationship identifying this id as a provone:Execution
   insertRelationship(recordrEnv$dataPkg, subjectID=associationId, objectIDs=provAssociation, predicate=rdfType, objectType="uri")
+  
+  # Record a relationship identifying the program (script or console log)
+  insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$programId, objectIDs=provONEprogram, predicate=rdfType, objectType="uri")
   
   # Store the Prov relationship: association -> prov:agent -> user
   # TODO: when available, check session API for orchid and use that instead of user, i.e.
   #   insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@orcid, predicate=provAgent, objectType="uri")
   userId <- recordrEnv$execMeta@accountName
   insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=userId, predicate=provAgent, objectType="literal", dataTypeU=xsdString)
+  # Record a relationship identifying the user
+  insertRelationship(recordrEnv$dataPkg, subjectID=userId, objectIDs=provONEuser, predicate=rdfType, objectType="uri")
+  
   # Override R functions
   recordrEnv$source <- recordr::recordr_source
   
@@ -147,11 +145,20 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", scriptP
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=provONEexecution, predicate=rdfType, objectType="uri")
   # Record relationship between the Exectution and the User
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=userId, predicate=provWasAssociatedWith, objectType="uri")
+  
+  # If startRecord()/endRecord() was invoked by the user (vs invoked by record(), then capture
+  # all the commands typed by setting marks in the history, then reading the history when
+  # endRecord() is called.
+  if (console) {
+    startMarker <- sprintf("recordr execution %s started", recordrEnv$execMeta@executionId)
+    timestamp (stamp = c(date(), startMarker), quiet = TRUE)
+  }
+  
   setProvCapture(TRUE)
   # The Recordr provenance capture capability is now setup and when startRecord() returns, the
   # user can continue to work in the calling context, i.e. the console and provenance will be
   # capture until endRecord() is called.
-  invisible()
+  invisible(recordrEnv$execMeta@executionId)
 })
 
 #' End the recording session that was started by startRecord()
@@ -178,55 +185,108 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   recordrEnv <- as.environment(".recordr")
   runDir <- sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId)
   if (!file.exists(runDir)) {
-      # Create the run metadata directory for this record()
       dir.create(runDir, recursive = TRUE)
   }
   
-  # Disable provenance capture while some housekeeping is done
+  # Disable provenance capture now that endRecord() has been called
   setProvCapture(FALSE)
   recordrEnv$execMeta@endTime <- as.character(Sys.time())
-  writeExecMeta(recordr, recordrEnv$execMeta)
   # Use the datapackage id as the resourceMap id
   serializationId = recordrEnv$execMeta@datapackageId
   filePath <- sprintf("%s/%s.rdf", runDir, serializationId)
   status <- serializePackage(recordrEnv$dataPkg, file=filePath, id=serializationId)
   
+  # User invoked startRecord()/endRecord()
+  if (recordrEnv$execMeta@console) {
+    # If the user has run with startRecord()/eneRecord(), then retrieve all commands typed
+    # at the console since startRecord() was invoked.
+    startMarker <- sprintf("recordr execution %s started", recordrEnv$execMeta@executionId)
+    endMarker   <- sprintf("recordr execution %s ended", recordrEnv$execMeta@executionId)
+    timestamp (stamp = c(date(), endMarker), quiet = TRUE)
+    tmpFile <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".log")
+    savehistory(file=tmpFile)
+    recordrHistory <- ""
+    allHistory <- ""
+    foundStart <- FALSE
+    foundEnd <- FALSE
+    consoleLogFile <-  sprintf("%s/console.log", runDir)
+    
+    # Loop through the history, extracting everything between the start and end markers
+    # Handle special case of start marker not being in the history, i.e. exceeded max
+    # history lines and start marker no longer in history
+    for (line in readLines(tmpFile)) {
+      allHistory <- c(allHistory, line)
+      if(grepl(startMarker, line)) foundStart <- TRUE
+      if(grepl(endMarker, line)) foundEnd <- TRUE
+      
+      if (foundEnd) break
+      if (foundStart) {
+        recordrHistory <- c(recordrHistory, line)
+      }
+    }
+    
+    # Write the console log to the run directory
+    headerLine <- "# R console log capture by recordr"
+    if (foundStart && foundEnd) {
+      recordrHistory <- c(headerLine, recordrHistory)
+      writeLines(recordrHistory, consoleLogFile)
+    } else if (length(recordrHistory) > 0) {
+        recordrHistory <- c(headerLine, recordrHistory)
+        writeLines(recordrHistory, consoleLogFile)
+    } else {
+        allHistory <- c(headerLine, recordrHistory)
+        writeLines(recordrHistory, consoleLogFile)
+    }
+    recordrEnv$scriptPath = consoleLogFile
+  }
+  
+  # Save the executed file or console log to the data package
+  script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = '\n'))
+  # Create a data package object for the program that we are running and store it.
+  scriptFmt <- "text/plain"
+  programD1Obj <- new("DataObject", id=recordrEnv$programId, dataobj=script, format=scriptFmt, user=recordrEnv$execMeta@accountName, mnNodeId=recordrEnv$mnNodeId)
+  # TODO: Set access control on the action object to be public
+  addData(recordrEnv$dataPkg, programD1Obj)
   # Serialize/Save the entire package object to the run directory
   filePath <- sprintf("%s/%s.pkg", runDir, recordrEnv$execMeta@datapackageId)
   saveRDS(recordrEnv$dataPkg, file=filePath)
   dataPkg <- recordrEnv$dataPkg
+  
+  # Save execution metadata to a file in the run directory
+  writeExecMeta(recordr, recordrEnv$execMeta)
+  
   invisible(dataPkg)
 })
 
 #' Record provenance for an R script execution and create a DataONE DataPackage that
 #' contains this provenance information and all derived products create by the script
 #' @param Recordr object
-#' @param The filename of the R script to run and collect provenance information for
+#' @param file the name of the R script to run and collect provenance information for
 #' @return the identifier for the DataONE datapackge created by this run
 #' @author slaughter
 #' @export
-setGeneric("record", function(recordr, filePath, tag="", ...) {
+setGeneric("record", function(recordr, file, ...) {
   standardGeneric("record")
 })
 
 #' @export
-setMethod("record", signature("Recordr", "character"), function(recordr, filePath, tag="", ...) {
-
+setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
   # Check if a recording session is active
   if ( is.element(".recordr", base::search())) {
     detach(".recordr")
   }
   
-  startRecord(recordr, tag, filePath)
+  startRecord(recordr, tag, file, console=FALSE)
   recordrEnv <- as.environment(".recordr")
   setProvCapture(TRUE)
-  # Source the user's script, passing in arguments that they intended for the 'source' call.
+  # Source the user's script, passing in arguments that they intended for the 'source' call.  
   result = tryCatch ({
     #cat(sprintf("Sourcing file %s\n", filePath))
     # Because we are calling the 'source' function with the packageId, the overridden function
     # for 'source' will not be called, and a provenance entry for this 'source' will not be
     # recorded.
-    base::source(filePath, local=FALSE, ...)
+    # Note: elipse argument is passed from method call so user can pass args to source, if desired.
+    base::source(file, local=FALSE, ...)
   }, warning = function(warningCond) {
     slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
     cat(sprintf("Warning:: %s", recordrEnv$execMeta@errorMessage))
@@ -236,13 +296,13 @@ setMethod("record", signature("Recordr", "character"), function(recordr, filePat
   }, finally = {
     # Disable provenance capture while some housekeeping is done
     setProvCapture(FALSE)
-    # Stop recording provenance and finalize the data package
-    pkg <- endRecord(recordr)
+    # Stop recording provenance and finalize the data package    
+    pkg <- endRecord(recordr)    
     # return a datapackage object
     if (is.element(".recordr", base::search())) {
       detach(".recordr", unload=TRUE)
     }
-    invisible(pkg)
+    return(pkg)
   })
 })
 
