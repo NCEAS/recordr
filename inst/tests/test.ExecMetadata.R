@@ -1,6 +1,7 @@
 testthat::context("ExecMetadata tests")
 
 library(recordr)
+library(uuid)
 
 scriptPath <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".R")
 
@@ -11,22 +12,21 @@ test_that("Can create an ExecMetadaa object", {
   expect_that(execMeta@softwareApplication, equals(scriptPath))
 })
 
-test_that("Can persist an ExecMetadaa object", {
+test_that("Can write/read an ExecMetadaa object", {
+  uniqueTag <- sprintf("Test run %s", UUIDgenerate())
   rc <- new("Recordr")
-  execMeta <- ExecMetadata(scriptPath)
+  execMeta <- ExecMetadata(scriptPath, tag=uniqueTag)
   filePath <- writeExecMeta(rc, execMeta)
   expect_that(file.exists(filePath), is_true())
   expect_that(file.info(filePath)["size"], is_more_than(0))
-})
-
-test_that("Can retrieve an ExecMetadata object", {
-  rc <- new("Recordr")
-  mdf <- listRuns(rc, quiet = TRUE)
+  
+  mdf <- listRuns(rc, tag=uniqueTag, quiet = TRUE)
   if (nrow(mdf) == 0) {
     warning("Unable to test ExecMetadata retrieval because no runs have been recorded")
   } else {
-    execId <- mdf[1, "executionId"]
-    execMeta <- readExecMeta(rc, execId)
-    expect_equal(execMeta@executionId, execId)
+    newExecId <- mdf[1, "executionId"]
+    newExecMeta <- readExecMeta(rc, newExecId)
+    expect_equal(newExecMeta@executionId, newExecId)
+    deleteRuns(rc, tag=uniqueTag, quiet = TRUE)
   }
 })

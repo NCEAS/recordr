@@ -59,6 +59,13 @@ test_that("Can record a script execution", {
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
   expect_that(mdf[mdf$tag == newTag, 'executionId'], matches(executionId))
+  # Delete the single run
+  
+  mdf <- deleteRuns(recordr, tag=newTag, quiet = TRUE)
+  # If we deleted the run, then the returned data
+  # frame of deleted runs will have one row
+  oneRow <- nrow(mdf) == 1
+  expect_that(oneRow, is_true())
 })
 
 test_that("Can list a script execution", {
