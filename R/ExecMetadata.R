@@ -47,11 +47,11 @@ setClass("ExecMetadata", slots = c(executionId      = "character",
 #' @return the ExecMetadata object
 #' @author slaughter
 #' @export
-setGeneric("ExecMetadata", function(programName, tag="") {
+setGeneric("ExecMetadata", function(programName, ...) {
   standardGeneric("ExecMetadata")
 })
 
-setMethod("ExecMetadata", signature("character"), function(programName, tag="") {
+setMethod("ExecMetadata", signature("character"), function(programName, tag=as.character(NA)) {
   
   ## create new MNode object and insert uri endpoint
   execMeta <- new("ExecMetadata")
@@ -65,7 +65,7 @@ setMethod("ExecMetadata", signature("character"), function(programName, tag="") 
   execMeta@runtime <- R.Version()$version.string
   execMeta@softwareApplication  <- programName
   execMeta@endTime <- as.character(NULL)
-  execMeta@errorMessage <- as.character(NULL)
+  execMeta@errorMessage <- ""
   execMeta@publishTime <- as.character(NA)
   execMeta@console <- TRUE
   # Get list of packages that recordr has loaded and store as characters, i.e.
