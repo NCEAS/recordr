@@ -64,8 +64,8 @@ setMethod("ExecMetadata", signature("character"), function(programName, tag="") 
   execMeta@operatingSystem <- R.Version()$platform
   execMeta@runtime <- R.Version()$version.string
   execMeta@softwareApplication  <- programName
-  execMeta@endTime <- ""
-  execMeta@errorMessage <- ""
+  execMeta@endTime <- as.character(NULL)
+  execMeta@errorMessage <- as.character(NULL)
   execMeta@publishTime <- as.character(NA)
   execMeta@console <- TRUE
   # Get list of packages that recordr has loaded and store as characters, i.e.

@@ -285,7 +285,7 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
     # Because we are calling the 'source' function with the packageId, the overridden function
     # for 'source' will not be called, and a provenance entry for this 'source' will not be
     # recorded.
-    # Note: elipse argument is passed from method call so user can pass args to source, if desired.
+    # Note: ellipse argument is passed from method call so user can pass args to source, if desired.
     base::source(file, local=FALSE, ...)
   }, warning = function(warningCond) {
     slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
@@ -307,7 +307,7 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
 })
 
 #' Select runs that match search parameters
-#' @param runIds a list of execution identifiers
+#' @param runId an execution identifiers
 #' @param script name of script to match (can be a regex)
 #' @param startTime match executions that started after this time (inclusive)
 #' @param endTime match executions that ended before this time (inclusive)
@@ -320,7 +320,8 @@ setGeneric("selectRuns", function(recordr, ...) {
   standardGeneric("selectRuns")
 })
 
-setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", script = "", startTime = "", endTime = "", tag = "", errorMessage = "", matchType="specific", orderBy = "") {
+setMethod("selectRuns", signature("Recordr"), function(recordr, runId = as.character(NA), script = as.character(NA), startTime = as.character(NA), endTime = as.character(NA), 
+                                                       tag = as.character(NA), errorMessage = as.character(NA), matchType="specific", orderBy = as.character(NA)) {
   
   colNames = c("script", "tag", "startTime", "endTime", "execId", "packageId", "publishTime", "errorMessage")
   
@@ -338,7 +339,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
   
   sortOrder = "ascending"
   # Is the column that the user specified for ordering correct?
-  if (orderBy != "") {
+  if (!is.na(orderBy)) {
     # Check if column name to sort by is prefaced with a "-", which indicates descending column oroder
     if (grepl("^\\s*-", orderBy)) {
         sortOrder <- "descending"
@@ -349,7 +350,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
     }
     if (! is.element(orderBy, colNames)) {
       cat(sprintf("Invalid column name: \"%s\"\n", orderBy))
-      cat(sprintf("Please use one of the following column names: \"%s\"\n", paste(colNames, collapse = '", "')))
+      stop(sprintf("Please use one of the following column names: \"%s\"\n", paste(colNames, collapse = '", "')))
       return(df)
     }
   }
@@ -362,8 +363,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
   matchTypes <- c("specific", "non-specific")
   if (! is.element(matchType, matchTypes)) {
     msg <- paste("Invalid argument 'matchTypes', must be one of: ", matchTypes)
-    message(msg)
-    return(df)
+    stop(msg)
   }
   
   # Loop through run directories
@@ -379,22 +379,24 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
       thisPackageId    <- execMeta@datapackageId
       thisPublishTime  <- execMeta@publishTime
       thisErrorMessage <- execMeta@errorMessage
+      # If endTime unset, set to start so that our tests won't fail
+      if (is.na(thisEndTime)) thisEndTime <- thisStartTime
       
       match = FALSE
       # Test each selection argument separately. 
       # The selection criteria are applied in an "and" relationship to each other
       # so exclude this run as soon as any test doesn't match.
       #
-      # Check for matching run identifiers in argument 'runIds'. If found, then
+      # Check for matching run identifiers in argument 'runId'. If found, then
       # continue to other tests
-      if (runIds[1] != "" ){
-        if(!is.element(thisExecId, runIds)) {
+      if (!is.na(runId)){
+        if(length(grep(runId, thisExecId) == 0)) {
           next
         }
         match = TRUE
       }
       # Check for match with argument 'script'
-      if (script != "") {
+      if (!is.na(script)) {
         # seearch for parameter 'tag' (a regex) in current tag string
         if (length(grep(script, thisScript)) == 0) {
           next
@@ -402,7 +404,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
         match = TRUE
       }
       # Check for match with argument 'startTime'
-      if (startTime != "") {
+      if (!is.na(startTime)) {
         # Current run started before specified time, so skip it
         if (as.POSIXlt(thisStartTime) < as.POSIXlt(startTime)) {
           next
@@ -410,7 +412,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
         match = TRUE
       }
       # Check for match with argument 'endTime'
-      if (endTime != "") {
+      if (!is.na(endTime)) {
         # This run ended after specified time, so skip it
         if (as.POSIXlt(thisEndTime) > as.POSIXlt(endTime)) {          
           next
@@ -418,7 +420,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
         match = TRUE
       }
       # Check for match with argument 'tag'
-      if (tag != "") {
+      if (!is.na(tag)) {
         # seearch for parameter 'tag' (a regex) in current tag string
         if (length(grep(tag, thisTag)) == 0) {
           next
@@ -426,7 +428,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
         match = TRUE
       }
       # Check for match with argument 'errorMessage'
-      if (errorMessage != "") {
+      if (!is.na(errorMessage)) {
         # seearch for parameter 'tag' (a regex) in current tag string
         if (length(grep(errorMessage, thisErrorMessage)) == 0) {
           next
@@ -454,7 +456,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
     return(df)
   } else {
     # Order the run metadata by the specified column
-    if (orderBy != "") {
+    if (!is.na(orderBy)) {
       if (sortOrder == "descending") {
         colStr <- paste("runMeta[order(runMeta$", orderBy, ", decreasing=TRUE),]", sep="")
       }
@@ -468,7 +470,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runIds = "", scr
 })
 
 #' Delete runs that match search parameters
-#' #' @param runIds a list of execution identifiers
+#' @param runId an execution identifier (runId)
 #' @param script name of script to match (can be a regex)
 #' @param startTime match executions that started after this time (inclusive)
 #' @param endTime match executions that ended before this time (inclusive)
@@ -482,20 +484,22 @@ setGeneric("deleteRuns", function(recordr, ...) {
   standardGeneric("deleteRuns")
 })
 
-setMethod("deleteRuns", signature("Recordr"), function(recordr, runIds = "", script = "", startTime = "", endTime = "", tag = "", errorMessage = "", noop = FALSE, quiet = FALSE) {
+setMethod("deleteRuns", signature("Recordr"), function(recordr, runId = as.character(NA), script = as.character(NA), 
+                                                       startTime = as.character(NA), endTime = as.character(NA), 
+                                                       tag = as.character(NA), errorMessage = as.character(NA), noop = FALSE, quiet = FALSE) {
 
-  runs <- selectRuns(recordr, runIds=runIds, script=script, startTime=startTime, endTime=endTime, tag=tag, errorMessage=errorMessage, matchType="specific")
+  runs <- selectRuns(recordr, runId=runId, script=script, startTime=startTime, endTime=endTime, tag=tag, errorMessage=errorMessage, matchType="specific")
   if (nrow(runs) == 0) {
     if (!quiet) {
-      cat(sprintf("No runs matched search criteria."))
+      message(sprintf("No runs matched search criteria."))
     }
     return(runs)
   } else {
     if (!quiet) {
       if (noop) {
-        cat(sprintf("The following %d runs would have been deleted:\n", nrow(runs)))
+        message(sprintf("The following %d runs would have been deleted:\n", nrow(runs)))
       } else {
-        cat(sprintf("The following %d runs have been deleted:\n", nrow(runs)))
+        message(sprintf("The following %d runs have been deleted:\n", nrow(runs)))
       }
     }
   }
@@ -537,13 +541,15 @@ setGeneric("listRuns", function(recordr, ...) {
   standardGeneric("listRuns")
 })
 
-setMethod("listRuns", signature("Recordr"), function(recordr, script="", startTime = "", endTime = "", tag = "", errorMessage = "", quiet=FALSE, orderBy = "-startTime") {
+setMethod("listRuns", signature("Recordr"), function(recordr, script=as.character(NA), startTime = as.character(NA), 
+                                                     endTime = as.character(NA), tag = as.character(NA), 
+                                                     errorMessage = as.character(NA), quiet=FALSE, orderBy = "-startTime") {
 
   runs <- selectRuns(recordr, script=script, startTime=startTime, endTime=endTime, tag=tag, errorMessage=errorMessage, matchType="non-specific", orderBy=orderBy)
 
   if (nrow(runs) == 0) {
     if (!quiet) {
-      cat(sprintf("No runs matched search criteria."))
+      message(sprintf("No runs matched search criteria."))
     }
     return(runs)
   }
@@ -601,7 +607,6 @@ printRun <- function(row=list(), headerOnly = FALSE) {
 #' @param recordr a Recordr object
 #' @param identifier show files and provenance relationships for this identifier
 #' @param showProv a boolean value: if TRUE then all provenance relationships, if FALSE show only input/output related relationships
-#
 #' @author slaughter
 #' @export
 setGeneric("view", function(recordr, id, ...) {
