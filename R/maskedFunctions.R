@@ -33,6 +33,7 @@ setMethod("recordr_D1MNodeGet", signature("MNode", "character"), function(node, 
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=D1_resolve_pid, predicate=provUsed)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=D1_resolve_pid, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
+    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, D1_resolve_pid)
     setProvCapture(TRUE)
   }
   return(d1o)
@@ -160,6 +161,7 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
+    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, datasetId)
     saveFileInfo(datasetId, file)
     setProvCapture(TRUE)
   }
@@ -211,6 +213,7 @@ setMethod("recordr_read.csv", signature(), function(...) {
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
+    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, datasetId)
     saveFileInfo(datasetId, fileArg)
     setProvCapture(TRUE)
   }

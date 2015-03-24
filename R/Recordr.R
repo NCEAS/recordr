@@ -83,6 +83,8 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", file=as
   # itself is the top level program we are running.
   currentTime <- format(Sys.time(), "%Y%m%d%H%M%s")
   recordrEnv$programId <- sprintf("urn:uuid:%s", UUIDgenerate())
+  recordrEnv$execInputIds <- list()
+  recordrEnv$execOutputIds <- list()
   if(is.na(file)) {
     recordrEnv$scriptPath <- ""
   } else {
@@ -191,6 +193,13 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # Disable provenance capture now that endRecord() has been called
   setProvCapture(FALSE)
   recordrEnv$execMeta@endTime <- as.character(Sys.time())
+  # For each output dataset created by this execution, record a prov relationship of 'wasDerivedFrom' for each of the 
+  # input datasets
+  for (outputId in recordrEnv$execOutputIds) {
+    for (inputId in recordrEnv$execInputIds) {
+      insertRelationship(recordrEnv$dataPkg, subjectID=outputId, objectIDs=inputId, predicate=provWasDerivedFrom)
+    }
+  }
   # Use the datapackage id as the resourceMap id
   serializationId = recordrEnv$execMeta@datapackageId
   filePath <- sprintf("%s/%s.rdf", runDir, serializationId)
@@ -379,6 +388,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runId = as.chara
       thisPackageId    <- execMeta@datapackageId
       thisPublishTime  <- execMeta@publishTime
       thisErrorMessage <- execMeta@errorMessage
+      
       # If endTime unset, set to start so that our tests won't fail
       if (is.na(thisEndTime)) thisEndTime <- thisStartTime
       
