@@ -36,7 +36,8 @@ setClass("ExecMetadata", slots = c(executionId      = "character",
                                    endTime             = "character",
                                    errorMessage        = "character",
                                    publishTime         = "character",
-                                   console             = "logical"))
+                                   console             = "logical",
+                                   seq      = "integer"))
 
 ############################
 ## ExecMetadata constructors
@@ -64,10 +65,12 @@ setMethod("ExecMetadata", signature("character"), function(programName, tag=as.c
   execMeta@operatingSystem <- R.Version()$platform
   execMeta@runtime <- R.Version()$version.string
   execMeta@softwareApplication  <- programName
-  execMeta@endTime <- as.character(NULL)
+  execMeta@endTime <- execMeta@startTime
   execMeta@errorMessage <- ""
   execMeta@publishTime <- as.character(NA)
   execMeta@console <- TRUE
+  execMeta@seq <- as.integer(0)
+  
   # Get list of packages that recordr has loaded and store as characters, i.e.
   # "recordr 0.1, uuid 0.1-1, dataone 1.0.0, dataonelibs 1.0.0, XML 3.98-1.1, rJava 0.9-6"
   pkgs <- sessionInfo()$otherPkgs
@@ -94,9 +97,13 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
   
   # Get values from all the slots for the execution metadata, in order.
   # There is probably an easier way to do this!
-  slotNames <- names(getSlots("ExecMetadata"))
-  slotValues <- as.character(lapply(slotNames, function(x) eval(slot(execMeta, x))))
-  df <- data.frame(name = slotNames, value = slotValues)
+  execSlotNames <- slotNames("ExecMetadata")
+
+  #slotValues <- as.character(lapply(slotNames, function(x) eval(slot(execMeta, x))))
+  slotValues <- unlist(lapply(execSlotNames, function(x) slot(execMeta, x)))
+  
+  df <- data.frame(name = execSlotNames, value = slotValues, stringsAsFactors=FALSE)
+  
   provCaptureEnabled <- getProvCapture()
   outDir <- sprintf("%s/runs/%s", recordr@recordrDir, execMeta@executionId)
   
@@ -143,6 +150,8 @@ setMethod("readExecMeta", signature("Recordr", "character"), function(recordr, e
     execMeta@errorMessage        <- mdf[mdf$name == "errorMessage", "value"]
     execMeta@publishTime         <- mdf[mdf$name == "publishTime", "value"]
     execMeta@moduleDependencies  <- mdf[mdf$name == "moduleDependencies", "value"]
+    execMeta@console             <- as.logical(mdf[mdf$name == "console", "value"])
+    execMeta@seq                 <- as.integer(mdf[mdf$name == "seq", "value"])
   } else {
     return(NULL)
   }
