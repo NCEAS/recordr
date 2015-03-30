@@ -2,12 +2,12 @@ Package: recordr
 Title: Record execution of R scripts and functions by tracking and recording
     provenance.
 Version: 0.1
-Authors@R: c( person("Lauren", "Walker", role = c("aut", "cre"), email =
-    "walker@nceas.ucsb.edu"), person("Peter", "Slaughter", role = c("aut",
-    "cre"), email = "walker@nceas.ucsb.edu"), person("Chris", "Jones", role =
-    c("aut", "cre"), email = "cjones@nceas.ucsb.edu"), person("Matthew",
-    "Jones", role = c("aut", "cre"), email = "jones@nceas.ucsb.edu") )
+Authors@R: c( person("Peter", "Slaughter", role = c("aut", "cre"), email = "slaughter@nceas.ucsb.edu"), 
+    person("Matthew", "Jones", role = c("aut", "cre"), email = "jones@nceas.ucsb.edu"), 
+    person("Chris", "Jones", role = c("aut", "cre"), email = "cjones@nceas.ucsb.edu"),  
+    person("Lauren", "Walker", role = c("aut", "cre"), email = "walker@nceas.ucsb.edu")  )
 Description: What the package does (one paragraph)
+Date: 2015
 Depends:
     R (>= 3.1.0),
     dataone (>= 1.0.0)
