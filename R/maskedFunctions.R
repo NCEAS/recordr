@@ -28,7 +28,8 @@ setMethod("recordr_D1MNodeGet", signature("MNode", "character"), function(node, 
     setProvCapture(FALSE)
     
     # Record the DataONE resolve service endpoint + pid for the object of the RDF triple
-    D1_resolve_pid <- sprintf("%s/%s", D1_CN_Resolve_URL, pid)    
+    # Decode the URL that will eventually be added to the resource map
+    D1_resolve_pid <- URLdecode(sprintf("%s/%s", D1_CN_Resolve_URL, pid))
     # Record prov:used relationship between the input dataset and the execution
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=D1_resolve_pid, predicate=provUsed)
     # Record relationship identifying this dataset as a provone:Data
@@ -91,14 +92,19 @@ setMethod("recordr_getD1Object", "D1Client", function(x, identifier) {
   # as 'script <- used <- D1Object
   # i.e. insertRelationship
   # Record the provenance relationship between the user's script and the derived data file
+  # Write provenance info for this object to the DataPackage object.
   if (getProvCapture()) {
-    #cat(sprintf("recordr_getD1Obj: recording prov for: %s\n", identifier))
-    scriptPath <- get("scriptPath", envir = as.environment(".recordr"))
-    ##d1Client <- get("d1Client", envir = as.environment(".recordr"))
-    ##dataPkg <- get("dataPkg", envir = as.environment(".recordr"))
-    outLines <- sprintf("%s used %s", basename(scriptPath), identifier)
-    runDir <- get("runDir", envir = as.environment(".recordr"))
-    write(outLines, sprintf("%s/%s/prov.txt", runDir, execMeta@executionId), append = TRUE)
+    recordrEnv <- as.environment(".recordr")
+    setProvCapture(FALSE)
+    
+    # Record the DataONE resolve service endpoint + pid for the object of the RDF triple
+    D1_resolve_pid <- URLdecode(sprintf("%s/%s", D1_CN_Resolve_URL, identifier))
+    # Record prov:used relationship between the input dataset and the execution
+    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=D1_resolve_pid, predicate=provUsed)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=D1_resolve_pid, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
+    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, D1_resolve_pid)
+    setProvCapture(TRUE)
   }
   
   return(d1o)
@@ -162,7 +168,7 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
     recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, datasetId)
-    saveFileInfo(datasetId, file)
+    saveFileInfo(datasetId, file, access="write")
     setProvCapture(TRUE)
   }
   return(obj)
@@ -214,7 +220,7 @@ setMethod("recordr_read.csv", signature(), function(...) {
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
     recordrEnv$execInputIds <- c(recordrEnv$execInputIds, datasetId)
-    saveFileInfo(datasetId, fileArg)
+    saveFileInfo(datasetId, fileArg, access="read")
     setProvCapture(TRUE)
   }
   return(dataRead)
@@ -279,7 +285,7 @@ setMethod("getProvCapture", signature(), function(x) {
 })
 
 # Save local file information
-saveFileInfo <- function(dataObjId, file) {
+saveFileInfo <- function(dataObjId, fileArg, headerOnly=FALSE, access) {
   
   # Disable provenance capture while we read/write file info
   provEnabled <- getProvCapture()
@@ -288,29 +294,49 @@ saveFileInfo <- function(dataObjId, file) {
   # Construct directory/filename to store file info
   recordrEnv <- as.environment(".recordr")
   infoFile <- sprintf("%s/runs/%s/fileInfo.csv", recordrEnv$recordrDir, recordrEnv$execMeta@executionId)
-  filePath <- normalizePath(file)
   
-  # get info for this file. file.info stores dates as POSIXct, so convert them to strings
-  # so that they don't get written out as an integer timestamp, i.e. milliseconds since ref date
-  rawInfo <- base::file.info(filePath)
-  thisFstats <- data.frame(dataObjId=dataObjId, size=rawInfo[["size"]], 
-                           mtime=as.character(rawInfo[["mtime"]]), 
-                           ctime=as.character(rawInfo[["ctime"]]), 
-                           uname=rawInfo[["uname"]],
-                           stringsAsFactors=FALSE, row.names=NULL)
-  rownames(thisFstats) <- c(filePath)
-  # Read in the stored file info for this execution. This file contains info for all
-  # files used by this execution. Rowname of data frame is the file path.
-  if (file.exists(infoFile)) {
-    fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
+  # Save a header row only, in case this execution does not read or write any
+  # files, then this file will have been created.
+  if (headerOnly) {
+    thisFstats <- data.frame(dataObjId=character(), size=integer(),
+                             mtime=as.character(),
+                             ctime=as.character(),
+                             uname=as.character(),
+                             access=as.character(),
+                             stringsAsFactors=FALSE, row.names=NULL)
+    write.csv(thisFstats, infoFile, row.names = TRUE)
+    setProvCapture(provEnabled)
+    return()
+  }
+  
+  # File arg could be a character list with > 1 element, so write info for each
+  # file.
+  for (file in fileArg) { 
+    filePath <- normalizePath(file)
+    # get info for this file. file.info stores dates as POSIXct, so convert them to strings
+    # so that they don't get written out as an integer timestamp, i.e. milliseconds since ref date
+    rawInfo <- base::file.info(filePath)
+    thisFstats <- data.frame(dataObjId=dataObjId, size=rawInfo[["size"]], 
+                             mtime=as.character(rawInfo[["mtime"]]), 
+                             ctime=as.character(rawInfo[["ctime"]]), 
+                             uname=rawInfo[["uname"]],
+                             access=access,
+                             stringsAsFactors=FALSE, row.names=NULL)
+    rownames(thisFstats) <- c(filePath)
+    # Read in the stored file info for this execution. This file contains info for all
+    # files used by this execution. Rowname of data frame is the file path.
+    if (file.exists(infoFile)) {
+      fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
       # Replace or add the entry for this file
       fstats[filePath, ] <- thisFstats
-  } else {
-    # First file recorded, just write one file info out
-    fstats <- thisFstats
+    } else {
+      # First file recorded, just write one file info out
+      fstats <- thisFstats
+    }
+    # Save file info to run directory
+    write.csv(fstats, infoFile, row.names = TRUE)
   }
-  # Save file info to run directory
-  write.csv(fstats, infoFile, row.names = TRUE)
+  
   setProvCapture(provEnabled)
 }
 
