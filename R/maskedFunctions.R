@@ -162,6 +162,8 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     # Create a data package object for the derived dataset
     dataFmt <- "text/csv"
     dataObj <- new("DataObject", datasetId, csvdata, dataFmt, user, recordrEnv$mnNodeId)
+    # TODO: use file argument when file size is greater than a configuration value
+    #dataObj <- new("DataObject", id=datasetId, filename=normalizePath(file), format=dataFmt, user=user, mnNodeId=recordrEnv$mnNodeId)    
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
     addData(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
@@ -298,43 +300,45 @@ saveFileInfo <- function(dataObjId, fileArg, headerOnly=FALSE, access) {
   # Save a header row only, in case this execution does not read or write any
   # files, then this file will have been created.
   if (headerOnly) {
-    thisFstats <- data.frame(dataObjId=character(), size=integer(),
+    thisFstats <- data.frame(filePath=character(),dataObjId=character(), size=integer(),
                              mtime=as.character(),
                              ctime=as.character(),
                              uname=as.character(),
                              access=as.character(),
                              stringsAsFactors=FALSE, row.names=NULL)
-    write.csv(thisFstats, infoFile, row.names = TRUE)
+    
+    write.csv(thisFstats, infoFile, row.names=FALSE)
     setProvCapture(provEnabled)
     return()
   }
   
   # File arg could be a character list with > 1 element, so write info for each
   # file.
-  for (file in fileArg) { 
+  for (file in fileArg) {
     filePath <- normalizePath(file)
     # get info for this file. file.info stores dates as POSIXct, so convert them to strings
     # so that they don't get written out as an integer timestamp, i.e. milliseconds since ref date
-    rawInfo <- base::file.info(filePath)
-    thisFstats <- data.frame(dataObjId=dataObjId, size=rawInfo[["size"]], 
+    rawInfo <- base::file.info(filePath)    
+    thisFstats <- data.frame(filePath=filePath, dataObjId=dataObjId, size=rawInfo[["size"]], 
                              mtime=as.character(rawInfo[["mtime"]]), 
                              ctime=as.character(rawInfo[["ctime"]]), 
                              uname=rawInfo[["uname"]],
                              access=access,
                              stringsAsFactors=FALSE, row.names=NULL)
-    rownames(thisFstats) <- c(filePath)
+    #rownames(thisFstats) <- c(filePath)
     # Read in the stored file info for this execution. This file contains info for all
     # files used by this execution. Rowname of data frame is the file path.
-    if (file.exists(infoFile)) {
-      fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
+    if (file.exists(infoFile)) {      
+      fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names=NULL)
       # Replace or add the entry for this file
       fstats[filePath, ] <- thisFstats
     } else {
       # First file recorded, just write one file info out
       fstats <- thisFstats
     }
+    
     # Save file info to run directory
-    write.csv(fstats, infoFile, row.names = TRUE)
+    write.csv(fstats, infoFile, row.names=FALSE)
   }
   
   setProvCapture(provEnabled)
@@ -347,12 +351,12 @@ getFileInfo <- function(recordr, id) {
   setProvCapture(FALSE)
   thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
   infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
-  fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
+  fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names=1)
   if (! file.exists(infoFile)) {
     msg <- sprintf("Information file %s not found for execution identifier: %s", infoFile, id)
     stop(msg)
   }
-  fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names = 1)
+  fstats <- read.csv(infoFile, stringsAsFactors=FALSE)
   setProvCapture(provEnabled)
   return(fstats)
 }

@@ -146,7 +146,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # TODO: when available, check session API for orchid and use that instead of user, i.e.
   #   insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@orcid, predicate=provAgent, objectType="uri")
   userId <- recordrEnv$execMeta@accountName
-  insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=userId, predicate=provAgent, objectType="literal", dataTypeU=xsdString)
+  insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=userId, predicate=provAgent, objectType="literal", dataTypeURI=xsdString)
   # Record a relationship identifying the user
   insertRelationship(recordrEnv$dataPkg, subjectID=userId, objectIDs=provONEuser, predicate=rdfType, objectType="uri")
   
@@ -167,7 +167,13 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # Put recordr working directory in so masked functions can access it. No information can be saved locally until this
   # variable is defined.
   recordrEnv$recordrDir <- recordr@recordrDir
-  saveFileInfo(recordrEnv$programId, recordrEnv$scriptPath, headerOnly=FALSE, access="execute")
+  #cat(sprintf("filePath: %s\n", recordrEnv$scriptPath))
+  if (recordrEnv$scriptPath == "") {
+    saveFileInfo(recordrEnv$programId, fileArg="R console", headerOnly=TRUE)
+  }
+  else {
+    saveFileInfo(recordrEnv$programId, recordrEnv$scriptPath, headerOnly=FALSE, access="execute")
+  }
   # Record relationship identifying this id as a provone:Execution
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=provONEexecution, predicate=rdfType, objectType="uri")
   # Record relationship between the Exectution and the User
@@ -277,7 +283,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = '\n'))
   # Create a data package object for the program that we are running and store it.
   scriptFmt <- "text/plain"
-  programD1Obj <- new("DataObject", id=recordrEnv$programId, dataobj=script, format=scriptFmt, user=recordrEnv$execMeta@accountName, mnNodeId=recordrEnv$mnNodeId)
+  programD1Obj <- new("DataObject", id=recordrEnv$programId, dataobj=script, format=scriptFmt, user=recordrEnv$execMeta@accountName, mnNodeId=recordrEnv$mnNodeId)    
   # TODO: Set access control on the action object to be public
   addData(recordrEnv$dataPkg, programD1Obj)
   # Serialize/Save the entire package object to the run directory
@@ -727,6 +733,9 @@ setMethod("view", signature("Recordr"), function(recordr, id=as.character(NA), f
     if (! is.null(execMeta)) {
       packageId <-  execMeta@datapackageId
       packageFile <- sprintf("%s/%s.pkg", thisRunDir, packageId)
+      # Deserialize saved data package
+      pkg <- readRDS(file=packageFile)
+      relations <- getRelationships(pkg)
       if(is.na(execMeta@publishTime) || execMeta@publishTime == "") {
         published <- FALSE
         cat(sprintf("This run has not been published\n"))
@@ -745,9 +754,6 @@ setMethod("view", signature("Recordr"), function(recordr, id=as.character(NA), f
 
       cat(sprintf("tag: %s\t", execMeta@tag))
       cat(sprintf("sequence #: %d\n", execMeta@seq))
-      # Deserialize saved data package
-      pkg <- readRDS(file=packageFile)
-      relations <- getRelationships(pkg)
       
       fileNameLength = 30
       # "%-30s %-10d %-19s\n"
@@ -773,10 +779,13 @@ setMethod("view", signature("Recordr"), function(recordr, id=as.character(NA), f
         if(fstats[i, "access"] != "write") next
         if (published) {
           pid <- fstats[i,"dataObjId"]
-          pidURL <- sprintf("%s/%s", D1_CN_Resolve_URL, dataObjId)
-          cat(sprintf(fmt, strtrim(basename(rownames(fstats)[i]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"], pidURL), sep = "")
+          pidURL <- sprintf("%s/%s", D1_CN_Resolve_URL, pid)
+          #cat(sprintf(fmt, strtrim(basename(rownames(fstats)[i]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"], pidURL), sep = "")
+          cat(sprintf(fmt, strtrim(basename(fstats[i, "filePath"]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"], pidURL), sep = "")
+          
         } else {
-          cat(sprintf(fmt, strtrim(basename(rownames(fstats)[i]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
+          #cat(sprintf(fmt, strtrim(basename(rownames(fstats)[i]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
+          cat(sprintf(fmt, strtrim(basename(fstats[i, "filePath"]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
         }
       }
       
@@ -897,12 +906,11 @@ setMethod("publish", signature("Recordr"), function(recordr, id, assignDOI=FALSE
     # TODO: check if we actually got one, if not then error
     system <- "doi"
   } else {
-    #metadata_id <- paste0("urn:uuid:", UUIDgenerate())
-    metadata_id <- execMeta@datapackageId
+    metadata_id <- paste0("urn:uuid:", UUIDgenerate())
     system <- "uuid"
   }
   
-  eml <- makeEML(metadata_id, system, title, creators, abstract, methodDescription, geo_coverage, temp_coverage)
+  eml <- makeEML(metadata_id, system, title, creators, abstract, methodDescription, geo_coverage, temp_coverage, pkg, mn@endpoint)
   eml_xml <- as(eml, "XMLInternalElementNode")
   #print(eml_xml)
   # Write the eml file to the execution directory
@@ -958,8 +966,25 @@ setMethod("publish", signature("Recordr"), function(recordr, id, assignDOI=FALSE
 
 #' Create a minimal EML document.
 #' Creating EML should be more complete, but this minimal example will suffice to create a valid document.
-makeEML <- function(id, system, title, creators, abstract=NA, methodDescription=NA, geo_coverage=NA, temp_coverage=NA) {
+makeEML <- function(id, system, title, creators, abstract=NA, methodDescription=NA, geo_coverage=NA, temp_coverage=NA, datapackage=NULL, endpoint=NA) {
   #dt <- eml_dataTable(dat, description=description)
+  oe_list <- as(list(), "ListOfotherEntity")
+  if (!is.null(datapackage)) {
+    for (id in getIdentifiers(datapackage)) {
+      print(paste("Creating entity for ", id, sep=" "))
+      current_do <- getMember(datapackage, id)
+      oe <- new("otherEntity", entityName=basename(current_do@filename), entityType="text/csv")
+      oe@physical@objectName <- basename(current_do@filename)
+      oe@physical@size <- current_do@sysmeta@size
+      if (!is.na(endpoint)) {
+        oe@physical@distribution@online@url <- paste(endpoint, id, sep="/")
+      }
+      f <- new("externallyDefinedFormat", formatName="Comma Separated Values")
+      df <- new("dataFormat", externallyDefinedFormat=f)
+      oe@physical@dataFormat <- df
+      oe_list <- c(oe_list, oe)
+    }
+  }
   creator <- new("ListOfcreator", lapply(as.list(with(creators, paste(given, " ", surname, " ", "<", email, ">", sep=""))), as, "creator"))
   ds <- new("dataset",
             title = title,
@@ -967,10 +992,12 @@ makeEML <- function(id, system, title, creators, abstract=NA, methodDescription=
             creator = creator,
             contact = as(creator[[1]], "contact"),
             #coverage = new("coverage"),
-            pubDate = as.character(Sys.Date())
+            pubDate = as.character(Sys.Date()),
             #dataTable = c(dt),
+            otherEntity = as(oe_list, "ListOfotherEntity")
             #methods = new("methods"))
   )
+  
   if (!is.na(methodDescription)) {
     ms <- new("methodStep", description=methodDescription)
     listms <- new("ListOfmethodStep", list(ms))

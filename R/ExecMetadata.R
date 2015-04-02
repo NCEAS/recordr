@@ -58,7 +58,7 @@ setMethod("ExecMetadata", signature("character"), function(programName, tag=as.c
   execMeta <- new("ExecMetadata")
   execMeta@executionId <- sprintf("urn:uuid:%s", UUIDgenerate())
   execMeta@tag         <- tag
-  execMeta@datapackageId <- UUIDgenerate()
+  execMeta@datapackageId <- sprintf("urn:uuid:%s", UUIDgenerate())
   execMeta@accountName <- Sys.info()[['user']]
   execMeta@hostId <- Sys.info()[['nodename']]
   execMeta@startTime <- as.character(Sys.time())
