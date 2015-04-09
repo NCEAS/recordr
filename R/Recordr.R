@@ -18,7 +18,7 @@
 #   limitations under the License.
 #
 
-#' Manage R script executions, capture provenance, upload data producs to DataONE
+#' Manage R script executions, capture provenance, upload data producs to DataONE`
 #' @description Recordr provides methods to run R scripts and record the files that were
 #' read and written by the script, along with information about the execution.
 #' This provenance information along with any files created by the script can then be
@@ -41,9 +41,15 @@ setClass("Recordr", slots = c(recordrDir = "character")
 
 #' Initialize a Recorder object
 setMethod("initialize", signature = "Recordr", definition = function(.Object,
-                                                                     recordrDir = normalizePath("~/.recordr")) {
+                                                                     recordrDir = RecordrHome) {
   
   .Object@recordrDir <- recordrDir
+  if(!file.exists(DefaultConfigFile)) {
+    file.copy(InitialConfigFile, DefaultConfigFile)
+    message(sprintf("An initial configuration file for the recordr package has been copied to \"%s\"", DefaultConfigFile))
+    message("Please review the recordr package documentation section 'Configuring recordr'")
+    message("and then edit the configuration file with values appropriate for your installation.")
+  }
   return(.Object)
 })
 
@@ -67,7 +73,7 @@ setGeneric("startRecord", function(recordr, ...) {
 })
 
 #' @describeIn Recordr
-setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=as.character(NA), .console=TRUE) {
+setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=as.character(NA), .console=TRUE, config=as.character(NA)) {
   
   # Check if a recording session has already been started.
   if (is.element(".recordr", base::search())) {
@@ -86,6 +92,19 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # and R normally from their interactive R session.
   attach(NULL, name=".recordr")
   recordrEnv <- as.environment(".recordr")
+  attach(NULL, name=".recordrConfig")
+  recordrConfigEnv <- as.environment(".recordrConfig")
+  
+  # If the user specified a config file, open it, otherwise open the default file.
+  if(!is.na(config)) {
+    loadConfig(recordr, config)
+  } else {
+    # First check if the default config file has been copied to the ~/.recordr directory (initialize() does this)
+    if (file.exists(DefaultConfigFile)) {
+      loadConfig(recordr, DefaultConfigFile)
+    } 
+  }
+  
   # If no scriptName is passed to startRecord(), then we are running in the R console, and R
   # itself is the top level program we are running.
   currentTime <- format(Sys.time(), "%Y%m%d%H%M%s")
@@ -124,8 +143,8 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # Create an empty D1 datapackage object and make it globally avilable, i.e. available
   # to the masking functions, e.g. "recordr_write.csv".
   # TODO: Read memmber node from session API
-  recordrEnv$cnNodeId <- "STAGING2"
-  recordrEnv$mnNodeId <- "urn:node:mnTestKNB"
+  #recordrEnv$cnNodeId <- "STAGING2"
+  recordrEnv$mnNodeId <- getConfig(recordr, "target_member_node_id")
   # TODO: use new() initialization when datapackage is fixed - currently using new() causing
   # an old object to be reused!!!
   #recordrEnv$dataPkg <- new("DataPackage", packageId=recordrEnv$execMeta@datapackageId)
@@ -187,6 +206,8 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
     timestamp (stamp = c(date(), startMarker), quiet = TRUE)
   }
   
+  # Load configuration values.
+  #loadConfig(recordr)
   setProvCapture(TRUE)
   # The Recordr provenance capture capability is now setup and when startRecord() returns, the
   # user can continue to work in the calling context, i.e. the console and provenance will be
@@ -213,8 +234,9 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
     return(NULL)
   }
   
-  on.exit(detach(".recordr"))
+  on.exit(recordrShutdown())
   recordrEnv <- as.environment(".recordr")
+  recordrConfigEnv <- as.environment(".recordrConfig")
   runDir <- sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId)
   if (!file.exists(runDir)) {
       dir.create(runDir, recursive = TRUE)
@@ -320,14 +342,20 @@ setGeneric("record", function(recordr, file, ...) {
 })
 
 #' @describeIn Recordr
-setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
-  # Check if a recording session is active
+setMethod("record", signature("Recordr"), function(recordr, file, tag="", config=as.character(NA), ...) {
+  # Check if a recording session didn't clean up properly by removing the
+  # temporary environments. If yes, then remove them now. The recordr pacakge
+  # does not allow concurrent execution of two record() sessions.
   if ( is.element(".recordr", base::search())) {
     detach(".recordr")
   }
+  if ( is.element(".recordrConfig", base::search())) {
+    detach(".recordrConfig")
+  }
   
-  startRecord(recordr, tag, .file=file, .console=FALSE)
+  startRecord(recordr, tag, .file=file, .console=FALSE, config=config)
   recordrEnv <- as.environment(".recordr")
+  recordrConfigEnv <- as.environment(".recordrConfig")
   setProvCapture(TRUE)
   # Source the user's script, passing in arguments that they intended for the 'source' call.  
   result = tryCatch ({
@@ -336,7 +364,8 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
     # for 'source' will not be called, and a provenance entry for this 'source' will not be
     # recorded.
     # Note: ellipse argument is passed from method call so user can pass args to source, if desired.
-    base::source(file, local=FALSE, ...)
+    #base::source(file, local=FALSE, ...)
+    base::source(file, ...)
   }, warning = function(warningCond) {
     slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
     cat(sprintf("Warning:: %s", recordrEnv$execMeta@errorMessage))
@@ -351,6 +380,9 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
     pkg <- endRecord(recordr)
     if (is.element(".recordr", base::search())) {
       detach(".recordr", unload=TRUE)
+    }
+    if (is.element(".recordrConfig", base::search())) {
+      detach(".recordrConfig", unload=TRUE)
     }
     # return a datapackage object
     return(pkg)
@@ -647,6 +679,164 @@ setMethod("listRuns", signature("Recordr"), function(recordr, file=as.character(
   invisible(runs)
 })
 
+#' Load configuration parameters
+#' @description Load a configuration into the current recordr session.
+#' @details This routine has the side effect of creating an R variable for each
+#' paramater contained in the specified configuration file. If a configuration file
+#' is not specified, then the default file is used. If recordr is being run for the first
+#' time, then a default file is loaded from the recordr package.
+#' @param recordr a Recordr instance
+#' @param file the file path to the configuration file, default is "~/.recordr/config.csv"
+#' @export
+setGeneric("loadConfig", function(recordr, ...) {
+  standardGeneric("loadConfig")
+})
+
+#' @describeIn Recordr
+setMethod("loadConfig", signature("Recordr"), function(recordr, file=as.character(NA)) {
+  
+  # Check if the config environemnt exists
+  if (! is.element(".recordrConfig", base::search())) {
+    warning("Cannot load configuration parameters, a Recordr session is not currently active.")
+    return()
+  }
+  
+  if (is.na(file)) {
+    file = DefaultConfigFile
+  }
+  
+  if(!file.exists(file)) {
+    stop(sprintf("Unable to load configuration file: %s\n", file))
+  }
+  
+  # Clear the config environment of all previously loaded or manually set variables
+  rm(list=ls(".recordrConfig"), pos=".recordrConfig")
+  
+  # Load the configuration from the requested file
+  source(file, as.environment(".recordrConfig"))
+})
+
+#' Save configuration parameters to a file
+#' @description Load a configuration into the current recordr session.
+#' @details This routine has the side effect of creating an R variable for each
+#' paramater contained in the specified configuration file. If a configuration file
+#' is not specified, then the default file is used. If recordr is being run for the first
+#' time, then a default file is loaded from the recordr package.
+#' @param recordr a Recordr instance
+#' @param file the file path to the configuration file, default is "~/.recordr/config.csv"
+#' @export
+setGeneric("saveConfig", function(recordr, ...) {
+  standardGeneric("saveConfig")
+})
+
+#' @describeIn Recordr
+setMethod("saveConfig", signature("Recordr"), function(recordr, file=as.character(NA)) {
+  
+  if (! is.element(".recordrConfig", base::search())) {
+    warning("Cannot save configuration parameters, a Recordr session is not currently active.")
+    return()
+  }
+  
+  if (is.na(file)) {
+    warning("Cannot save configuration parameters, filename not specified.")
+    return()
+  }
+  
+  if(file.exists(file)) {
+    unlink(file)
+  }
+  # List all the config params that were read in or saved via saveConfig()
+  params <- base::ls(".recordrConfig")
+  if (length(params) == 0) {
+    warning("Unable to save configuration file, no parameters loaded")
+    return()
+  }
+  recordrConfigEnv <- as.environment(".recordrConfig")
+  # Write out each parameter and value to the config file as an R statement
+  for (pName in params) {
+    # Serialize an R object to a string using the dput function and store this in a data frame
+    # that will be written to a config parameter file
+    strBuf <- textConnection("paramBuf", "w")
+    dump(pName, strBuf, control=NULL, envir=as.environment(".recordrConfig"))
+    close(strBuf)
+    #write(sprintf("# %s", comment), file, ncolumns=1, append=TRUE)
+    write(paramBuf, file, ncolumns=2, sep=" ", append=TRUE)
+  }
+})
+
+#' Load configuration parameters
+#' @description Load a configuration into the current recordr session.
+#' @details This routine has the side effect of creating an R variable for each
+#' paramater contained in the specified configuration file. If a configuration file
+#' is not specified, then the default file is used. If recordr is being run for the first
+#' time, then a default file is loaded from the recordr package.
+#' @param recordr a Recordr instance
+#' @param file the file path to the configuration file, default is "~/.recordr/config.csv"
+#' @export
+setGeneric("setConfig", function(recordr, name, value) {
+  standardGeneric("setConfig")
+})
+
+#' @describeIn Recordr
+setMethod("setConfig", signature("Recordr", "character", "ANY"), function(recordr, name=as.character(NA), value) {
+  
+  if (! is.element(".recordrConfig", base::search())) {
+    warning("Cannot set configuration parameters, a Recordr session is not currently active.")
+    return()
+  }
+  
+  recordrConfigEnv <- as.environment(".recordrConfig")
+  qualifiedParamName <- sprintf("recordrConfigEnv$%s", name)
+  # Get the data type (class) of a value already read in via readConfig(). If this parameter
+  # was already stored, then compare the class of the previously stored value with the class
+  # of the passed in variable.
+  paramClass <- "character"
+  if(is.element(name, base::ls(".recordrConfig"))) {
+    cmd <- sprintf("class(%s)", qualifiedParamName)
+    paramClass <- eval(parse(text=cmd))
+    if(paramClass != class(value)) {
+      stop(sprintf("\nCannot set parameter value: the type \"%s\" for the loaded parameter \"%s\" is \nnot the same as for the input value: %s\n", paramClass, name, class(value)))
+    }
+  }
+  
+  strBuf <- textConnection("paramBuf", "w")
+  dumpList <- "value"
+  dump(dumpList, strBuf, control=NULL)
+  close(strBuf)
+  assignCmd <- sprintf("%s <- %s", qualifiedParamName, paramBuf)
+  #cat(sprintf("cmd: %s\n", assignCmd))
+  eval(parse(text=assignCmd))
+})
+
+#' Load configuration parameters
+#' @description Load a configuration into the current recordr session.
+#' @details This routine has the side effect of creating an R variable for each
+#' paramater contained in the specified configuration file. If a configuration file
+#' is not specified, then the default file is used. If recordr is being run for the first
+#' time, then a default file is loaded from the recordr package.
+#' @param recordr a Recordr instance
+#' @param file the file path to the configuration file, default is "~/.recordr/config.csv"
+#' @export
+setGeneric("getConfig", function(recordr, ...) {
+  standardGeneric("getConfig")
+})
+
+#' @describeIn Recordr
+setMethod("getConfig", signature("Recordr"), function(recordr, name=as.character(NA)) {
+  
+  if (! is.element(".recordrConfig", base::search())) {
+    stop("Cannot load configuration parameters, a Recordr session is not currently active.")
+  }
+  
+  if(is.element(name, base::ls(".recordrConfig"))) {    
+    recordrConfigEnv <- as.environment(".recordrConfig")
+    qualifiedParamName <- sprintf("recordrConfigEnv$%s", name)
+    cmd <- sprintf("%s", qualifiedParamName)
+    value <- eval(parse(text=cmd))
+    return(value)
+  }
+})
+
 # Internal function used to print execution metadata for a single run
 # For the fields that can have variable width content, specify a maximum
 # length that will be displayed.
@@ -694,12 +884,12 @@ printRun <- function(row=list(), headerOnly = FALSE) {
 #' @param seq a run sequence number (can be a range, e.g \code{seq=1:10})
 #' @param page a logical value - if true then through the results if multiple runs will be displayed
 #' @export
-setGeneric("view", function(recordr, ...) {
-  standardGeneric("view")
+setGeneric("viewRun", function(recordr, ...) {
+  standardGeneric("viewRun")
 })
 
 #' @describeIn Recordr
-setMethod("view", signature("Recordr"), function(recordr, id=as.character(NA), file=as.character(NA), start=as.character(NA), end=as.character(NA), tag=as.character(NA), error=as.character(NA),
+setMethod("viewRun", signature("Recordr"), function(recordr, id=as.character(NA), file=as.character(NA), start=as.character(NA), end=as.character(NA), tag=as.character(NA), error=as.character(NA),
                                                  seq=as.character(NA), orderBy="-startTime", showProv=FALSE, page=TRUE) {
   
   runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, matchType="non-specific", orderBy=orderBy)
@@ -828,12 +1018,12 @@ setMethod("view", signature("Recordr"), function(recordr, id=as.character(NA), f
 #' @param assignDOI a boolean value: if TRUE, assign DOI values for system metadata, otherwise assign uuid values
 #' @param update a boolean value: if TRUE, republish a previously published execution
 #' @export
-setGeneric("publish", function(recordr, id, ...) {
-  standardGeneric("publish")
+setGeneric("publishRun", function(recordr, id, ...) {
+  standardGeneric("publishRun")
 })
 
 #' @describeIn Recordr
-setMethod("publish", signature("Recordr"), function(recordr, id, assignDOI=FALSE, update=FALSE) {
+setMethod("publishRun", signature("Recordr"), function(recordr, id, assignDOI=FALSE, update=FALSE) {
   
   runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
   if (! file.exists(runDir)) {
@@ -841,11 +1031,11 @@ setMethod("publish", signature("Recordr"), function(recordr, id, assignDOI=FALSE
     stop(msg)
   }
   
-  node <- "urn:node:mnTestKNB"
+  node <- getConfig(recordr, "target_member_node_id")
   cm <- CertificateManager()
   isExpired <- isCertExpired(cm)
   user <- showClientSubject(cm)
-  cn <- CNode("STAGING2")                     # Use Testing repository
+  cn <- CNode(getConfig(recordr, "dataone_env"))                     # Use Testing repository
   message(sprintf("Obtaining member node information for %s", node))
   mn <- getMNode(cn, node)
   if (is.null(mn)) {
@@ -946,7 +1136,7 @@ setMethod("publish", signature("Recordr"), function(recordr, id, assignDOI=FALSE
   #message(paste0("serializing package to file: ", resMapFn))
   message(sprintf("Uploading resource map with id: %s\n", serializationId))
   
-  format <- "http://www.openarchives.org/ore/terms"
+  format <- OREterms_URI
   sysmeta <- createSysmeta(mn, resMapFn, serializationId, format, public=TRUE, replicate=TRUE, user=user)
   sysmetaStr <- serializeSystemMetadata(sysmeta)
   writeLines(sysmetaStr, sprintf("%s/sysmeta_%s.xml", runDir, serializationId))
@@ -964,6 +1154,10 @@ setMethod("publish", signature("Recordr"), function(recordr, id, assignDOI=FALSE
   invisible(metadata_id)
 })
 
+recordrShutdown <- function() {
+  if (is.element(".recordr", base::search())) detach(".recordr")
+  if (is.element(".recordrConfig", base::search())) detach(".recordrConfig")
+}
 #' Create a minimal EML document.
 #' Creating EML should be more complete, but this minimal example will suffice to create a valid document.
 makeEML <- function(id, system, title, creators, abstract=NA, methodDescription=NA, geo_coverage=NA, temp_coverage=NA, datapackage=NULL, endpoint=NA) {

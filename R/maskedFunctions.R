@@ -307,7 +307,7 @@ saveFileInfo <- function(dataObjId, fileArg, headerOnly=FALSE, access) {
                              access=as.character(),
                              stringsAsFactors=FALSE, row.names=NULL)
     
-    write.csv(thisFstats, infoFile, row.names=FALSE)
+    utils::write.csv(thisFstats, infoFile, row.names=FALSE)
     setProvCapture(provEnabled)
     return()
   }
@@ -329,7 +329,7 @@ saveFileInfo <- function(dataObjId, fileArg, headerOnly=FALSE, access) {
     # Read in the stored file info for this execution. This file contains info for all
     # files used by this execution. Rowname of data frame is the file path.
     if (file.exists(infoFile)) {      
-      fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names=NULL)
+      fstats <- utils::read.csv(infoFile, stringsAsFactors=FALSE, row.names=NULL)
       # Replace or add the entry for this file
       fstats[filePath, ] <- thisFstats
     } else {
@@ -338,7 +338,7 @@ saveFileInfo <- function(dataObjId, fileArg, headerOnly=FALSE, access) {
     }
     
     # Save file info to run directory
-    write.csv(fstats, infoFile, row.names=FALSE)
+    utils::write.csv(fstats, infoFile, row.names=FALSE)
   }
   
   setProvCapture(provEnabled)
@@ -351,12 +351,12 @@ getFileInfo <- function(recordr, id) {
   setProvCapture(FALSE)
   thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
   infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
-  fstats <- read.csv(infoFile, stringsAsFactors=FALSE, row.names=1)
+  fstats <- utils::read.csv(infoFile, stringsAsFactors=FALSE, row.names=1)
   if (! file.exists(infoFile)) {
     msg <- sprintf("Information file %s not found for execution identifier: %s", infoFile, id)
     stop(msg)
   }
-  fstats <- read.csv(infoFile, stringsAsFactors=FALSE)
+  fstats <- utils::read.csv(infoFile, stringsAsFactors=FALSE)
   setProvCapture(provEnabled)
   return(fstats)
 }

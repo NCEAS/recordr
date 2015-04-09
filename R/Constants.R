@@ -24,3 +24,11 @@ xsdString                <- sprintf("http://www.w3.org/2001/XMLSchema#string")
 # TODO: This value should be read from the Session Management API when it is available
 D1_CN_URL                <- "https://cn.dataone.org/cn/v1"
 D1_CN_Resolve_URL        <- sprintf("%s/%s", D1_CN_URL, "resolve")
+
+# Define constants from Open Archives Initiative Object Reuse and Exchange
+OREterms_URI <- "http://www.openarchives.org/ore/terms"
+
+# Recordr configuration constants
+RecordrHome              <- normalizePath("~/.recordr")
+DefaultConfigFile        <- sprintf("%s/onfigParams.R", RecordrHome)
+InitialConfigFile        <- system.file(package="recordr", "extdata/configParams.R")
