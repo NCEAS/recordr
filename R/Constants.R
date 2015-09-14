@@ -30,5 +30,5 @@ OREterms_URI <- "http://www.openarchives.org/ore/terms"
 
 # Recordr configuration constants
 RecordrHome              <- normalizePath("~/.recordr")
-DefaultConfigFile        <- sprintf("%s/onfigParams.R", RecordrHome)
-InitialConfigFile        <- system.file(package="recordr", "extdata/configParams.R")
+#DefaultConfigFile        <- sprintf("%s/configParams.R", RecordrHome)
+#InitialConfigFile        <- system.file(package="dataone", "extdata/configParams.R")
