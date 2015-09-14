@@ -61,12 +61,14 @@ setMethod("initialize", signature = "Recordr", definition = function(.Object,
 #' @description This method starts the recording process and the method endRecord() completes it.
 #' @details The startRecord() method can be called from the R console to begin a recording session
 #' during which provenance is captured for any functions that are inspected by Recordr. This recordr
-#' session can be closed by calling the \code{endRecord()} method.
+#' session can be closed by calling the endRecord() method.
 #' @param recordr a Recordr instance
 #' @param tag a string that is associated with this run
 #' @param .file the filename for the script to run (only used internally when startRecord() is called from record())
 #' @param .console a logical argument that is used internally by the recordr package
+#' @param config an instance of SessionConfig, which contains configuration parameters
 #' @return execution identifier
+#' @import dataone
 #' @export
 setGeneric("startRecord", function(recordr, ...) {
   standardGeneric("startRecord")
@@ -77,8 +79,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   
   # Check if a recording session has already been started.
   if (is.element(".recordr", base::search())) {
-    message("A Recordr session is already active. Please run endRecord() if you wish to close this session.")
-    return(NULL)
+    stop("A Recordr session is already active. Please run endRecord() if you wish to close this session.")
   }
   
   # Create an environment on the search path that will store the overridden 
@@ -146,7 +147,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # doesn't handle concurrent executions of recordr. This method of obtaining a sequence
   # number needs to be more robust. An alternative solution could use Sqlite for
   # indexing the runs, and have an autoincrement column for the sequence number.
-  runs <- selectRuns(recordr, matchType="non-specific", orderBy="-endTime")
+  runs <- selectRuns(recordr, orderBy="-endTime")
   if (nrow(runs) == 0) {
     seq <- 1
   } else {
@@ -158,11 +159,11 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # to the masking functions, e.g. "recordr_write.csv".
   # TODO: Read memmber node from session API
   #recordrEnv$cnNodeId <- "STAGING2"
-  recordrEnv$mnNodeId <- getConfig(recordr, "target_member_node_id")
+  recordrEnv$mnNodeId <- getConfig(recordrEnv$config, "target_member_node_id")
   # TODO: use new() initialization when datapackage is fixed - currently using new() causing
   # an old object to be reused!!!
   #recordrEnv$dataPkg <- new("DataPackage", packageId=recordrEnv$execMeta@datapackageId)
-  recordrEnv$dataPkg <- DataPackage(packageId=recordrEnv$execMeta@datapackageId)
+  recordrEnv$dataPkg <- new("DataPackage", packageId=recordrEnv$execMeta@datapackageId)
     
   # Add the ProvONE Execution type
   # Store the provONE relationship: execution -> prov:qualifiedAssociation -> association
@@ -250,7 +251,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   
   on.exit(recordrShutdown())
   recordrEnv <- as.environment(".recordr")
-  recordrConfigEnv <- as.environment(".recordrConfig")
+  #recordrConfigEnv <- as.environment(".recordrConfig")
   runDir <- sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId)
   if (!file.exists(runDir)) {
       dir.create(runDir, recursive = TRUE)
@@ -348,6 +349,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
 #' @param recordr a Recordr instance
 #' @param file the name of the R script to run and collect provenance information for
 #' @param tag a string that will be associated with this run
+#' @param config A \code{\link[dataone]{SessionConfig} object
 #' @param ... additional parameters that will be passed to the R \code{"base::source()"} function
 #' @return the DataONE datapackge created by this run
 #' @export
@@ -363,13 +365,17 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", config
   if ( is.element(".recordr", base::search())) {
     detach(".recordr")
   }
-  if ( is.element(".recordrConfig", base::search())) {
-    detach(".recordrConfig")
+#   if ( is.element(".recordrConfig", base::search())) {
+#     detach(".recordrConfig")
+#   }
+
+  if(!file.exists(file)) {
+    stop(sprintf("Error, file \"%s\" does not exist\n", file))
   }
   
   startRecord(recordr, tag, .file=file, .console=FALSE, config=config)
   recordrEnv <- as.environment(".recordr")
-  recordrConfigEnv <- as.environment(".recordrConfig")
+  # recordrConfigEnv <- as.environment(".recordrConfig")
   setProvCapture(TRUE)
   # Source the user's script, passing in arguments that they intended for the 'source' call.  
   result = tryCatch ({
@@ -395,9 +401,9 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", config
     if (is.element(".recordr", base::search())) {
       detach(".recordr", unload=TRUE)
     }
-    if (is.element(".recordrConfig", base::search())) {
-      detach(".recordrConfig", unload=TRUE)
-    }
+#     if (is.element(".recordrConfig", base::search())) {
+#       detach(".recordrConfig", unload=TRUE)
+#     }
     # return a datapackage object
     return(pkg)
   })
@@ -413,7 +419,6 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", config
 #' @param tag text of tag to match (can be a regex)
 #' @param errorMessage text of error message to match (can be a regex)
 #' @param seq a run sequence number
-#' @param matchType if "specific" then at least one search criteria must be specified and matched
 #' @param orderBy the column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime
 #' @export
 setGeneric("selectRuns", function(recordr, ...) {
@@ -422,12 +427,11 @@ setGeneric("selectRuns", function(recordr, ...) {
 
 #' @describeIn Recordr
 setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.character(NA), script=as.character(NA), startTime=as.character(NA), endTime=as.character(NA), 
-                                                       tag=as.character(NA), errorMessage=as.character(NA), seq=as.integer(NA), matchType="specific", orderBy = as.character(NA)) {
+                                                       tag=as.character(NA), errorMessage=as.character(NA), seq=as.integer(NA), orderBy="-startTime", delete=FALSE) {
   
   colNames = c("script", "tag", "startTime", "endTime", "runId", "packageId", "publishTime", "errorMessage", "console", "seq")
   
   # Find all run directories
-  dirs <- list.files(sprintf("%s/runs", recordr@recordrDir))
   df <- data.frame(script = character(), 
                    tag = character(),
                    startTime = character(),
@@ -445,8 +449,8 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.charact
   if (!is.na(orderBy)) {
     # Check if column name to sort by is prefaced with a "-", which indicates descending column oroder
     if (grepl("^\\s*-", orderBy)) {
-        sortOrder <- "descending"
-        orderBy <- sub("^\\s*-", "", orderBy)
+      sortOrder <- "descending"
+      orderBy <- sub("^\\s*-", "", orderBy)
     } else if (grepl("^\\s*\\+", orderBy)) {
       sortOrder <- "ascending"
       orderBy <- sub("^\\s*\\+", "", orderBy)
@@ -454,138 +458,16 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.charact
     if (! is.element(orderBy, colNames)) {
       cat(sprintf("Invalid column name: \"%s\"\n", orderBy))
       stop(sprintf("Please use one of the following column names: \"%s\"\n", paste(colNames, collapse = '", "')))
-      return(df)
     }
-  }
-  # Return an empty data frame if no run directories exist
-  if (length(dirs) == 0) {
-    return(df)
   }
   
-  # MatchType controls which run directories are included if no search parameters are specified. If we are
-  # searching for runs to delete, (i.e. via deleteRuns), then we don't want to match all runs and delete
-  # everything if no search criteria were specified.
-  matchTypes <- c("specific", "non-specific")
-  if (! is.element(matchType, matchTypes)) {
-    msg <- paste("Invalid argument 'matchTypes', must be one of: ", matchTypes)
-    stop(msg)
-  }
-  
-  # Loop through run directories
-  for (d in dirs) {
-    # Create an execution metadata object for this run
-    execMeta <- readExecMeta(recordr, d)
-    if (! is.null(execMeta)) {
-      thisScript       <- execMeta@softwareApplication
-      thisTag          <- execMeta@tag
-      thisStartTime    <- execMeta@startTime
-      thisEndTime      <- execMeta@endTime
-      thisrunId       <- execMeta@executionId
-      thisPackageId    <- execMeta@datapackageId
-      thisPublishTime  <- execMeta@publishTime
-      thisErrorMessage <- execMeta@errorMessage
-      thisConsole      <- execMeta@console
-      thisSeq <- as.integer(execMeta@seq)
-      
-      # If endTime unset, set to start so that our tests won't fail
-      if (is.na(thisEndTime)) thisEndTime <- thisStartTime
-      
-      match <- FALSE
-      # Test each selection argument separately. 
-      # The selection criteria are applied in an "and" relationship to each other
-      # so exclude this run as soon as any test doesn't match.
-      #
-      # Check if run sequence number was specified. As this is an integer, it
-      # can be specified as a single number or a range, i.e. seq=1, seq=1:10
-      if (!all(is.na(seq))) {
-        if(is.element(thisSeq, seq)) {
-          match <- TRUE 
-        } else {
-          next
-        }
-      }
-      # Check execution identifier
-      if (!is.na(runId)){
-        if(!grepl(runId, thisrunId)) {
-          next
-        }
-        match <- TRUE
-      }
-      # Check for match with argument 'script'
-      if (!is.na(script)) {
-        # seearch for parameter 'tag' (a regex) in current tag string
-        if (!grep(script, thisScript)) {
-          next
-        }
-        match <- TRUE
-      }
-      # Check for match with argument 'startTime'
-      if (!is.na(startTime)) {
-        # Current run started before specified time, so skip it
-        if (as.POSIXlt(thisStartTime) < as.POSIXlt(startTime)) {
-          next
-        }
-        match <- TRUE
-      }
-      # Check for match with argument 'endTime'
-      if (!is.na(endTime)) {
-        # This run ended after specified time, so skip it
-        if (as.POSIXlt(thisEndTime) > as.POSIXlt(endTime)) {          
-          next
-        }
-        match <- TRUE
-      }
-      # Check for match with argument 'tag'
-      if (!is.na(tag)) {
-        # seearch for parameter 'tag' (a regex) in current tag string
-        if (length(grep(tag, thisTag)) == 0) {
-          next
-        }
-        match <- TRUE
-      }
-      # Check for match with argument 'errorMessage'
-      if (!is.na(errorMessage)) {
-        # seearch for parameter 'tag' (a regex) in current tag string
-        if (length(grep(errorMessage, thisErrorMessage)) == 0) {
-          next
-        }
-        match <- TRUE
-      }
-      # If "specific" matching was specified, then a definite match has to have been made.
-      if (matchType == "specific") {
-        if(match == FALSE) {
-          next
-        }
-      }
-
-      if(exists("runMeta")) {
-        runMeta <- rbind(runMeta, data.frame(script=thisScript, tag=thisTag, startTime=thisStartTime, endTime=thisEndTime, executionId=thisrunId, 
-                                             datapackageId=thisPackageId, publishTime=thisPublishTime, errorMessage=thisErrorMessage, 
-                                             console=thisConsole, seq=thisSeq, row.names = NULL, stringsAsFactors = FALSE))
-      }
-      else {
-        runMeta <- data.frame(script=thisScript, tag=thisTag, startTime=thisStartTime, endTime=thisEndTime, executionId=thisrunId, 
-                              datapackageId=thisPackageId, publishTime=thisPublishTime, errorMessage=thisErrorMessage, 
-                              console=thisConsole, seq=thisSeq, row.names = NULL, stringsAsFactors = FALSE)
-      }
-    }
-  }
-  # If we didn't match any runs, return an emply data frame
-  if (!exists("runMeta")) {
-    return(df)
-  } else {
-    # Order the run metadata by the specified column
-    if (!is.na(orderBy)) {
-      if (sortOrder == "descending") {
-        colStr <- paste("runMeta[order(runMeta$", orderBy, ", decreasing=TRUE),]", sep="")
-      }
-      else {
-        colStr <- paste("runMeta[order(runMeta$", orderBy, "),]", sep="")
-      }
-      runMeta <- eval(parse(text=colStr))
-    }
-    return(runMeta)
-  }
+  # Retrieve the execution metadata that match the search criteria
+  execMeta <- readExecMeta(recordr, executionId=runId, script=script, 
+    startTime=startTime, endTime=endTime,
+    tag=tag, errorMessage=errorMessage,
+    seq=seq, orderBy=orderBy, sortOrder=sortOrder, delete)
+    
+    return(execMeta)
 })
 
 #' Delete runs that match search parameters
@@ -610,7 +492,7 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
                                                        tag = as.character(NA), error = as.character(NA), 
                                                        seq = as.integer(NA), noop = FALSE, quiet = FALSE) {
 
-  runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, matchType="specific")
+  runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, delete=TRUE)
   if (nrow(runs) == 0) {
     if (!quiet) {
       message(sprintf("No runs matched search criteria."))
@@ -651,11 +533,18 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
 #' List all runs recorded by record() or startRecord()
 #' @description If no search terms are specified, then all runs are listed. The
 #' method arguments are search terms that limit the runs listed, with anly runs listed that
-#' match all arguments.
+#' match all arguments. 
+#' @details Each of the \code{"start"} and \code{"end"} can be used are used to specify a time
+#' range to find runs that started execution or ended in the specified time range. For examples, specifying
+#' \code{"start=c("2015-01-01, "2015-02-01)} will cause the search to return any execution with a starting
+#' time in the first month of 2015. A time range can also be entered for when executions ended using the 
+#' \code{"end"} parameter.
 #' @param recordr a Recordr instance
 #' @param file name of script to match (can be a regex)
-#' @param start match runs that started after this time (inclusive)
-#' @param end match runs that ended before this time (inclusive)
+#' @param start match runs that started in this time range (inclusive)
+#' Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"
+#' @param end A character value runs that ended in this time range (inclusive)
+#' Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"
 #' @param tag text of tag to match (can be a regex)
 #' @param error text of error message to match (can be a regex)
 #' @param seq a run sequence number (can be a range, e.g \code{seq=1:10})
@@ -663,16 +552,19 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
 #' @param orderBy the column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime
 #' @return data frame containing information for each run
 #' @export
+#' @examples \dontrun {
+#'   rc <- new("Recordr")
+#'   listRuns(rc, start=c("2015-01-01", "2015-01-02) end="2015-01-07")
+#' }
 setGeneric("listRuns", function(recordr, ...) {
   standardGeneric("listRuns")
 })
 
 #' @describeIn Recordr
-setMethod("listRuns", signature("Recordr"), function(recordr, file=as.character(NA), start = as.character(NA), end=as.character(NA), tag=as.character(NA), 
-                                                     error=as.character(NA), seq=as.integer(NA), quiet=FALSE, orderBy = "-startTime") {
+setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA), script=as.character(NA), start = as.character(NA), end=as.character(NA), tag=as.character(NA), 
+                                                     error=as.character(NA), seq=as.character(NA), quiet=FALSE, orderBy = "-startTime") {
   
-  runs <- selectRuns(recordr, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, matchType="non-specific", orderBy=orderBy)
-
+  runs <- selectRuns(recordr, runId=id, script=script, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=as.character(seq), orderBy=orderBy)
   if (nrow(runs) == 0) {
     if (!quiet) {
       message(sprintf("No runs matched search criteria."))
@@ -715,7 +607,7 @@ printRun <- function(row=list(), headerOnly = FALSE) {
   if (headerOnly) {
     cat(sprintf(fmt, "Seq", "Script", "Tag", "Start Time", "End Time", "Run Identifier", "Published Time", "Error Message"), sep = " ")
   } else {
-    thisScript       <- row["script"]
+    thisScript       <- row["softwareApplication"]
     thisStartTime    <- row["startTime"]
     thisEndTime      <- row["endTime"]
     thisrunId       <- row["executionId"]
@@ -748,7 +640,7 @@ setGeneric("viewRun", function(recordr, ...) {
 setMethod("viewRun", signature("Recordr"), function(recordr, id=as.character(NA), file=as.character(NA), start=as.character(NA), end=as.character(NA), tag=as.character(NA), error=as.character(NA),
                                                  seq=as.character(NA), orderBy="-startTime", showProv=FALSE, page=TRUE) {
   
-  runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, matchType="non-specific", orderBy=orderBy)
+  runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, orderBy=orderBy)
   
   if (nrow(runs) == 0) {
     if (!quiet) {
@@ -759,8 +651,8 @@ setMethod("viewRun", signature("Recordr"), function(recordr, id=as.character(NA)
   
   # Loop through selected runs
   for(i in 1:nrow(runs)) {
-    row <- runs[i,]
-    thisrunId <- row[["executionId"]]
+    thisRow <- runs[i,]
+    thisrunId <- thisRow[["executionId"]]
     thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, thisrunId)
     # Clear screen before showing results if we are paging the results
     if (i == 1 && page) cat("\014")
@@ -775,81 +667,74 @@ setMethod("viewRun", signature("Recordr"), function(recordr, id=as.character(NA)
       next
     }
     
-    execMeta <- readExecMeta(recordr, thisrunId)
-    if (! is.null(execMeta)) {
-      packageId <-  execMeta@datapackageId
-      packageFile <- sprintf("%s/%s.pkg", thisRunDir, packageId)
-      # Deserialize saved data package
-      pkg <- readRDS(file=packageFile)
-      relations <- getRelationships(pkg)
-      if(is.na(execMeta@publishTime) || execMeta@publishTime == "") {
-        published <- FALSE
-        cat(sprintf("This run has not been published\n"))
-      } else {
-        published <- TRUE
-        cat(sprintf("This run was published to DatONE at: \"%s\"\n", execMeta@publishTime))
-        cat(sprintf("Data package pid: %s\n", execMeta@datapackageId))
-        scriptURL <- relations[relations$predicate == "http://www.w3.org/ns/prov#hadPlan","object"]
-        # Add in the CN resolve URL if not already added
-        if(grepl(D1_CN_Resolve_URL, scriptURL)) {
-          scriptURL <- sprintf("%s/%s", D1_CN_Resolve_URL, scriptURL)
-        }
-      }
-      if (execMeta@softwareApplication != "") cat(sprintf("Script executed: %s\n", execMeta@softwareApplication))
-      #cat(sprintf("Package identifier: %s\n", packageId))
-
-      cat(sprintf("tag: %s\t", execMeta@tag))
-      cat(sprintf("sequence #: %d\n", execMeta@seq))
-      
-      fileNameLength = 30
-      # "%-30s %-10d %-19s\n"
-      cat(sprintf("\nFiles generated by this run:\n"))
-      
-      if(published) {
-        fmt <- paste("%-", sprintf("%2d", fileNameLength), "s", 
-                     " %-12s %-19s %-50s\n", sep="")
-        cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time", "DataONE URL"), sep = " ")
-      }
-      else {
-        fmt <- paste("%-", sprintf("%2d", fileNameLength), "s", 
-                     " %-12s %-19s\n", sep="")
-        cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time"), sep = " ")
-      }
-      infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
-      fstats <- getFileInfo(recordr, thisrunId)
-      # Order the list of files by file most recently modified
-      # Note: we could also sort by basename of the file: fstats[order(basename(rownames(fstats))),]
-      fstats <- fstats[order(fstats$mtime),]
-      # Print out file information
-      for (i in 1:nrow(fstats)) {
-        if(fstats[i, "access"] != "write") next
-        if (published) {
-          pid <- fstats[i,"dataObjId"]
-          pidURL <- sprintf("%s/%s", D1_CN_Resolve_URL, pid)
-          #cat(sprintf(fmt, strtrim(basename(rownames(fstats)[i]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"], pidURL), sep = "")
-          cat(sprintf(fmt, strtrim(basename(fstats[i, "filePath"]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"], pidURL), sep = "")
-          
-        } else {
-          #cat(sprintf(fmt, strtrim(basename(rownames(fstats)[i]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
-          cat(sprintf(fmt, strtrim(basename(fstats[i, "filePath"]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
-        }
-      }
-      
-      dsDown <- relations[relations$predicate=="http://www.w3.org/ns/prov#used",]
-      if(nrow(dsDown) > 0) cat(sprintf("\nDatasets downloaded/read by this run:\n\n"))
-      for (i in 1:nrow(dsDown)) {
-        cat(sprintf("%s\n", dsDown[i, "object"]))
-      }
-      
-      # Print provenance relationships
-      if(showProv) {
-        cat(sprintf("\nProvenance relationships:\n"))
-        relations <- getRelationships(pkg)
-        print(relations)
-      }
+    packageFile <- sprintf("%s/%s.pkg", thisRunDir, thisRow[["datapackageId"]])
+    # Deserialize saved data package
+    pkg <- readRDS(file=packageFile)
+    relations <- getRelationships(pkg)
+    publishTime <- thisRow[["publishTime"]]
+    if(is.na(publishTime) || publishTime == "") {
+      published <- FALSE
+      cat(sprintf("This run has not been published\n"))
     } else {
-      msg <- sprintf("Unable to read execution metadata from working directory: %s", thisRunDir)
-      stop(msg)
+      published <- TRUE
+      cat(sprintf("This run was published to DatONE at: \"%s\"\n", publishTime))
+      cat(sprintf("Data package pid: %s\n", thisRow[["datapackageId"]]))
+      scriptURL <- relations[relations$predicate == "http://www.w3.org/ns/prov#hadPlan","object"]
+      # Add in the CN resolve URL if not already added
+      if(grepl(D1_CN_Resolve_URL, scriptURL)) {
+        scriptURL <- sprintf("%s/%s", D1_CN_Resolve_URL, scriptURL)
+      }
+    }
+    softwareApplication <- thisRow[["softwareApplication"]]
+    if (softwareApplication != "") cat(sprintf("Script executed: %s\n", softwareApplication))
+    #cat(sprintf("Package identifier: %s\n", packageId))
+    
+    cat(sprintf("tag: %s\n", thisRow[["tag"]]))
+    cat(sprintf("sequence #: %d\n", thisRow[["seq"]]))
+    
+    fileNameLength = 30
+    # "%-30s %-10d %-19s\n"
+    cat(sprintf("\nFiles generated by this run:\n"))
+    
+    if(published) {
+      fmt <- paste("%-", sprintf("%2d", fileNameLength), "s", 
+                   " %-12s %-19s %-50s\n", sep="")
+      cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time", "DataONE URL"), sep = " ")
+    }
+    else {
+      fmt <- paste("%-", sprintf("%2d", fileNameLength), "s", 
+                   " %-12s %-19s\n", sep="")
+      cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time"), sep = " ")
+    }
+    infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
+    fstats <- getFileInfo(recordr, thisrunId)
+    # Order the list of files by file most recently modified
+    # Note: we could also sort by basename of the file: fstats[order(basename(rownames(fstats))),]
+    fstats <- fstats[order(fstats$mtime),]
+    # Print out file information
+    for (i in 1:nrow(fstats)) {
+      print(fstats[i,])
+      if(fstats[i, "access"] != "write") next
+      if (published) {
+        pid <- fstats[i,"dataObjId"]
+        pidURL <- sprintf("%s/%s", D1_CN_Resolve_URL, pid)
+        cat(sprintf(fmt, strtrim(basename(fstats[i, "filePath"]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"], pidURL), sep = "")
+      } else {
+        cat(sprintf(fmt, strtrim(basename(fstats[i, "filePath"]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
+      }
+    }
+    
+    dsDown <- relations[relations$predicate=="http://www.w3.org/ns/prov#used",]
+    if(nrow(dsDown) > 0) cat(sprintf("\nDatasets downloaded/read by this run:\n\n"))
+    for (i in 1:nrow(dsDown)) {
+      cat(sprintf("%s\n", dsDown[i, "object"]))
+    }
+    
+    # Print provenance relationships
+    if(showProv) {
+      cat(sprintf("\nProvenance relationships:\n"))
+      relations <- getRelationships(pkg)
+      print(relations)
     }
     # Page console output if multiple runs are being viewed
     if (nrow(runs) > 1 && page) {
@@ -860,6 +745,7 @@ setMethod("viewRun", signature("Recordr"), function(recordr, id=as.character(NA)
       next
     }
   }
+  
   # Return the run information if multiple runs, return data package if just one run
   if (nrow(runs) == 1) {
     invisible(pkg)
@@ -1012,7 +898,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id, assignDOI=FA
 
 recordrShutdown <- function() {
   if (is.element(".recordr", base::search())) detach(".recordr")
-  if (is.element(".recordrConfig", base::search())) detach(".recordrConfig")
+  #if (is.element(".recordrConfig", base::search())) detach(".recordrConfig")
 }
 #' Create a minimal EML document.
 #' Creating EML should be more complete, but this minimal example will suffice to create a valid document.

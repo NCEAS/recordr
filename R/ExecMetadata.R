@@ -82,10 +82,8 @@ setMethod("ExecMetadata", signature("character"), function(programName, tag=as.c
 ## Methods
 ##########################
 
-#' Write execution metadata to disk
-#' 
+#' Save a single execution metadata to a database
 #' @param ExecMetadata object
-#' @param The filename to serialize the execution metadata to
 #' @author slaughter
 #' @export
 setGeneric("writeExecMeta", function(recordr, execMeta, ...) {
@@ -94,66 +92,216 @@ setGeneric("writeExecMeta", function(recordr, execMeta, ...) {
 
 setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(recordr, execMeta, ...) {
   #print(sprintf("writeExecMeta: writing file %s/runs/%s/execMetadata.csv", recordr@recordrDir, execMeta@executionId))
-  
-  # Get values from all the slots for the execution metadata, in order.
-  # There is probably an easier way to do this!
+  # Get values from all the slots for the execution metadata, in the order they were declared in the class definition.
   execSlotNames <- slotNames("ExecMetadata")
-
-  #slotValues <- as.character(lapply(slotNames, function(x) eval(slot(execMeta, x))))
-  slotValues <- unlist(lapply(execSlotNames, function(x) slot(execMeta, x)))
+  # Remove the 'seq' slot, as this is an autoincrement column in the db, and cannot be specified as the db
+  # will determine it's value apon insert.
+  #execSlotNames <- execSlotNames[which(execSlotNames!="seq")]
+  #execSlotNamesStr <- paste(dQuote(execSlotNames), collapse=",")
+  execSlotNamesStr <- paste(execSlotNames, collapse=",")
+  # Get the database connection and chek if the execmeta table exists.
+  #  dbSendQuery(conn = recordr@dbConn, statement="SELECT name FROM sqlite_master WHERE type='table' AND name='execmeta';")
+  # if (dbGetRowCount(result) == 0) {
   
-  df <- data.frame(name = execSlotNames, value = slotValues, stringsAsFactors=FALSE)
-  
-  provCaptureEnabled <- getProvCapture()
-  outDir <- sprintf("%s/runs/%s", recordr@recordrDir, execMeta@executionId)
-  
-  if (! file.exists(outDir)) {
-    dir.create(outDir, recursive = TRUE)
+  if (!is.element("execmeta", dbListTables(recordr@dbConn))) {
+    createStatement <- "CREATE TABLE execmeta
+            (executionId        TEXT not null,
+            tag                 TEXT,
+            datapackageId       TEXT,
+            accountName         TEXT,
+            hostId              TEXT,
+            startTime           TEXT,
+            operatingSystem     TEXT,
+            runtime             TEXT,
+            softwareApplication TEXT,
+            moduleDependencies  TEXT,
+            endTime             TEXT,
+            errorMessage        TEXT,
+            publishTime         TEXT,
+            console             INTEGER,
+            seq                 INTEGER PRIMARY KEY);"
+    
+    cat(sprintf("create: %s\n", createStatement))
+    result <- dbSendQuery(conn = recordr@dbConn, statement=createStatement)
+    dbClearResult(result)
   }
-  # Disable provenance capture while we write out this housekeeping file
-  setProvCapture(FALSE)
-  outFilePath <- sprintf("%s/%s", outDir, "execMetadata.csv")
-  write.csv(df, outFilePath, row.names = TRUE)
-  setProvCapture(provCaptureEnabled)
-  return(outFilePath)
+  
+  slotValues <- unlist(lapply(execSlotNames, function(x) slot(execMeta, x)))
+  # SQLite doesn't like the 'fancy' start and end quotes, so use the simple quotes
+  quoteOption <- getOption("useFancyQuotes")
+  options(useFancyQuotes="FALSE")
+  # Set the 'seq' slot to NULL so that SQLite will assign an AUTOINCREMENT value that is
+  # greater (usually 1 greater) than the highest value already in the column.
+  slotValuesStr <- paste(sQuote(slotValues), collapse=",")
+  options(useFancyQuotes=quoteOption)
+  #insertStatement <- paste("INSERT INTO execmeta (", execSlotNamesStr, ")", "VALUES (", slotValuesStr, ")')")
+  insertStatement <- paste("INSERT INTO execmeta ", "VALUES (", slotValuesStr, ")", sep=" ")
+  cat(sprintf("insert: %s\n", insertStatement))
+  result <- dbSendQuery(conn = recordr@dbConn, statement=insertStatement)
+  dbClearResult(result)
+  # TODO: interpret result status and set true or false
+  return(TRUE)
 })
 
-#' Read Execution metadata from disk
-#' @param identifier the run identifier to read execution metadata for
-## @return an execution metadata object
-## 
-## @author slaughter
-#' @export
-setGeneric("readExecMeta", function(recordr, executionId) {
+#' Get Execution metadata from a database
+#' @description Execution metadata is retrived from recordr database table _execmeta_ 
+#' based on search parameters.
+#' @details The \code{"startTime"} and \code{"endTime"} parameters are used to specify a time
+#' range to find runs that started execution between the start and end times that are specified.
+#' @param executionId A character value that specifies an execution identifier to search for.
+#' @param script A character value that specifies a script name to search for.
+#' @param startTime A character value that specifies the start of a time range. This value must be
+#' entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to "YYYY-MM-DD"
+#' @param endTime A character value that specifies the end of a time to to search. This value must
+#' be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to "YYYY-MM-DD"
+#' @param tag
+#' @param errorMessage
+#' @param seq
+#' @param orderBy
+#' @param sortOrder
+#' @return A dataframe containing execution metadata objects
+setGeneric("readExecMeta", function(recordr, ...) {
   standardGeneric("readExecMeta")
 })
 
-setMethod("readExecMeta", signature("Recordr", "character"), function(recordr, executionId) {
-  filePath <- sprintf("%s/runs/%s/%s", recordr@recordrDir, executionId, "execMetadata.csv")
-  if (file.exists(filePath)) {
-    # Temporarily disable provenance capture while we read in execution metadata
-    provCaptureEnabled <- getProvCapture()
-    setProvCapture(FALSE)
-    mdf <- read.csv(filePath, stringsAsFactors=FALSE)
-    setProvCapture(provCaptureEnabled)
-    execMeta <- new("ExecMetadata")  
-    execMeta@executionId         <- mdf[mdf$name == "executionId", "value" ]
-    execMeta@tag                 <- mdf[mdf$name == "tag", "value"]
-    execMeta@datapackageId       <- mdf[mdf$name == "datapackageId", "value"]
-    execMeta@accountName         <- mdf[mdf$name == "accountName", "value"]
-    execMeta@hostId              <- mdf[mdf$name == "hostId", "value"]
-    execMeta@startTime           <- mdf[mdf$name == "startTime", "value"]
-    execMeta@operatingSystem     <- mdf[mdf$name == "operatingSystem", "value"]
-    execMeta@runtime             <- mdf[mdf$name == "runtime", "value"]
-    execMeta@softwareApplication <- mdf[mdf$name == "softwareApplication", "value"]
-    execMeta@endTime             <- mdf[mdf$name == "endTime", "value"]
-    execMeta@errorMessage        <- mdf[mdf$name == "errorMessage", "value"]
-    execMeta@publishTime         <- mdf[mdf$name == "publishTime", "value"]
-    execMeta@moduleDependencies  <- mdf[mdf$name == "moduleDependencies", "value"]
-    execMeta@console             <- as.logical(mdf[mdf$name == "console", "value"])
-    execMeta@seq                 <- as.integer(mdf[mdf$name == "seq", "value"])
-  } else {
-    return(NULL)
+setMethod("readExecMeta", signature("Recordr"), function(recordr, 
+                                    executionId=as.character(NA),  script=as.character(NA), 
+                                    startTime=as.character(NA),  endTime=as.character(NA), 
+                                    tag=as.character(NA),  errorMessage=as.character(NA), 
+                                    seq=as.character(NA), orderBy=as.character(NA), 
+                                    sortOrder="ascending", delete=FALSE, ...) {
+  
+  # If the 'execmeta' table doesn't exist yet, then there is no exec metadata for this
+  # executionId, so just return a blank data.frame
+  if (!is.element("execmeta", dbListTables(recordr@dbConn))) {
+    return(df)
   }
-  return(execMeta)
+  
+  cat(sprintf("HI!!\n"))
+  # Construct a SELECT statement to retrieve the runs that match the specified search criteria.
+  select <- "SELECT * from execmeta"
+  whereClause <- NULL
+  colNames <- c("script", "tag", "startTime", "endTime", "runId", "packageId", "publishTime", "errorMessage", "console", "seq")
+  # Is the column that the user specified for ordering correct?
+  orderByClause <- ""
+  if (!is.na(orderBy)) {
+    # Change the requested ordering statement to valid SQLite
+    if(tolower(sortOrder) %in% c("descending", "desc")) {
+      sortOrder <- "DESC"
+    } else {
+      sortOrder <- "ASC"
+    }
+    orderByClause <- sprintf("order by %s %s", orderBy, sortOrder)
+  }
+  
+  if(!is.na(executionId)) {
+    if(!is.null(whereClause)) {
+      whereClause <- sprintf(" %s and executionId=\'%s\'", whereClause, executionId)
+    } else {
+      whereClause <- sprintf(" where executionId=\'%s\'", executionId)
+    }
+  }
+  
+  if(!is.na(script)) { 
+    if(!is.null(whereClause)) {
+      whereClause <- sprintf(" %s and softwareApplication like \'%%%s%%\'", whereClause, script)
+    } else {
+      whereClause <- sprintf(" where softwareApplication like \'%%%s%%\'", script)
+    }
+  }
+  
+  if(!all(is.na(startTime))) { 
+    if (length(startTime) > 1) {
+      start <- startTime[1]
+      end <- startTime[2]
+    } else {
+      start <- startTime[1]
+      end <- "9999-99-99"
+    }
+    if(!is.null(whereClause)) {
+      whereClause <- sprintf(" %s and startTime BETWEEN \'%s\' AND \'%s\'", whereClause, start, end)
+    } else {
+      whereClause <- sprintf(" where startTime BETWEEN \'%s\' AND \'%s\'", start, end)
+    }
+  }
+  
+  if(!all(is.na(endTime))) { 
+    if (length(endTime) > 1) {
+      start <- endTime[1]
+      end <- endTime[2]
+    } else {
+      start <- endTime[1]
+      end <- "9999-99-99"
+    }
+    if(!is.null(whereClause)) {
+      whereClause <- sprintf(" %s and endTime BETWEEN \'%s\' AND \'%s\'", whereClause, start, end)
+    } else {
+      whereClause <- sprintf(" where endTime BETWEEN \'%s\' AND \'%s\'", start, end)
+    }
+  }
+  
+  if(!is.na(tag)) { 
+    if(!is.null(whereClause)) {
+      whereClause <- sprintf(" %s and tag like \'%%%s%%\'", whereClause, tag)
+    } else {
+      whereClause <- sprintf(" where tag like \'%%%s%%\'", tag)
+    }
+  }
+  
+  if(!is.na(errorMessage)) { 
+    if(!is.null(whereClause)) {
+      whereClause <- sprintf(" %s and errorMessage like \'%%%s%%\'", whereClause, errorMessage)
+    } else {
+      whereClause <- sprintf(" where errorMessage like \'%%%s%%\'", errorMessage)
+    }
+  }
+  
+  # The 'seq' column is an integer, so in R interger ranges can be specified as 'n:n'
+  # If the user specified a range for 'seq' values to return, translate this into the
+  # SQLite equivalent.
+  if(!is.na(seq)) { 
+    seqStr <- as.character(seq)
+    if(grepl(":", seq)) {
+      seqVals <- unlist(strsplit(seq, ":"))
+      lowVal <- seqVals[[1]]
+      highVal <- seqVals[[2]]
+      seqClause <- sprintf(" seq BETWEEN %s and %s ", lowVal, highVal)
+    } else {
+      seqClause <- sprintf("seq=%s", seq)
+    }
+    if(!is.null(whereClause)) {
+      whereClause <- sprintf("%s and %s", whereClause, seqClause)
+    } else {
+      whereClause <- sprintf(" where %s", as.character(seqClause))
+    }
+  }
+  
+
+  # If the user specified 'delete=TRUE', so first fetch the
+  # matching records, then delete them.
+  if (delete) {
+    # Don't allow the user to delete all records unless they specify at
+    # least one search term, possibly with a wildcard that will match
+    # all records.
+    if (is.null(whereClause)) {
+      message("Deleting all records is not allowed unless at least one search term is supplied.")
+      return(data.frame())
+    } 
+  }
+  
+  # Retrieve records that match search criteria
+  selectStatement <- paste(select, whereClause, orderByClause, sep=" ")
+  #cat(sprintf("select: %s\n", selectStatement))
+  result <- dbSendQuery(conn = recordr@dbConn, statement=selectStatement)
+  resultdf <- dbFetch(result)
+  dbClearResult(result)
+  
+  # Now delete records if requested.
+  if(delete) {
+    deleteStatement <- paste("DELETE from execmeta ", whereClause, sep=" ")
+    result <- dbSendQuery(conn = recordr@dbConn, statement=deleteStatement)
+    dbClearResult(result)
+  }
+    
+  return(resultdf)
 })
