@@ -2,10 +2,10 @@ Package: recordr
 Title: Record execution of R scripts and functions by tracking and recording
     provenance.
 Version: 0.1
-Authors@R: c( person("Peter", "Slaughter", role = c("aut", "cre"), email = "slaughter@nceas.ucsb.edu"), 
-    person("Matthew", "Jones", role = c("aut", "cre"), email = "jones@nceas.ucsb.edu"), 
-    person("Chris", "Jones", role = c("aut", "cre"), email = "cjones@nceas.ucsb.edu"),  
-    person("Lauren", "Walker", role = c("aut", "cre"), email = "walker@nceas.ucsb.edu")  )
+Authors@R: c( person("Peter", "Slaughter", role = c("aut", "cre"), email = "slaughter@nceas.ucsb.edu"),
+    person("Matthew", "Jones", email = "jones@nceas.ucsb.edu"),
+    person("Chris", "Jones", email = "cjones@nceas.ucsb.edu"),
+    person("Lauren", "Walker", email = "walker@nceas.ucsb.edu")  )
 Description: What the package does (one paragraph)
 Date: 2015
 Depends:
@@ -16,7 +16,9 @@ Imports:
     datapackage (>= 0.1),
     digest,
     XML,
-    EML
+    EML,
+    dataone,
+    RSQLite
 Suggests:
     knitr,
     testthat
