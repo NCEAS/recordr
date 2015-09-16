@@ -143,6 +143,11 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
   tmpSlotNames <- execSlotNames[which(execSlotNames!="seq")]
   # Extract slot values from the exec meta object
   slotValues <- unlist(lapply(tmpSlotNames, function(x) as.character(slot(execMeta, x))))
+  # The error message slot can potentially contain single quotes, which causes an
+  # SQL error from the INSERT statement. Double up the single quotes for this slot value,
+  # if they exists.
+  tmpInd <- which(execSlotNames=="errorMessage")
+  slotValues[tmpInd] <- gsub("'", "''", slotValues[tmpInd])
   # Set the seq value to NULL so that SQLite will autoincrement the value apon insert
   #slotValues <- slotValues[2:]
   #seqInd <- which(execSlotNames=="seq")
