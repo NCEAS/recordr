@@ -152,7 +152,7 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
   if (getProvCapture()) {
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
-    user <- recordrEnv$execMeta@accountName
+    user <- recordrEnv$execMeta@user
     #datasetId <- sprintf("%s_%s.%s", tools::file_path_sans_ext(basename(file)), UUIDgenerate(), tools::file_ext(file))
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     con <- textConnection("data", "w", local=TRUE)

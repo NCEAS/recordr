@@ -26,7 +26,8 @@
 setClass("ExecMetadata", slots = c(executionId      = "character",
                                    tag              = "character",
                                    datapackageId    = "character",
-                                   accountName      = "character",
+                                   user             = "character",
+                                   subject          = "character",
                                    hostId           = "character",
                                    startTime        = "character",
                                    operatingSystem  = "character",
@@ -59,16 +60,17 @@ setMethod("ExecMetadata", signature("character"), function(programName, tag=as.c
   execMeta@executionId <- sprintf("urn:uuid:%s", UUIDgenerate())
   execMeta@tag         <- tag
   execMeta@datapackageId <- sprintf("urn:uuid:%s", UUIDgenerate())
-  execMeta@accountName <- Sys.info()[['user']]
+  execMeta@user <- Sys.info()[['user']]
+  execMeta@subject <- as.character(NA)
   execMeta@hostId <- Sys.info()[['nodename']]
   execMeta@startTime <- as.character(Sys.time())
   execMeta@operatingSystem <- R.Version()$platform
   execMeta@runtime <- R.Version()$version.string
   execMeta@softwareApplication  <- programName
   execMeta@endTime <- execMeta@startTime
-  execMeta@errorMessage <- ""
+  execMeta@errorMessage <- as.character(NA)
   execMeta@publishTime <- as.character(NA)
-  execMeta@console <- TRUE
+  execMeta@console <- FALSE
   execMeta@seq <- as.integer(0)
   
   # Get list of packages that recordr has loaded and store as characters, i.e.
@@ -114,12 +116,14 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
   #  dbSendQuery(conn = recordr@dbConn, statement="SELECT name FROM sqlite_master WHERE type='table' AND name='execmeta';")
   # if (dbGetRowCount(result) == 0) {
   
-  if (!is.element("execmeta", dbListTables(recordr@dbConn))) {
+  if (!is.element("execmeta", dbListTables(dbConn))) {
     createStatement <- "CREATE TABLE execmeta
-            (executionId        TEXT not null,
+            (seq                INTEGER PRIMARY KEY,
+            executionId         TEXT not null,
             tag                 TEXT,
             datapackageId       TEXT,
-            accountName         TEXT,
+            user                TEXT,
+            subject             TEXT,
             hostId              TEXT,
             startTime           TEXT,
             operatingSystem     TEXT,
@@ -129,27 +133,34 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
             endTime             TEXT,
             errorMessage        TEXT,
             publishTime         TEXT,
-            console             INTEGER,
-            seq                 INTEGER PRIMARY KEY);"
+            console             INTEGER);"
     
     cat(sprintf("create: %s\n", createStatement))
-    result <- dbSendQuery(conn = recordr@dbConn, statement=createStatement)
+    result <- dbSendQuery(conn=dbConn, statement=createStatement)
     dbClearResult(result)
   }
   
-  slotValues <- unlist(lapply(execSlotNames, function(x) slot(execMeta, x)))
+  tmpSlotNames <- execSlotNames[which(execSlotNames!="seq")]
+  # Extract slot values from the exec meta object
+  slotValues <- unlist(lapply(tmpSlotNames, function(x) as.character(slot(execMeta, x))))
+  # Set the seq value to NULL so that SQLite will autoincrement the value apon insert
+  #slotValues <- slotValues[2:]
+  #seqInd <- which(execSlotNames=="seq")
   # SQLite doesn't like the 'fancy' start and end quotes, so use the simple quotes
   quoteOption <- getOption("useFancyQuotes")
   options(useFancyQuotes="FALSE")
-  # Set the 'seq' slot to NULL so that SQLite will assign an AUTOINCREMENT value that is
-  # greater (usually 1 greater) than the highest value already in the column.
   slotValuesStr <- paste(sQuote(slotValues), collapse=",")
   options(useFancyQuotes=quoteOption)
   #insertStatement <- paste("INSERT INTO execmeta (", execSlotNamesStr, ")", "VALUES (", slotValuesStr, ")')")
+  # Add seq back in with NULL value
+  slotValuesStr <- sprintf("NULL,%s", slotValuesStr)
   insertStatement <- paste("INSERT INTO execmeta ", "VALUES (", slotValuesStr, ")", sep=" ")
   cat(sprintf("insert: %s\n", insertStatement))
-  result <- dbSendQuery(conn = recordr@dbConn, statement=insertStatement)
+  result <- dbSendQuery(conn=dbConn, statement=insertStatement)
   dbClearResult(result)
+  # We can't return this database connection we just opened, as we are not returning the recordr object with a
+  # slot that contains the new database connection, so just disconnect. 
+  if(tmpDBconn) dbDisconnect(dbConn)
   # TODO: interpret result status and set true or false
   return(TRUE)
 })
@@ -171,6 +182,7 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
 #' @param orderBy
 #' @param sortOrder
 #' @return A dataframe containing execution metadata objects
+#' @export
 setGeneric("readExecMeta", function(recordr, ...) {
   standardGeneric("readExecMeta")
 })
@@ -304,7 +316,8 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
     # least one search term, possibly with a wildcard that will match
     # all records.
     if (is.null(whereClause)) {
-      message("Deleting all records is not allowed unless at least one search term is supplied.")
+      message("Deleting all records is not allowed unless at least one search term is supplied.") 
+      if(tmpDBconn) dbDisconnect(dbConn)
       return(data.frame())
     } 
   }
@@ -312,16 +325,19 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   # Retrieve records that match search criteria
   selectStatement <- paste(select, whereClause, orderByClause, sep=" ")
   #cat(sprintf("select: %s\n", selectStatement))
-  result <- dbSendQuery(conn = recordr@dbConn, statement=selectStatement)
+  result <- dbSendQuery(conn = dbConn, statement=selectStatement)
   resultdf <- dbFetch(result)
   dbClearResult(result)
   
   # Now delete records if requested.
   if(delete) {
     deleteStatement <- paste("DELETE from execmeta ", whereClause, sep=" ")
-    result <- dbSendQuery(conn = recordr@dbConn, statement=deleteStatement)
+    result <- dbSendQuery(conn=dbConn, statement=deleteStatement)
     dbClearResult(result)
   }
-    
+  
+  # We can't return this database connection we just opened, as we are not returning the recordr object with a
+  # slot that contains the new database connection, so just disconnect. 
+  if(tmpDBconn) dbDisconnect(dbConn)
   return(resultdf)
 })

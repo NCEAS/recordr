@@ -1,4 +1,3 @@
-#
 #   This work was created by participants in the DataONE project, and is
 #   jointly copyrighted by participating institutions in DataONE. For
 #   more information on DataONE, see our web site at http://dataone.org.
@@ -155,14 +154,14 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # doesn't handle concurrent executions of recordr. This method of obtaining a sequence
   # number needs to be more robust. An alternative solution could use Sqlite for
   # indexing the runs, and have an autoincrement column for the sequence number.
-  runs <- selectRuns(recordr, orderBy="-endTime")
-  if (nrow(runs) == 0) {
-    seq <- 1
-  } else {
-    seq <-  as.integer(runs[1, 'seq']) + 1
-  }
-
-  recordrEnv$execMeta@seq <- as.integer(seq)
+#   runs <- selectRuns(recordr, orderBy="-endTime")
+#   if (nrow(runs) == 0) {
+#     seq <- 1
+#   } else {
+#     seq <-  as.integer(runs[1, 'seq']) + 1
+#   }
+# 
+#   recordrEnv$execMeta@seq <- as.integer(seq)
   # Create an empty D1 datapackage object and make it globally avilable, i.e. available
   # to the masking functions, e.g. "recordr_write.csv".
   # TODO: Read memmber node from session API
@@ -187,7 +186,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # Store the Prov relationship: association -> prov:agent -> user
   # TODO: when available, check session API for orchid and use that instead of user, i.e.
   #   insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@orcid, predicate=provAgent, objectType="uri")
-  userId <- recordrEnv$execMeta@accountName
+  userId <- recordrEnv$execMeta@user
   insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=userId, predicate=provAgent, objectType="literal", dataTypeURI=xsdString)
   # Record a relationship identifying the user
   insertRelationship(recordrEnv$dataPkg, subjectID=userId, objectIDs=provONEuser, predicate=rdfType, objectType="uri")
@@ -328,7 +327,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = '\n'))
   # Create a data package object for the program that we are running and store it.
   scriptFmt <- "text/plain"
-  programD1Obj <- new("DataObject", id=recordrEnv$programId, dataobj=script, format=scriptFmt, user=recordrEnv$execMeta@accountName, mnNodeId=recordrEnv$mnNodeId)    
+  programD1Obj <- new("DataObject", id=recordrEnv$programId, dataobj=script, format=scriptFmt, user=recordrEnv$execMeta@user, mnNodeId=recordrEnv$mnNodeId)    
   # TODO: Set access control on the action object to be public
   addData(recordrEnv$dataPkg, programD1Obj)
   # Serialize/Save the entire package object to the run directory
@@ -357,7 +356,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
 #' @param recordr a Recordr instance
 #' @param file the name of the R script to run and collect provenance information for
 #' @param tag a string that will be associated with this run
-#' @param config A \code{\link[dataone]{SessionConfig} object
+#' @param config A \code{\link[dataone]{SessionConfig}} object
 #' @param ... additional parameters that will be passed to the R \code{"base::source()"} function
 #' @return the DataONE datapackge created by this run
 #' @export
@@ -505,7 +504,7 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
     if (!quiet) {
       message(sprintf("No runs matched search criteria."))
     }
-    return(runs)
+    return(invisible(runs))
   } else {
     if (!quiet) {
       if (noop) {
@@ -640,13 +639,13 @@ printRun <- function(row=list(), headerOnly = FALSE) {
 #' @param seq a run sequence number (can be a range, e.g \code{seq=1:10})
 #' @param page a logical value - if true then through the results if multiple runs will be displayed
 #' @export
-setGeneric("viewRun", function(recordr, ...) {
-  standardGeneric("viewRun")
+setGeneric("viewRuns", function(recordr, ...) {
+  standardGeneric("viewRuns")
 })
 
 #' @describeIn Recordr
-setMethod("viewRun", signature("Recordr"), function(recordr, id=as.character(NA), file=as.character(NA), start=as.character(NA), end=as.character(NA), tag=as.character(NA), error=as.character(NA),
-                                                 seq=as.character(NA), orderBy="-startTime", showProv=FALSE, page=TRUE) {
+setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA), file=as.character(NA), start=as.character(NA), end=as.character(NA), tag=as.character(NA), error=as.character(NA),
+                                                 seq=as.character(NA), orderBy="-startTime", sections=c("details","used","generated"), showProv=FALSE, page=TRUE, quiet=TRUE) {
   
   runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, orderBy=orderBy)
   
@@ -656,88 +655,141 @@ setMethod("viewRun", signature("Recordr"), function(recordr, id=as.character(NA)
     }
     return(invisible(runs))
   }
-  
+        
   # Loop through selected runs
-  for(i in 1:nrow(runs)) {
-    thisRow <- runs[i,]
-    thisrunId <- thisRow[["executionId"]]
-    thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, thisrunId)
-    # Clear screen before showing results if we are paging the results
-    if (i == 1 && page) cat("\014")
-    cat(sprintf("Information for execution: %s\n", thisrunId))
+  for(i in 1:nrow(runs)) {     
+    thisRow <- runs[i,]       
+    executionId         <- thisRow[["executionId"]]
+    tag                 <- thisRow[["tag"]]
+    datapackageId       <- thisRow[["datapackageId"]]
+    user                <- thisRow[["user"]]
+    subject             <- thisRow[["subject"]]
+    hostId              <- thisRow[["hostId"]]
+    startTime           <- thisRow[["startTime"]]
+    operatingSystem     <- thisRow[["endTime"]]
+    runtime             <- thisRow[["runtTime"]]
+    softwareApplication <- thisRow[["softwareApplication"]]
+    moduleDependencies  <- thisRow[["moduleDependencies"]]
+    endTime             <- thisRow[["endTime"]]
+    errorMessage        <- thisRow[["errorMessage"]]
+    publishTime         <- thisRow[["publishTime"]]
+    # Console is stored as integer, so coerce to logical (1=TRUE, 0=FALSE)
+    console             <- as.logical(thisRow[["console"]])
+    seq                 <- thisRow[["seq"]]
+    thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, executionId)
     
-    # Find the data package in the recordr run directories
-    #dirs <- list.files(recordr@runDir)
-    thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, thisrunId)
-    if (! file.exists(thisRunDir)) {
-      msg <- sprintf("Directory not found for execution identifier: %s", thisrunId)
-      message(msg)
-      next
-    }
-    
+    # Read the archived data package
     packageFile <- sprintf("%s/%s.pkg", thisRunDir, thisRow[["datapackageId"]])
     # Deserialize saved data package
     pkg <- readRDS(file=packageFile)
     relations <- getRelationships(pkg)
-    publishTime <- thisRow[["publishTime"]]
-    if(is.na(publishTime) || publishTime == "") {
-      published <- FALSE
-      cat(sprintf("This run has not been published\n"))
-    } else {
-      published <- TRUE
-      cat(sprintf("This run was published to DatONE at: \"%s\"\n", publishTime))
-      cat(sprintf("Data package pid: %s\n", thisRow[["datapackageId"]]))
-      scriptURL <- relations[relations$predicate == "http://www.w3.org/ns/prov#hadPlan","object"]
-      # Add in the CN resolve URL if not already added
-      if(grepl(D1_CN_Resolve_URL, scriptURL)) {
-        scriptURL <- sprintf("%s/%s", D1_CN_Resolve_URL, scriptURL)
-      }
-    }
-    softwareApplication <- thisRow[["softwareApplication"]]
-    if (softwareApplication != "") cat(sprintf("Script executed: %s\n", softwareApplication))
-    #cat(sprintf("Package identifier: %s\n", packageId))
-    
-    cat(sprintf("tag: %s\n", thisRow[["tag"]]))
-    cat(sprintf("sequence #: %d\n", thisRow[["seq"]]))
-    
-    fileNameLength = 30
-    # "%-30s %-10d %-19s\n"
-    cat(sprintf("\nFiles generated by this run:\n"))
-    
-    if(published) {
-      fmt <- paste("%-", sprintf("%2d", fileNameLength), "s", 
-                   " %-12s %-19s %-50s\n", sep="")
-      cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time", "DataONE URL"), sep = " ")
-    }
-    else {
-      fmt <- paste("%-", sprintf("%2d", fileNameLength), "s", 
-                   " %-12s %-19s\n", sep="")
-      cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time"), sep = " ")
-    }
-    infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
-    fstats <- getFileInfo(recordr, thisrunId)
-    # Order the list of files by file most recently modified
-    # Note: we could also sort by basename of the file: fstats[order(basename(rownames(fstats))),]
-    fstats <- fstats[order(fstats$mtime),]
-    # Print out file information
-    for (i in 1:nrow(fstats)) {
-      print(fstats[i,])
-      if(fstats[i, "access"] != "write") next
-      if (published) {
-        pid <- fstats[i,"dataObjId"]
-        pidURL <- sprintf("%s/%s", D1_CN_Resolve_URL, pid)
-        cat(sprintf(fmt, strtrim(basename(fstats[i, "filePath"]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"], pidURL), sep = "")
+    scriptURL <- relations[relations$predicate == "http://www.w3.org/ns/prov#hadPlan","object"]
+    # Clear screen before showing results if we are paging the results
+    if (i == 1 && page) cat("\014")
+    # Print out [DETAILS] section
+    if (is.element("details", sections)) {
+      cat(sprintf("[details]: Run details\n"))
+      cat(sprintf("----------------------\n"))
+      if(console) {
+        cat(sprintf("Started recording console input at %s\n", startTime))
       } else {
-        cat(sprintf(fmt, strtrim(basename(fstats[i, "filePath"]), fileNameLength), fstats[i, "size"], fstats[i, "mtime"]), sep = "")
+        cat(sprintf("%s was executed on %s\n", dQuote(softwareApplication), startTime))
+      }
+      cat(sprintf("Tag: %s\n", dQuote(tag)))
+      cat(sprintf("Run sequence #: %d\n", seq))
+      if(is.na(publishTime) || is.null(publishTime)) {
+        published <- FALSE
+        publishTime <- "not published"
+      } else {
+        published <- TRUE
+        # Add in the CN resolve URL if not already added
+        #if(grepl(D1_CN_Resolve_URL, scriptURL)) {
+        #  scriptURL <- sprintf("%s/%s", D1_CN_Resolve_URL, scriptURL)
+        #}
+      }
+      
+      cat(sprintf("Publish date: \"%s\"\n", publishTime))
+      #       cat(sprintf("Published to:"))
+      #       cat(sprintf("Published Id: "))
+      #       cat(sprintf("View at: "))
+      cat(sprintf("Run by user: %s\n", user))
+      cat(sprintf("Account subject: %s\n", subject))
+      cat(sprintf("Run Id: %s\n", executionId))
+      cat(sprintf("Data package Id: %s\n", datapackageId))
+      cat(sprintf("HostId: %s\n", hostId))
+      cat(sprintf("Operating system: %s\n", operatingSystem))
+      cat(sprintf("Runtime: %s\n", runtime))
+      cat(sprintf("Dependencies: %s\n", moduleDependencies))
+      if(console) {
+        cat(sprintf("Record console input start time: %s\n", startTime))
+        cat(sprintf("Record console input end time: %s\n", endTime))
+      } else {
+        cat(sprintf("Run start time: %s\n", startTime))
+        cat(sprintf("Run end time: %s\n", endTime))
+      }
+      cat(sprintf("Error message from this run: %s\n", errorMessage))
+      # Find the data package in the recordr run directories
+      if (! file.exists(thisRunDir)) {
+        msg <- sprintf("Directory not found for execution identifier: %s", executionId)
+        message(msg)
+        next
+      }
+
+      #       if(published) {
+      #         fmt <- paste("%-", sprintf("%2d", fileNameLength), "s", 
+      #                      " %-12s %-19s %-50s\n", sep="")
+      #         cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time", "DataONE URL"), sep = " ")
+      #       }
+      #       else {
+      #         fmt <- paste("%-", sprintf("%2d", fileNameLength), "s", 
+      #                      " %-12s %-19s\n", sep="")
+      #         cat(sprintf(fmt, "\nFilename", "Size (kb)", "Modified time"), sep = " ")
+      #       }
+      #     }
+
+    }
+    
+    # Read the info file once, and prepare this dfs of read files and generated files
+    if(is.element("used", sections) || is.element("generated", sections)) {
+      fstats <- getFileInfo(recordr, executionId)
+      fstatsRead <- fstats[fstats$access=="read",]
+      fstatsRead <- fstats[order(basename(fstatsRead$filePath)),]
+      fstatsWrite <- fstats[fstats$access=="write",]
+      fstatsWrite <- fstats[order(basename(fstatsWrite$filePath)),]
+    }
+    
+    # "%-30s %-10d %-19s\n"
+    fileNameLength = 30    
+    if (is.element("used", sections)) {
+      cat(sprintf("\n[used]: %d items used by this run\n", nrow(fstatsRead)))
+      if(nrow(fstatsRead) > 0) {
+        cat(sprintf("-----------------------------------\n"))
+        fmt <- paste("%-", sprintf("%2d", fileNameLength), "s",  " %-12s %-19s\n", sep="")
+        cat(sprintf(fmt, "Local name", "Size (kb)", "Modified time"), sep = " ")
+        for (i in 1:nrow(fstatsRead)) {
+          cat(sprintf(fmt, strtrim(basename(fstatsRead[i, "filePath"]), fileNameLength), fstatsRead[i, "size"], fstatsRead[i, "mtime"]), sep = "")
+        }
       }
     }
     
-    dsDown <- relations[relations$predicate=="http://www.w3.org/ns/prov#used",]
-    if(nrow(dsDown) > 0) cat(sprintf("\nDatasets downloaded/read by this run:\n\n"))
-    for (i in 1:nrow(dsDown)) {
-      cat(sprintf("%s\n", dsDown[i, "object"]))
+    if (is.element("generated", sections)) {
+      cat(sprintf("\n[generated]: %d items generated by this run\n", nrow(fstatsWrite)))
+      if(nrow(fstatsWrite) > 0) {
+        cat(sprintf("-----------------------------------------\n"))
+        fmt <- paste("%-", sprintf("%2d", fileNameLength), "s",  " %-12s %-19s\n", sep="")
+        cat(sprintf(fmt, "Local name", "Size (kb)", "Modified time"), sep = " ")
+        for (i in 1:nrow(fstatsWrite)) {
+          cat(sprintf(fmt, strtrim(basename(fstatsWrite[i, "filePath"]), fileNameLength), fstatsWrite[i, "size"], fstatsWrite[i, "mtime"]), sep = "")
+        }
+      }
     }
     
+    #     dsDown <- relations[relations$predicate=="http://www.w3.org/ns/prov#used",]
+    #     if(nrow(dsDown) > 0) cat(sprintf("\nDatasets downloaded/read by this run:\n\n"))
+    #     for (i in 1:nrow(dsDown)) {
+    #       cat(sprintf("%s\n", dsDown[i, "object"]))
+    #     }
+    #     
     # Print provenance relationships
     if(showProv) {
       cat(sprintf("\nProvenance relationships:\n"))
@@ -898,6 +950,8 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id, assignDOI=FA
   
   # Record the time that this execution was published
   execMeta@publishTime <- as.character(Sys.time())
+  cm <- CertificateManager()
+  execMeta@subject <- showClientSubject(cm)
   mdFilePath <- writeExecMeta(recordr, execMeta)
   
   #unlink(tf)
@@ -1000,3 +1054,15 @@ coverageElement <- function(gc, tempc) {
   coverage <- new("coverage", geographicCoverage=gc, temporalCoverage=tempc)
   return(coverage)
 }
+
+#' Get a database connection
+getDBconnection <- function(dbFile) {
+  dbConn <- dbConnect(drv=RSQLite::SQLite(), dbname=dbFile)
+  if (dbIsValid(dbConn)) {
+    return(dbConn)
+  } else {
+    message(sprintf("Error opening database connection to %s\n", dbFile))
+    return(NULL)
+  }
+}
+  
