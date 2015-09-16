@@ -26,6 +26,7 @@
 #' to a data repository.
 #' @slot recordrDir value of type \code{"character"} containing a path to the Recordr working directory
 #' @slot dbConn A value of type SQLiteConnection that contains the connection to the recordr database
+#' @slot dbFile A valof of type \code{"character"} that contains the location to the database file
 #' @rdname Recordr-class
 #' @author Peter Slaughter
 #' @import dataone
@@ -40,7 +41,8 @@
 #' @include Constants.R
 #' @export
 setClass("Recordr", slots = c(recordrDir = "character",
-                              dbConn = "SQLiteConnection")
+                              dbConn = "SQLiteConnection",
+                              dbFile = "character")
 )
 
 #' Initialize a Recorder object
@@ -49,7 +51,13 @@ setMethod("initialize", signature = "Recordr", definition = function(.Object,
   
   .Object@recordrDir <- recordrDir
   # Open a connection to the database that contains execution metadata,
-  .Object@dbConn <- dbConnect(drv=RSQLite::SQLite(), dbname=sprintf("%s/recordr.sqlite", recordrDir))
+  .Object@dbFile <- sprintf("%s/recordr.sqlite", recordrDir)
+  dbConn <- getDBconnection(dbFile=.Object@dbFile)
+  if (is.null(dbConn)) {
+    stop("Unable to create a Recordr object\n")
+  } else {
+    .Object@dbConn <- dbConn
+  }
   return(.Object)
 })
 

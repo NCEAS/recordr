@@ -91,6 +91,17 @@ setGeneric("writeExecMeta", function(recordr, execMeta, ...) {
 })
 
 setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(recordr, execMeta, ...) {
+  
+  # Check if the connection to the database is still working
+  tmpDBconn<- FALSE
+  if (!dbIsValid(recordr@dbConn)) {
+    dbConn <- getDBconnection(dbFile=recordr@dbFile)
+    if(is.null(dbConn)) {
+      stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
+    }
+  } else {
+    dbConn <- recordr@dbConn
+  }
   #print(sprintf("writeExecMeta: writing file %s/runs/%s/execMetadata.csv", recordr@recordrDir, execMeta@executionId))
   # Get values from all the slots for the execution metadata, in the order they were declared in the class definition.
   execSlotNames <- slotNames("ExecMetadata")
@@ -171,13 +182,22 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
                                     seq=as.character(NA), orderBy=as.character(NA), 
                                     sortOrder="ascending", delete=FALSE, ...) {
   
+  # Check if the connection to the database is still working
+  tmpDBconn<- FALSE
+  if (!dbIsValid(recordr@dbConn)) {
+    dbConn <- getDBconnection(dbFile=recordr@dbFile)
+    if(is.null(dbConn)) {
+      stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
+    }
+  } else {
+    dbConn <- recordr@dbConn
+  }
   # If the 'execmeta' table doesn't exist yet, then there is no exec metadata for this
   # executionId, so just return a blank data.frame
-  if (!is.element("execmeta", dbListTables(recordr@dbConn))) {
+  if (!is.element("execmeta", dbListTables(dbConn))) {
     return(df)
   }
   
-  cat(sprintf("HI!!\n"))
   # Construct a SELECT statement to retrieve the runs that match the specified search criteria.
   select <- "SELECT * from execmeta"
   whereClause <- NULL
