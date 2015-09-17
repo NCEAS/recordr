@@ -395,10 +395,10 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", config
     base::source(file, ...)
   }, warning = function(warningCond) {
     slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
-    cat(sprintf("Warning:: %s", recordrEnv$execMeta@errorMessage))
+    cat(sprintf("Warning:: %s\n", recordrEnv$execMeta@errorMessage))
   }, error = function(errorCond) {
     slot(recordrEnv$execMeta, "errorMessage") <- errorCond$message
-    cat(sprintf("Error:: %s", recordrEnv$execMeta@errorMessage))
+    cat(sprintf("Error:: %s\n", recordrEnv$execMeta@errorMessage))
   }, finally = {
     # Disable provenance capture while some housekeeping is done
     setProvCapture(FALSE)
@@ -602,29 +602,41 @@ setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA
 printRun <- function(row=list(), headerOnly = FALSE) {
   
   tagLength = 20
-  scriptNameLength = 20
+  scriptNameLength = 30
   errorMsgLength = 30
   
   #fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
   fmt <- paste("%-6s", "%-", sprintf("%2d", scriptNameLength), "s", 
                " %-", sprintf("%2d", tagLength), "s",
-               " %-19s %-19s %-45s %-19s",
+               # " %-19s %-19s %-45s %-19s",
+               " %-19s %-19s %-7s %-19s",
                " %-", sprintf("%2d", errorMsgLength), "s", "\n", sep="")
   
   if (headerOnly) {
-    cat(sprintf(fmt, "Seq", "Script", "Tag", "Start Time", "End Time", "Run Identifier", "Published Time", "Error Message"), sep = " ")
+    cat(sprintf(fmt, "Seq", "Script", "Tag", "Start Time", "End Time", "Run Id", "Published Time", "Error Message"), sep = " ")
   } else {
-    thisScript       <- row["softwareApplication"]
-    thisStartTime    <- row["startTime"]
-    thisEndTime      <- row["endTime"]
-    thisrunId       <- row["executionId"]
-    #thisPackageId    <- row["datapackageId"]
-    thisPublishTime  <- row["publishTime"]
-    thisErrorMessage <- row["errorMessage"]
-    thisTag         <- row["tag"]
-    thisSeq         <- row["seq"]
+    console          <- row[["console"]]
+    if(console) {
+      thisScript <- "Console log"
+    }
+    else {
+      thisScript       <- row[["softwareApplication"]]
+      # Print shortened form of script name, e.g. "/home/slaugh...ocalReadWrite.R"
+      if(nchar(thisScript) > scriptNameLength-nchar("...")) {
+        thisScript       <- sprintf("%s...%s", substring(thisScript, 1, 12), substring(thisScript, nchar(thisScript)-14, nchar(thisScript)))
+      } 
+    }
+    thisStartTime    <- row[["startTime"]]
+    thisEndTime      <- row[["endTime"]]
+    thisRunId       <- row[["executionId"]]
+    thisRunId       <- sprintf("...%s", substring(thisRunId, nchar(thisRunId)-3, nchar(thisRunId)))
+    #thisPackageId    <- row[["datapackageId"]]
+    thisPublishTime  <- row[["publishTime"]]
+    thisErrorMessage <- row[["errorMessage"]]
+    thisTag         <- row[["tag"]]
+    thisSeq         <- row[["seq"]]
     cat(sprintf(fmt, thisSeq, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime, 
-                thisEndTime, thisrunId, thisPublishTime, strtrim(thisErrorMessage, errorMsgLength)), sep = " ")
+                thisEndTime, thisRunId, thisPublishTime, strtrim(thisErrorMessage, errorMsgLength)), sep = " ")
   }
 }
 
@@ -673,8 +685,9 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     endTime             <- thisRow[["endTime"]]
     errorMessage        <- thisRow[["errorMessage"]]
     publishTime         <- thisRow[["publishTime"]]
-    # Console is stored as integer, so coerce to logical (1=TRUE, 0=FALSE)
     console             <- as.logical(thisRow[["console"]])
+    publishNodeId       <- thisRow[["publishNodeId"]]
+    publishId           <- thisRow[["publishId"]]
     seq                 <- thisRow[["seq"]]
     thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, executionId)
     
@@ -687,31 +700,34 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     # Clear screen before showing results if we are paging the results
     if (i == 1 && page) cat("\014")
     # Print out [DETAILS] section
+    scriptNameLength=50
     if (is.element("details", sections)) {
       cat(sprintf("[details]: Run details\n"))
       cat(sprintf("----------------------\n"))
+      thisScript <- softwareApplication
       if(console) {
         cat(sprintf("Started recording console input at %s\n", startTime))
-      } else {
-        cat(sprintf("%s was executed on %s\n", dQuote(softwareApplication), startTime))
+      } else {      
+        if(nchar(thisScript) > scriptNameLength-nchar("...")) {
+          thisScript <- sprintf("%s...%s", substring(thisScript, 1, 15), substring(thisScript, nchar(thisScript)-3, nchar(thisScript)))
+        } 
+        cat(sprintf("%s was executed on %s\n", dQuote(thisScript), startTime))
       }
       cat(sprintf("Tag: %s\n", dQuote(tag)))
       cat(sprintf("Run sequence #: %d\n", seq))
       if(is.na(publishTime) || is.null(publishTime)) {
         published <- FALSE
-        publishTime <- "not published"
+        publishTime <- "Not published"
+        publishViewURL <- as.character(NA)
       } else {
         published <- TRUE
-        # Add in the CN resolve URL if not already added
-        #if(grepl(D1_CN_Resolve_URL, scriptURL)) {
-        #  scriptURL <- sprintf("%s/%s", D1_CN_Resolve_URL, scriptURL)
-        #}
+        publishViewURL <- sprintf("%s/%s", D1_View_URL, publishedId)
       }
       
-      cat(sprintf("Publish date: \"%s\"\n", publishTime))
-      #       cat(sprintf("Published to:"))
-      #       cat(sprintf("Published Id: "))
-      #       cat(sprintf("View at: "))
+      cat(sprintf("Publish date: %s\n", publishTime))
+      cat(sprintf("Published to: %s", publishNodeId))
+      cat(sprintf("Published Id: ", publishId))
+      cat(sprintf("View at: ", publishViewURL))
       cat(sprintf("Run by user: %s\n", user))
       cat(sprintf("Account subject: %s\n", subject))
       cat(sprintf("Run Id: %s\n", executionId))
@@ -901,6 +917,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id, assignDOI=FA
     metadata_id <- paste0("urn:uuid:", UUIDgenerate())
     system <- "uuid"
   }
+  execMeta@publishId <- metadata_id
   
   eml <- makeEML(metadata_id, system, title, creators, abstract, methodDescription, geo_coverage, temp_coverage, pkg, mn@endpoint)
   eml_xml <- as(eml, "XMLInternalElementNode")

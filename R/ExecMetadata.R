@@ -37,6 +37,8 @@ setClass("ExecMetadata", slots = c(executionId      = "character",
                                    endTime             = "character",
                                    errorMessage        = "character",
                                    publishTime         = "character",
+                                   publishNodeId       = "character",
+                                   publishId           = "character",
                                    console             = "logical",
                                    seq      = "integer"))
 
@@ -53,7 +55,7 @@ setGeneric("ExecMetadata", function(programName, ...) {
   standardGeneric("ExecMetadata")
 })
 
-setMethod("ExecMetadata", signature("character"), function(programName, tag=as.character(NA)) {
+setMethod("ExecMetadata", signature("character"), function(programName=as.character(NA), tag=as.character(NA)) {
   
   ## create new MNode object and insert uri endpoint
   execMeta <- new("ExecMetadata")
@@ -70,6 +72,8 @@ setMethod("ExecMetadata", signature("character"), function(programName, tag=as.c
   execMeta@endTime <- execMeta@startTime
   execMeta@errorMessage <- as.character(NA)
   execMeta@publishTime <- as.character(NA)
+  execMeta@publishNodeId <- as.character(NA)
+  execMeta@publishId <- as.character(NA)
   execMeta@console <- FALSE
   execMeta@seq <- as.integer(0)
   
@@ -133,6 +137,8 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
             endTime             TEXT,
             errorMessage        TEXT,
             publishTime         TEXT,
+            publishNodeId       TEXT,
+            publishdId          TEXT,
             console             INTEGER);"
     
     cat(sprintf("create: %s\n", createStatement))
@@ -313,7 +319,6 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
     }
   }
   
-
   # If the user specified 'delete=TRUE', so first fetch the
   # matching records, then delete them.
   if (delete) {
