@@ -29,6 +29,7 @@ Collate:
     'Constants.R'
     'Recordr.R'
     'ExecMetadata.R'
+    'FileMetadata.R'
     'maskedFunctions.R'
     'onLoad.R'
     'recordr-package.R'
