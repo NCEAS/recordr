@@ -121,11 +121,12 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # Save the session configuration object to the recordr environment so it will be available to all methods
   recordrEnv$config <- config
 
-  # Put a copy of the database connection into the recordr environment so that it is available
-  # to the overriding functions. The db connection has to be open in the Recordr class
+  # Put a copy of the recordr object itself info the recordr environment, in case
+  # to the overriding functions need any information that it contains, such as the db connection
+  # Note: The recordr object contains the db connection that has to be open in the Recordr class
   # initialization because it also needs to be available to functions like listRuns() that
   # operate outside the startRecord -> endRecord execution.
-  recordrEnv$dbConn <- recordr@dbConn
+  recordrEnv$recordr <- recordr
 
   # If no scriptName is passed to startRecord(), then we are running in the R console, and R
   # itself is the top level program we are running.
@@ -144,32 +145,19 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
     }
   }
 
-  recordrEnv$execMeta <- ExecMetadata(recordrEnv$scriptPath, tag=tag)
+  recordrEnv$execMeta <- new("ExecMetadata", recordrEnv$scriptPath, tag=tag)
   recordrEnv$execMeta@console <- .console
+  # Write out execution metadata now, and update the metadata during endRecord()
+  # and possibly publish().
+  writeExecMeta(recordr, recordrEnv$execMeta)
   
   # TODO: handle concurrent executions of recordr, if ever necessary. Currently recordr
   # doesn't allow concurrent record() sessions to run, as only one copy of the 
   # .recordr environment can exist, which startRecord() checks for.
-  # Get the run sequence number by ascending search of all runs by ending time. This method
-  # doesn't handle concurrent executions of recordr. This method of obtaining a sequence
-  # number needs to be more robust. An alternative solution could use Sqlite for
-  # indexing the runs, and have an autoincrement column for the sequence number.
-#   runs <- selectRuns(recordr, orderBy="-endTime")
-#   if (nrow(runs) == 0) {
-#     seq <- 1
-#   } else {
-#     seq <-  as.integer(runs[1, 'seq']) + 1
-#   }
-# 
-#   recordrEnv$execMeta@seq <- as.integer(seq)
+  #
   # Create an empty D1 datapackage object and make it globally avilable, i.e. available
   # to the masking functions, e.g. "recordr_write.csv".
-  # TODO: Read memmber node from session API
-  #recordrEnv$cnNodeId <- "STAGING2"
   recordrEnv$mnNodeId <- getConfig(recordrEnv$config, "target_member_node_id")
-  # TODO: use new() initialization when datapackage is fixed - currently using new() causing
-  # an old object to be reused!!!
-  #recordrEnv$dataPkg <- new("DataPackage", packageId=recordrEnv$execMeta@datapackageId)
   recordrEnv$dataPkg <- new("DataPackage", packageId=recordrEnv$execMeta@datapackageId)
     
   # Add the ProvONE Execution type
@@ -209,13 +197,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # variable is defined.
   recordrEnv$recordrDir <- recordr@recordrDir
   #cat(sprintf("filePath: %s\n", recordrEnv$scriptPath))
-  if (recordrEnv$scriptPath == "") {
-    saveFileInfo(recordrEnv$programId, fileArg="R console", headerOnly=TRUE)
-  }
-  else {
-    saveFileInfo(recordrEnv$programId, recordrEnv$scriptPath, headerOnly=FALSE, access="execute")
-  }
-  # Record relationship identifying this id as a provone:Execution
+# Record relationship identifying this id as a provone:Execution
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=provONEexecution, predicate=rdfType, objectType="uri")
   # Record relationship between the Exectution and the User
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=userId, predicate=provWasAssociatedWith, objectType="uri")
@@ -323,6 +305,16 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
     recordrEnv$scriptPath = consoleLogFile
   }
   
+  # Archive the script that was executed, or the console log if we
+  # were recording console commands. The script can be retrieved
+  # by searching for access="execute"
+  archivedFilePath <- archiveFile(file=recordrEnv$scriptPath)
+  filemeta <- new("FileMetadata", file=recordrEnv$scriptPath, 
+               fileId=recordrEnv$programId, 
+               executionId=recordrEnv$execMeta@executionId,
+               access="execute", archivedFilePath=archivedFilePath)
+  writeFileMeta(recordr, filemeta)
+  
   # Save the executed file or console log to the data package
   script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = '\n'))
   # Create a data package object for the program that we are running and store it.
@@ -336,7 +328,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   dataPkg <- recordrEnv$dataPkg
   
   # Save execution metadata to a file in the run directory
-  writeExecMeta(recordr, recordrEnv$execMeta)
+  updateExecMeta(recordr, executionId=recordrEnv$execMeta@executionId, endTime=recordrEnv$execMeta@endTime, errorMessage=recordrEnv$execMeta@errorMessage)
   
   # Don't print this object if startRecord()/endRecord() was called
   if(recordrEnv$execMeta@console) {
@@ -721,7 +713,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
         publishViewURL <- as.character(NA)
       } else {
         published <- TRUE
-        publishViewURL <- sprintf("%s/%s", D1_View_URL, publishedId)
+        publishViewURL <- sprintf("%s/%s", D1_View_URL, publishId)
       }
       
       cat(sprintf("Publish date: %s\n", publishTime))
@@ -767,11 +759,10 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     
     # Read the info file once, and prepare this dfs of read files and generated files
     if(is.element("used", sections) || is.element("generated", sections)) {
-      fstats <- getFileInfo(recordr, executionId)
-      fstatsRead <- fstats[fstats$access=="read",]
-      fstatsRead <- fstats[order(basename(fstatsRead$filePath)),]
-      fstatsWrite <- fstats[fstats$access=="write",]
-      fstatsWrite <- fstats[order(basename(fstatsWrite$filePath)),]
+      fstatsRead <- readFileMeta(recordr, executionId=executionId, access="read")
+      #fstatsRead <- fstats[order(basename(fstatsRead$filePath)),]
+      fstatsWrite <- readFileMeta(recordr, executionId=executionId, access="write")
+      #fstatsWrite <- fstats[order(basename(fstatsWrite$filePath)),]
     }
     
     # "%-30s %-10d %-19s\n"
@@ -783,7 +774,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
         fmt <- paste("%-", sprintf("%2d", fileNameLength), "s",  " %-12s %-19s\n", sep="")
         cat(sprintf(fmt, "Local name", "Size (kb)", "Modified time"), sep = " ")
         for (i in 1:nrow(fstatsRead)) {
-          cat(sprintf(fmt, strtrim(basename(fstatsRead[i, "filePath"]), fileNameLength), fstatsRead[i, "size"], fstatsRead[i, "mtime"]), sep = "")
+          cat(sprintf(fmt, strtrim(basename(fstatsRead[i, "filePath"]), fileNameLength), fstatsRead[i, "size"], fstatsRead[i, "modifyTime"]), sep = "")
         }
       }
     }
@@ -795,7 +786,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
         fmt <- paste("%-", sprintf("%2d", fileNameLength), "s",  " %-12s %-19s\n", sep="")
         cat(sprintf(fmt, "Local name", "Size (kb)", "Modified time"), sep = " ")
         for (i in 1:nrow(fstatsWrite)) {
-          cat(sprintf(fmt, strtrim(basename(fstatsWrite[i, "filePath"]), fileNameLength), fstatsWrite[i, "size"], fstatsWrite[i, "mtime"]), sep = "")
+          cat(sprintf(fmt, strtrim(basename(fstatsWrite[i, "filePath"]), fileNameLength), fstatsWrite[i, "size"], fstatsWrite[i, "modifyTime"]), sep = "")
         }
       }
     }
@@ -917,8 +908,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id, assignDOI=FA
     metadata_id <- paste0("urn:uuid:", UUIDgenerate())
     system <- "uuid"
   }
-  execMeta@publishId <- metadata_id
-  
+
   eml <- makeEML(metadata_id, system, title, creators, abstract, methodDescription, geo_coverage, temp_coverage, pkg, mn@endpoint)
   eml_xml <- as(eml, "XMLInternalElementNode")
   #print(eml_xml)
@@ -929,7 +919,6 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id, assignDOI=FA
   
   # upload metadata to the repository
   format="eml://ecoinformatics.org/eml-2.1.1"
-  
   sysmeta <- createSysmeta(mn, eml_file, metadata_id, format, public=TRUE, replicate=TRUE, user=user)
   #sysmetaStr <- serializeSystemMetadata(sysmeta)
   #writeLines(sysmetaStr, sprintf("%s/sysmeta_%s.xml", runDir, metadata_id))
@@ -941,6 +930,10 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id, assignDOI=FA
   } else {
     message(sprintf("Uploaded metadata with id: %s\n", metadata_id))
   }
+  
+  # Use the metadata id as the 'published identifier' for this datapackage. This will be displayed in the viewRuns() output
+  # for this under "Published ID".
+  execMeta@publishId <- metadata_id
   
   dataIds <- getIdentifiers(pkg)
   mdo <- new("DataObject", id=metadata_id, filename=eml_file, format=format, user=user, mnNodeId=node)  

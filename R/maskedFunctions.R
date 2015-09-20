@@ -170,7 +170,13 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
     recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, datasetId)
-    saveFileInfo(datasetId, file, access="write")
+    # Save a copy of this generated file to the recordr archiv
+    archivedFilePath <- archiveFile(file=file)
+    filemeta <- new("FileMetadata", file=file, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="write", archivedFilePath=archivedFilePath)
+    writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
   return(obj)
@@ -222,7 +228,14 @@ setMethod("recordr_read.csv", signature(), function(...) {
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
     recordrEnv$execInputIds <- c(recordrEnv$execInputIds, datasetId)
-    saveFileInfo(datasetId, fileArg, access="read")
+    # Save a copy of this input file into the recordr archive
+    archivedFilePath <- archiveFile(file=fileArg)
+    # Save the file metadata to the database
+    filemeta <- new("FileMetadata", file=fileArg, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="read", archivedFilePath=archivedFilePath)
+    writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
   return(dataRead)
@@ -286,80 +299,50 @@ setMethod("getProvCapture", signature(), function(x) {
   return(enabled)
 })
 
-# Save local file information
-saveFileInfo <- function(dataObjId, fileArg, headerOnly=FALSE, access) {
-  
-  # Disable provenance capture while we read/write file info
-  provEnabled <- getProvCapture()
-  setProvCapture(FALSE)
-  
-  # Construct directory/filename to store file info
-  recordrEnv <- as.environment(".recordr")
-  infoFile <- sprintf("%s/runs/%s/fileInfo.csv", recordrEnv$recordrDir, recordrEnv$execMeta@executionId)
-  
-  # Save a header row only, in case this execution does not read or write any
-  # files, then this file will have been created.
-  if (headerOnly) {
-    thisFstats <- data.frame(filePath=character(),dataObjId=character(), size=integer(),
-                             mtime=as.character(),
-                             ctime=as.character(),
-                             uname=as.character(),
-                             access=as.character(),
-                             stringsAsFactors=FALSE, row.names=NULL)
-    
-    utils::write.csv(thisFstats, infoFile, row.names=FALSE)
-    setProvCapture(provEnabled)
-    return()
-  }
-  
-  # File arg could be a character list with > 1 element, so write info for each
-  # file.
-  for (file in fileArg) {
-    filePath <- normalizePath(file)
-    # get info for this file. file.info stores dates as POSIXct, so convert them to strings
-    # so that they don't get written out as an integer timestamp, i.e. milliseconds since ref date
-    rawInfo <- base::file.info(filePath)    
-    thisFstats <- data.frame(filePath=filePath, dataObjId=dataObjId, size=rawInfo[["size"]], 
-                             mtime=as.character(rawInfo[["mtime"]]), 
-                             ctime=as.character(rawInfo[["ctime"]]), 
-                             uname=rawInfo[["uname"]],
-                             access=access,
-                             stringsAsFactors=FALSE, row.names=NULL)
-    #rownames(thisFstats) <- c(filePath)
-    # Read in the stored file info for this execution. This file contains info for all
-    # files used by this execution. Rowname of data frame is the file path.
-    if (file.exists(infoFile)) {      
-      fstats <- utils::read.csv(infoFile, stringsAsFactors=FALSE, row.names=NULL)
-      # Replace or add the entry for this file
-      fstats[filePath, ] <- thisFstats
-    } else {
-      # First file recorded, just write one file info out
-      fstats <- thisFstats
-    }
-    
-    # Save file info to run directory
-    utils::write.csv(fstats, infoFile, row.names=FALSE)
-  }
-  
-  setProvCapture(provEnabled)
-}
-
-# Retrieved all previously stored information for local files 
-getFileInfo <- function(recordr, id) {
-  # Disable provenance capture while we read/write file info
-  provEnabled <- getProvCapture()
-  setProvCapture(FALSE)
-  thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
-  infoFile <- sprintf("%s/fileInfo.csv", thisRunDir)
-  fstats <- utils::read.csv(infoFile, stringsAsFactors=FALSE, row.names=1)
-  if (! file.exists(infoFile)) {
-    msg <- sprintf("Information file %s not found for execution identifier: %s", infoFile, id)
-    stop(msg)
-  }
-  fstats <- utils::read.csv(infoFile, stringsAsFactors=FALSE)
-  setProvCapture(provEnabled)
-  return(fstats)
-}
-
+#' Archive a file into the recordr archive directory
+#' @param file The file to save in the archive
+#' @return The name of the archived file path relative to the recordr home directory
+#' @import uuid
+## TODO: remove export once testing is done
+#' @export
 archiveFile <- function(file) {
+  if(!file.exists(file)) {
+    message("Cannot copy file %s, it does not exist\n", file)
+    return(NULL)
+  }
+  
+  # First check if a file with the same md5 has been accessed before.
+  # If it has, then don't archive this file again, and return the
+  # archived location of the previously archived fileo
+  fm <- readFileMeta(rc, md5=tools::md5sum(file))
+  if(nrow(fm) > 0) {
+    archivedRelFilePath <- fm[1, "archivedFilePath"]
+    return(archivedRelFilePath)
+  }
+  
+  # The archive directory is specified relative to the recordr root
+  # directory, so that if the recordr root directory has to be moved, the
+  # database entries for archived directories does not have to be updated.
+  # The archive directory is named simply for today's date. The data directory
+  # is put at the top of the archive directory, just so that directory file
+  # limits aren't exceeded. Directories on ext3 filesystems a directory can contain 
+  # 32,000 entries, so this simple scheme should not run into any OS limits. Also, these directories
+  # will not be searched, as the filepaths are contains in a database, so directory
+  # lookup performance is not an issue.
+  archiveRelDir <- sprintf("archive/%s", substr(as.character(Sys.time()), 1, 10))
+  fullDirPath <- sprintf("%s/%s", RecordrHome, archiveRelDir)
+  if (!file.exists(fullDirPath)) {
+    dir.create(fullDirPath, recursive = TRUE)
+  }  
+  archivedRelFilePath <- sprintf("%s/%s", archiveRelDir, UUIDgenerate())
+  fullFilePath <- sprintf("%s/%s", RecordrHome, archivedRelFilePath)
+  # First check if the file has already been archived by searching for a file
+  # with the same md5 checksum. Each archived file must have a unique name
+  # as a filename may be an input for many runs on the same day, with the
+  # file being updated between each run
+  file.copy(file, fullFilePath, overwrite = FALSE, recursive = FALSE,
+            copy.mode = TRUE, copy.date = TRUE)
+  # TODO: Check if the file was actually copied
+  return(archivedRelFilePath)
 }
+
