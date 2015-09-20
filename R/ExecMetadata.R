@@ -18,10 +18,27 @@
 #   limitations under the License.
 #
 
-## A class representing a script execution run manager
-#' @include Recordr.R
-#' @slot name (not currently used)
+#' A class representing a script execution run manager
 #' @author slaughter
+#' @slot executionId
+#' @slot tag
+#' @slot datapackageId
+#' @slot user
+#' @slot subject
+#' @slot hostId
+#' @slot startTime
+#' @slot operatingSystem
+#' @slot runtime
+#' @slot softwareApplication
+#' @slot moduleDependencies
+#' @slot endTime
+#' @slot errorMessage
+#' @slot publishTime
+#' @slot publishNodeId
+#' @slot publishId
+#' @slot console
+#' @slot seq
+#' @include Recordr.R
 #' @export
 setClass("ExecMetadata", slots = c(executionId      = "character",
                                    tag              = "character",
@@ -46,42 +63,36 @@ setClass("ExecMetadata", slots = c(executionId      = "character",
 ## ExecMetadata constructors
 ############################
 
-#' execution metadata
-#' @param ... (not yet used)
-#' @return the ExecMetadata object
-#' @author slaughter
+#' Initialize an execution metadata object
+#' @param .Object
+#' @param programName
+#' @param tag
 #' @export
-setGeneric("ExecMetadata", function(programName, ...) {
-  standardGeneric("ExecMetadata")
-})
-
-setMethod("ExecMetadata", signature("character"), function(programName=as.character(NA), tag=as.character(NA)) {
+setMethod("initialize", signature = "ExecMetadata", definition = function(.Object, programName=as.character(NA), tag=as.character(NA)) {
   
-  ## create new MNode object and insert uri endpoint
-  execMeta <- new("ExecMetadata")
-  execMeta@executionId <- sprintf("urn:uuid:%s", UUIDgenerate())
-  execMeta@tag         <- tag
-  execMeta@datapackageId <- sprintf("urn:uuid:%s", UUIDgenerate())
-  execMeta@user <- Sys.info()[['user']]
-  execMeta@subject <- as.character(NA)
-  execMeta@hostId <- Sys.info()[['nodename']]
-  execMeta@startTime <- as.character(Sys.time())
-  execMeta@operatingSystem <- R.Version()$platform
-  execMeta@runtime <- R.Version()$version.string
-  execMeta@softwareApplication  <- programName
-  execMeta@endTime <- execMeta@startTime
-  execMeta@errorMessage <- as.character(NA)
-  execMeta@publishTime <- as.character(NA)
-  execMeta@publishNodeId <- as.character(NA)
-  execMeta@publishId <- as.character(NA)
-  execMeta@console <- FALSE
-  execMeta@seq <- as.integer(0)
+  .Object@executionId <- sprintf("urn:uuid:%s", UUIDgenerate())
+  .Object@tag         <- tag
+  .Object@datapackageId <- sprintf("urn:uuid:%s", UUIDgenerate())
+  .Object@user <- Sys.info()[['user']]
+  .Object@subject <- as.character(NA)
+  .Object@hostId <- Sys.info()[['nodename']]
+  .Object@startTime <- as.character(Sys.time())
+  .Object@operatingSystem <- R.Version()$platform
+  .Object@runtime <- R.Version()$version.string
+  .Object@softwareApplication  <- programName
+  .Object@endTime <- as.character(NA)
+  .Object@errorMessage <- as.character(NA)
+  .Object@publishTime <- as.character(NA)
+  .Object@publishNodeId <- as.character(NA)
+  .Object@publishId <- as.character(NA)
+  .Object@console <- FALSE
+  .Object@seq <- as.integer(0)
   
   # Get list of packages that recordr has loaded and store as characters, i.e.
   # "recordr 0.1, uuid 0.1-1, dataone 1.0.0, dataonelibs 1.0.0, XML 3.98-1.1, rJava 0.9-6"
   pkgs <- sessionInfo()$otherPkgs
-  execMeta@moduleDependencies <- paste(lapply(pkgs, function(x) paste(x$Package, x$Version)), collapse = ', ')
-  return(execMeta)
+  .Object@moduleDependencies <- paste(lapply(pkgs, function(x) paste(x$Package, x$Version)), collapse = ', ')
+  return(.Object)
 })
 
 ##########################
@@ -138,34 +149,60 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
             errorMessage        TEXT,
             publishTime         TEXT,
             publishNodeId       TEXT,
-            publishdId          TEXT,
-            console             INTEGER);"
+            publishId           TEXT,
+            console             INTEGER,
+            unique(executionId));"
     
     cat(sprintf("create: %s\n", createStatement))
     result <- dbSendQuery(conn=dbConn, statement=createStatement)
     dbClearResult(result)
   }
   
-  tmpSlotNames <- execSlotNames[which(execSlotNames!="seq")]
-  # Extract slot values from the exec meta object
-  slotValues <- unlist(lapply(tmpSlotNames, function(x) as.character(slot(execMeta, x))))
-  # The error message slot can potentially contain single quotes, which causes an
-  # SQL error from the INSERT statement. Double up the single quotes for this slot value,
-  # if they exists.
-  tmpInd <- which(execSlotNames=="errorMessage")
-  slotValues[tmpInd] <- gsub("'", "''", slotValues[tmpInd])
-  # Set the seq value to NULL so that SQLite will autoincrement the value apon insert
-  #slotValues <- slotValues[2:]
-  #seqInd <- which(execSlotNames=="seq")
-  # SQLite doesn't like the 'fancy' start and end quotes, so use the simple quotes
+  execSlotNames <- slotNames("ExecMetadata")
+  # Get slot types
+  slotDataTypes <- getSlots("ExecMetadata")
+  # Get values from all the slots for the execution metadata, in the order they were declared in the class definition.
+  slotValues <- unlist(lapply(execSlotNames, function(x) as.character(slot(execMeta, x))))
+  slotValuesStr <- NULL
+  execSlotNamesStr <- paste(execSlotNames, collapse=",")
+  # SQLite doesn't like the 'fancy' quotes that R uses for output, so switch to standard quotes
   quoteOption <- getOption("useFancyQuotes")
   options(useFancyQuotes="FALSE")
-  slotValuesStr <- paste(sQuote(slotValues), collapse=",")
+  for (i in 1:length(execSlotNames)) {
+    slotName <- execSlotNames[[i]]
+    slotDataType <- slotDataTypes[[i]]
+    # Surround character values in single quotes for 'insert' statement 
+    # Set sequence number to NULL so that SQLite will autoincrement it
+    if(slotName == "seq") {
+      slotValuesStr <- ifelse(is.null(slotValuesStr),  
+                              slotValuesStr <- "NULL",
+                              slotValuesStr <- paste(slotValuesStr, "NULL", sep=","))
+    } else  if(slotDataType=="character") {
+      # if single quotes already exist in the string, then double them up, which 
+      # is the way to escape them in SQLite!
+      if (grepl("'", slotValues[i])) {
+        thisValue <- gsub("'", "''", slotValues[i])
+      } else {
+        thisValue <- slotValues[i]
+      }
+      slotValuesStr <- ifelse(is.null(slotValuesStr),  
+                              slotValuesStr <- sQuote(thisValue), 
+                              slotValuesStr <- paste(slotValuesStr, sQuote(thisValue), sep=","))
+    } else if (slotDataType=="logical") {
+      # Logical values are actually stored as integers in SQLite
+      ifelse(slotValues[i], thisValue <- 1, thisValue <- 0)
+      slotValuesStr <- ifelse(is.null(slotValuesStr),  
+                              slotValuesStr <- thisValue, 
+                              slotValuesStr <- paste(slotValuesStr, thisValue, sep=","))
+    } else {
+      # All other datatypes don't get quotes
+      slotValuesStr <- ifelse(is.null(slotValuesStr),  
+                              slotValuesStr <- slotValues[i], 
+                              slotValuesStr <- paste(slotValuesStr, slotValues[i], sep=","))
+    }
+  }
   options(useFancyQuotes=quoteOption)
-  #insertStatement <- paste("INSERT INTO execmeta (", execSlotNamesStr, ")", "VALUES (", slotValuesStr, ")')")
-  # Add seq back in with NULL value
-  slotValuesStr <- sprintf("NULL,%s", slotValuesStr)
-  insertStatement <- paste("INSERT INTO execmeta ", "VALUES (", slotValuesStr, ")", sep=" ")
+  insertStatement <- paste("INSERT INTO execmeta ", "(", execSlotNamesStr, ")", " VALUES (", slotValuesStr, ")", sep=" ")
   cat(sprintf("insert: %s\n", insertStatement))
   result <- dbSendQuery(conn=dbConn, statement=insertStatement)
   dbClearResult(result)
@@ -174,6 +211,99 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
   if(tmpDBconn) dbDisconnect(dbConn)
   # TODO: interpret result status and set true or false
   return(TRUE)
+})
+
+#' Update a single execution metadata object. 
+#' @param ExecMetadata object
+#' @author slaughter
+#' @export
+setGeneric("updateExecMeta", function(recordr, executionId, ...) {
+  standardGeneric("updateExecMeta")
+})
+
+setMethod("updateExecMeta", signature("Recordr"), function(recordr, 
+                                    executionId=as.character(NA), subject=as.character(NA),
+                                    endTime=as.character(NA),  
+                                    errorMessage=as.character(NA), publishTime=as.character(NA), 
+                                    publishNodeId=as.character(NA), publishId=as.character(NA)) {
+  
+  # Check if the connection to the database is still working
+  tmpDBconn<- FALSE
+  if (!dbIsValid(recordr@dbConn)) {
+    dbConn <- getDBconnection(dbFile=recordr@dbFile)
+    if(is.null(dbConn)) {
+      stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
+    }
+  } else {
+    dbConn <- recordr@dbConn
+  }
+  # If the 'execmeta' table doesn't exist yet, then there is no exec metadata for this
+  # executionId, so just return a blank data.frame
+  if (!is.element("execmeta", dbListTables(dbConn))) {
+    return(data.frame())
+  }
+  
+  # Construct an Update statement to update the execution metadata entry for a specific run
+  update <- "UPDATE execmeta "
+  setClause <- NULL
+  if(!is.na(subject)) { 
+    subject <- gsub("'", "''", subject)
+    if(!is.null(setClause)) {
+      setClause <- sprintf("%s , subject = \'%s\'", setClause, subject)
+    } else {
+      setClause <- sprintf("SET subject = \'%s\'", subject)
+    }
+  }
+  
+  if(!is.na(endTime)) { 
+    if(!is.null(setClause)) {
+      setClause <- sprintf("%s , endTime = \'%s\'", setClause, endTime)
+    } else {
+      setClause <- sprintf("SET endTime = \'%s\'", endTime)
+    }
+  }
+
+  if(!is.na(errorMessage)) { 
+    errorMessage <- gsub("'", "''", errorMessage)
+    if(!is.null(setClause)) {
+      setClause <- sprintf("%s , errorMessage = \'%s\'", setClause, errorMessage)
+    } else {
+      setClause <- sprintf("SET errorMessage = \'%s\'", errorMessage)
+    }
+  }
+
+  if(!is.na(publishTime)) { 
+    if(!is.null(setClause)) {
+      setClause <- sprintf("%s , publishTime = \'%s\'", setClause, publishTime)
+    } else {
+      setClause <- sprintf("SET publishTime = \'%s\'", publishTime)
+    }
+  }
+
+  if(!is.na(publishNodeId)) { 
+    if(!is.null(setClause)) {
+      setClause <- sprintf("%s , publishNodeId = \'%s\'", setClause, publishNodeId)
+    } else {
+      setClause <- sprintf("SET publishNodeId = \'%s\'", publishNodeId)
+    }
+  }
+
+  if(!is.na(publishId)) { 
+    if(!is.null(setClause)) {
+      setClause <- sprintf("%s , publishId = \'%s\'", setClause, publishId)
+    } else {
+      setClause <- sprintf("SET publishId = \'%s\'", publishId)
+    }
+  }
+  
+  updateStatement <- sprintf("%s %s where executionId=\'%s\'", update, setClause, executionId)
+  cat(sprintf("update: %s\n", updateStatement))
+  result <- dbSendQuery(conn = dbConn, statement=updateStatement)
+  dbClearResult(result)
+  
+  # We can't return this database connection we just opened, as we are not returning the recordr object with a
+  # slot that contains the new database connection, so just disconnect. 
+  if(tmpDBconn) dbDisconnect(dbConn)
 })
 
 #' Get Execution metadata from a database
@@ -218,7 +348,7 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   # If the 'execmeta' table doesn't exist yet, then there is no exec metadata for this
   # executionId, so just return a blank data.frame
   if (!is.element("execmeta", dbListTables(dbConn))) {
-    return(df)
+    return(data.frame())
   }
   
   # Construct a SELECT statement to retrieve the runs that match the specified search criteria.
@@ -334,7 +464,7 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   
   # Retrieve records that match search criteria
   selectStatement <- paste(select, whereClause, orderByClause, sep=" ")
-  #cat(sprintf("select: %s\n", selectStatement))
+  cat(sprintf("select: %s\n", selectStatement))
   result <- dbSendQuery(conn = dbConn, statement=selectStatement)
   resultdf <- dbFetch(result)
   dbClearResult(result)
