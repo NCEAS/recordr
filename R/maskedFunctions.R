@@ -311,10 +311,10 @@ archiveFile <- function(file) {
     return(NULL)
   }
   
-  # First check if a file with the same md5 has been accessed before.
+  # First check if a file with the same sha256 has been accessed before.
   # If it has, then don't archive this file again, and return the
   # archived location of the previously archived fileo
-  fm <- readFileMeta(rc, md5=tools::md5sum(file))
+  fm <- readFileMeta(rc, sha256=digest::digest(object=file, algo="sha256", file=TRUE))
   if(nrow(fm) > 0) {
     archivedRelFilePath <- fm[1, "archivedFilePath"]
     return(archivedRelFilePath)
@@ -337,7 +337,7 @@ archiveFile <- function(file) {
   archivedRelFilePath <- sprintf("%s/%s", archiveRelDir, UUIDgenerate())
   fullFilePath <- sprintf("%s/%s", RecordrHome, archivedRelFilePath)
   # First check if the file has already been archived by searching for a file
-  # with the same md5 checksum. Each archived file must have a unique name
+  # with the same sha256 checksum. Each archived file must have a unique name
   # as a filename may be an input for many runs on the same day, with the
   # file being updated between each run
   file.copy(file, fullFilePath, overwrite = FALSE, recursive = FALSE,
