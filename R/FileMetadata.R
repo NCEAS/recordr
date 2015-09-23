@@ -19,11 +19,13 @@
 #
 
 #' A class containing information about a file or group of files
-#' @author slaughter
+#' @details This class is used internally by the recordr package.
+#' @rdname FileMetadata-class
+#' @aliases FileMetadata-class
 #' @slot fileId
 #' @slot executionId
 #' @slot filePath
-#' @slot md5
+#' @slot sha256
 #' @slot size
 #' @slot user
 #' @slot createTime
@@ -32,11 +34,17 @@
 #' @slot archivedFilePath
 #' @import tools
 #' @include Recordr.R
-#' @export
+#' @section Methods:
+#' \itemize{
+#'  \item{\code{\link[=initialize-FileMetadata]{initialize}}}{: Initialize a FileMetadata object}
+#'  \item{\code{\link{readFileMeta}}}{: Retrieve saved file metadata for one or more files}
+#'  \item{\code{\link{writeFileMeta}}}{: Save metadata for a single file.}
+#' }
+#' @seealso \code{\link{recordr}}{ package description.}
 setClass("FileMetadata", slots = c(fileId = "character",
                                    executionId = "character",
                                    filePath    = "character",
-                                   md5         = "character",
+                                   sha256      = "character",
                                    size        = "integer",
                                    user        = "character",
                                    createTime  = "character",
@@ -45,15 +53,17 @@ setClass("FileMetadata", slots = c(fileId = "character",
                                    archivedFilePath = "character")
          )
 
-#' File metadata
-#' @description File metadata
+#' Initialize a file metadata object.
+#' @details This method is used internally by the recordr package.
 #' @param .Object a FileMetdata object
 #' @param file The file to get metadata for
 #' @param executionId the execution that this file belongs to
 #' @param access the access that occurred for this file ("read", "write", "execute")
-#' @author slaughter
+#' @rdname initialize-FileMetadata
+#' @aliases initialize-FileMetadata
 #' @import uuid
-#' @export
+#' @import digest
+#' @seealso \code{\link[=FileMetadata-class]{FileMetadata}} { class description}
 setMethod("initialize", signature = "FileMetadata", definition = function(.Object, file=as.character(NA),
                                                                           fileId=as.character(NA), 
                                                                           executionId=as.character(NA), 
@@ -66,7 +76,7 @@ setMethod("initialize", signature = "FileMetadata", definition = function(.Objec
   filePath <- normalizePath(file)
   rawInfo <- base::file.info(filePath)    
   .Object@filePath <- filePath
-  .Object@md5 <- as.character(tools::md5sum(filePath)[[1]])
+  .Object@sha256 <- as.character(digest::digest(object=filePath, algo="sha256", file=TRUE)[[1]])
   .Object@size <- as.integer(rawInfo[["size"]])
   .Object@user <- as.character(rawInfo[["uname"]])
   .Object@createTime <- as.character(rawInfo[["ctime"]])
@@ -87,15 +97,18 @@ setMethod("initialize", signature = "FileMetadata", definition = function(.Objec
 # ## Methods
 # ##########################
 # 
-#' Save a single execution metadata to a database
-#' @param recordr a recordr object
-#' @param fileMeta FileMetadata object
-#' @author slaughter
-#' @export
+#' Save metadata for a single file.
+#' @description Metadata for a file is written to an RSQLite database.
+#' @details This method is used internally by the recordr package.
+#' @param recordr A recordr object
+#' @param fileMeta A fileMetadata object
+#' @param ... (Not yet used)
+#' @seealso \code{\link[=FileMetadata-class]{FileMetadata}} { class description}
 setGeneric("writeFileMeta", function(recordr, fileMeta, ...) {
   standardGeneric("writeFileMeta")
 })
 
+#' @describeIn writeFileMeta
 setMethod("writeFileMeta", signature("Recordr", "FileMetadata"), function(recordr, fileMeta, ...) {
   
   # Check if the connection to the database is still working
@@ -115,7 +128,7 @@ setMethod("writeFileMeta", signature("Recordr", "FileMetadata"), function(record
             (fileId     TEXT PRIMARY KEY,
             executionId TEXT not null,
             filePath    TEXT not null,
-            md5         TEXT not null,
+            sha256      TEXT not null,
             size        INTEGER not null,
             user        TEXT not null,
             modifyTime  TEXT not null,
@@ -159,7 +172,7 @@ setMethod("writeFileMeta", signature("Recordr", "FileMetadata"), function(record
   options(useFancyQuotes=quoteOption)
   
   insertStatement <- paste("INSERT INTO filemeta ", "(", fileSlotNamesStr, ")", "VALUES (", slotValuesStr, ")", sep=" ")
-  cat(sprintf("insert: %s\n", insertStatement))
+  #cat(sprintf("insert: %s\n", insertStatement))
   result <- dbSendQuery(conn=dbConn, statement=insertStatement)
   dbClearResult(result)
   # We can't return this database connection we just opened, as we are not returning the recordr object with a
@@ -169,27 +182,30 @@ setMethod("writeFileMeta", signature("Recordr", "FileMetadata"), function(record
   return(TRUE)
 })
 
-#' Get file metadata from a database
-#' @description File metadata is retrived from recordr database table _filemeta_ 
+#' Retrieve saved file metadata for one or more files
+#' @description File metadata is retrived from the recordr database table \emph{filemeta}
 #' based on search parameters.
-#' @param recordr
-#' @param fileId
-#' @param executionId A character value that specifies an execution identifier to search for.
-#' @param filePath
-#' @param md5
-#' @param user
-#' @param access
-#' @param orderBy
-#' @param sortOrder
-#' @return A dataframe containing file metadata objects
-#' @export
+#' @details This method is used internally by the recordr package.
+#' @param recordr A recordr object
+#' @param ... Additional parameters
+#' @seealso \code{\link[=FileMetadata-class]{FileMetadata}} { class description}
 setGeneric("readFileMeta", function(recordr, ...) {
   standardGeneric("readFileMeta")
 })
 
+#' @describeIn readFileMeta
+#' @param fileId The id of the file to search for
+#' @param executionId A character value that specifies an execution identifier to search for.
+#' @param filePath The path name of the file to search for.
+#' @param sha256 The sha256 checksum value for the uncompressed file.
+#' @param user The user that ran the execution that created or accessed the file.
+#' @param access The type of access for the file. Values include "read", "write", "execute"
+#' @param orderBy The column to sort the result set by.
+#' @param sortOrder The sort type. Values include ("ascending", "descending")
+#' @return A dataframe containing file metadata objects
 setMethod("readFileMeta", signature("Recordr"), function(recordr, 
                                     fileId=as.character(NA),  executionId=as.character(NA), 
-                                    filePath=as.character(NA),  md5=as.character(NA), 
+                                    filePath=as.character(NA),  sha256=as.character(NA), 
                                     user=as.character(NA),  access=as.character(NA), 
                                     orderBy=as.character(NA), sortOrder="ascending", delete=FALSE, ...) {
   
@@ -240,11 +256,11 @@ setMethod("readFileMeta", signature("Recordr"), function(recordr,
     }
   }
   
-  if(!is.na(md5)) {
+  if(!is.na(sha256)) {
     if(!is.null(whereClause)) {
-      whereClause <- sprintf(" %s and md5=\'%s\'", whereClause, md5)
+      whereClause <- sprintf(" %s and sha256=\'%s\'", whereClause, sha256)
     } else {
-      whereClause <- sprintf(" where md5=\'%s\'", md5)
+      whereClause <- sprintf(" where sha256=\'%s\'", sha256)
     }
   }
 
@@ -286,7 +302,7 @@ setMethod("readFileMeta", signature("Recordr"), function(recordr,
   
   # Retrieve records that match search criteria
   selectStatement <- paste(select, whereClause, orderByClause, sep=" ")
-  cat(sprintf("select: %s\n", selectStatement))
+  #cat(sprintf("select: %s\n", selectStatement))
   result <- dbSendQuery(conn = dbConn, statement=selectStatement)
   resultdf <- dbFetch(result)
   dbClearResult(result)
