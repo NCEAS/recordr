@@ -122,7 +122,7 @@ setGeneric("writeExecMeta", function(recordr, execMeta, ...) {
 setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(recordr, execMeta, ...) {
   
   # Check if the connection to the database is still working
-  tmpDBconn<- FALSE
+  tmpDBconn <- FALSE
   if (!dbIsValid(recordr@dbConn)) {
     dbConn <- getDBconnection(dbFile=recordr@dbFile)
     if(is.null(dbConn)) {
@@ -189,7 +189,7 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
       slotValuesStr <- ifelse(is.null(slotValuesStr),  
                               slotValuesStr <- "NULL",
                               slotValuesStr <- paste(slotValuesStr, "NULL", sep=","))
-    } else  if(slotDataType=="character") {
+    } else  if(slotDataType =="character") {
       # if single quotes already exist in the string, then double them up, which 
       # is the way to escape them in SQLite!
       if (grepl("'", slotValues[i])) {
@@ -197,9 +197,16 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
       } else {
         thisValue <- slotValues[i]
       }
-      slotValuesStr <- ifelse(is.null(slotValuesStr),  
-                              slotValuesStr <- sQuote(thisValue), 
-                              slotValuesStr <- paste(slotValuesStr, sQuote(thisValue), sep=","))
+      # If the character value is unassinged, write it out as NULL
+      if(is.na(thisValue)) {
+        slotValuesStr <- ifelse(is.null(slotValuesStr),  
+                                slotValuesStr <- "NULL", 
+                                slotValuesStr <- paste(slotValuesStr, "NULL", sep=","))
+      } else {
+        slotValuesStr <- ifelse(is.null(slotValuesStr),  
+                                slotValuesStr <- sQuote(thisValue), 
+                                slotValuesStr <- paste(slotValuesStr, sQuote(thisValue), sep=","))
+      }
     } else if (slotDataType=="logical") {
       # Logical values are actually stored as integers in SQLite
       ifelse(slotValues[i], thisValue <- 1, thisValue <- 0)
@@ -340,6 +347,7 @@ setMethod("updateExecMeta", signature("Recordr"), function(recordr,
 #' range to find runs that started execution between the start and end times that are specified.
 #' @param recordr A Recordr object
 #' @seealso \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
+#' @export
 setGeneric("readExecMeta", function(recordr, ...) {
   standardGeneric("readExecMeta")
 })
