@@ -86,7 +86,7 @@ setGeneric("recordr_getD1Object", function(x, identifier, ...) {
 })
 
 setMethod("recordr_getD1Object", "D1Client", function(x, identifier) {
-  d1o <- dataone::getD1Object(x, identifier)
+  d1o <- dataone::get(x, identifier)
   
   # Record the provenance relationship between the downloaded D1 object and the executing script
   # as 'script <- used <- D1Object
@@ -104,6 +104,13 @@ setMethod("recordr_getD1Object", "D1Client", function(x, identifier) {
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=D1_resolve_pid, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
     recordrEnv$execInputIds <- c(recordrEnv$execInputIds, D1_resolve_pid)
+    #archivedFilePath <- archiveFile(file=file)
+    filemeta <- new("FileMetadata", file=D1_resolve_pid, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="read", format="text/csv",
+                    archivedFilePath=as.character(NA))
+    writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
   
@@ -175,7 +182,8 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     filemeta <- new("FileMetadata", file=file, 
                     fileId=datasetId, 
                     executionId=recordrEnv$execMeta@executionId, 
-                    access="write", archivedFilePath=archivedFilePath)
+                    access="write", format="text/csv",
+                    archivedFilePath=archivedFilePath)
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
@@ -234,7 +242,8 @@ setMethod("recordr_read.csv", signature(), function(...) {
     filemeta <- new("FileMetadata", file=fileArg, 
                     fileId=datasetId, 
                     executionId=recordrEnv$execMeta@executionId, 
-                    access="read", archivedFilePath=archivedFilePath)
+                    access="read", format="text/csv",
+                    archivedFilePath=archivedFilePath)
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
