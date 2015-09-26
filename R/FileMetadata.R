@@ -31,6 +31,7 @@
 #' @slot createTime
 #' @slot modifyTime
 #' @slot access
+#' @slot format
 #' @slot archivedFilePath
 #' @import tools
 #' @include Recordr.R
@@ -50,6 +51,7 @@ setClass("FileMetadata", slots = c(fileId = "character",
                                    createTime  = "character",
                                    modifyTime  = "character",
                                    access      = "character",
+                                   format      = "character",
                                    archivedFilePath = "character")
          )
 
@@ -68,6 +70,7 @@ setMethod("initialize", signature = "FileMetadata", definition = function(.Objec
                                                                           fileId=as.character(NA), 
                                                                           executionId=as.character(NA), 
                                                                           access=as.character(NA),
+                                                                          format=as.character(NA),
                                                                           archivedFilePath=as.character(NA)) {
 
   # Get info for this file. 
@@ -89,6 +92,7 @@ setMethod("initialize", signature = "FileMetadata", definition = function(.Objec
     .Object@fileId <- fileId
   }
   .Object@access <- access
+  .Object@format <- format
   .Object@archivedFilePath <- archivedFilePath
   return(.Object)
 })
@@ -134,6 +138,7 @@ setMethod("writeFileMeta", signature("Recordr", "FileMetadata"), function(record
             modifyTime  TEXT not null,
             createTime  TEXT not null,
             access      TEXT not null,
+            format      TEXT,
             archivedFilePath TEXT,
             foreign key(executionId) references execmeta(executionId),
             unique(fileId));"
@@ -189,6 +194,7 @@ setMethod("writeFileMeta", signature("Recordr", "FileMetadata"), function(record
 #' @param recordr A recordr object
 #' @param ... Additional parameters
 #' @seealso \code{\link[=FileMetadata-class]{FileMetadata}} { class description}
+#' @export
 setGeneric("readFileMeta", function(recordr, ...) {
   standardGeneric("readFileMeta")
 })
@@ -200,13 +206,14 @@ setGeneric("readFileMeta", function(recordr, ...) {
 #' @param sha256 The sha256 checksum value for the uncompressed file.
 #' @param user The user that ran the execution that created or accessed the file.
 #' @param access The type of access for the file. Values include "read", "write", "execute"
+#' @param format The format type of the object, e.g. "text/plain"
 #' @param orderBy The column to sort the result set by.
 #' @param sortOrder The sort type. Values include ("ascending", "descending")
 #' @return A dataframe containing file metadata objects
 setMethod("readFileMeta", signature("Recordr"), function(recordr, 
                                     fileId=as.character(NA),  executionId=as.character(NA), 
                                     filePath=as.character(NA),  sha256=as.character(NA), 
-                                    user=as.character(NA),  access=as.character(NA), 
+                                    user=as.character(NA),  access=as.character(NA), format=as.character(NA),
                                     orderBy=as.character(NA), sortOrder="ascending", delete=FALSE, ...) {
   
   # Check if the connection to the database is still working
@@ -287,7 +294,15 @@ setMethod("readFileMeta", signature("Recordr"), function(recordr,
       whereClause <- sprintf(" where access = \'%s\'", access)
     }
   }
+  if(!is.na(format)) { 
+    if(!is.null(whereClause)) {
+      whereClause <- sprintf(" %s and format = \'%s\'", whereClause, format)
+    } else {
+      whereClause <- sprintf(" where format = \'%s\'", formatjjj)
+    }
+  }
   # If the user specified 'delete=TRUE', so first fetch the
+  
   # matching records, then delete them.
   if (delete) {
     # Don't allow the user to delete all records unless they specify at
