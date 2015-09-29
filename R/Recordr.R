@@ -106,7 +106,7 @@ setGeneric("startRecord", function(recordr, ...) {
 #' x <- read.csv(file="./test.csv")
 #' runIdentifier <- endRecord(rc)
 #' }
-setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=as.character(NA), .console=TRUE, config=as.character(NA)) {
+setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=as.character(NA), .console=TRUE, configFile=as.character(NA)) {
   
   # Check if a recording session has already been started.
   if (is.element(".recordr", base::search())) {
@@ -126,22 +126,19 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   recordrEnv <- as.environment(".recordr")
   # If the user specified a configuration session instance, use it, otherwise use
   # the default configuration session.
-  if(is.na(config)) {
-    # Config session has not been specified on the command line,
+  if(!is.na(configFile)) {
+    config <- new("SessionConfig")
+    loadConfig(configFile)
+  } else {
+    # If the user didn't specify a config file, then try to load the default file,
+    # otherwise copy an initial file (from dataone package) to the default file location
+    # and load that.
     config <- new("SessionConfig")
     loadConfig(config)
-  } else {
-    if(class(config) == "SessionConfig") {
-      loadConfig(config)
-    } else {
-      msg = sprintf("The \"config\" parameter to startRecord() is not the correct type. 
-                    It is a %s, but should be a \"dataone:SessionConfig\"\n", class(config))
-      stop(msg)
-    }
   }
   # Save the session configuration object to the recordr environment so it will be available to all methods
   recordrEnv$config <- config
-
+  
   # Put a copy of the recordr object itself info the recordr environment, in case
   # to the overriding functions need any information that it contains, such as the db connection
   # Note: The recordr object contains the db connection that has to be open in the Recordr class
@@ -218,7 +215,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # variable is defined.
   recordrEnv$recordrDir <- recordr@recordrDir
   #cat(sprintf("filePath: %s\n", recordrEnv$scriptPath))
-# Record relationship identifying this id as a provone:Execution
+  # Record relationship identifying this id as a provone:Execution
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=provONEexecution, predicate=rdfType, objectType="uri")
   # Record relationship between the Exectution and the User
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=userId, predicate=provWasAssociatedWith, objectType="uri")
@@ -286,11 +283,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
       insertRelationship(recordrEnv$dataPkg, subjectID=outputId, objectIDs=inputId, predicate=provWasDerivedFrom)
     }
   }
-  # Use the datapackage id as the resourceMap id
-  serializationId = recordrEnv$execMeta@datapackageId
-  filePath <- sprintf("%s/%s.rdf", runDir, serializationId)
-  status <- serializePackage(recordrEnv$dataPkg, file=filePath, id=serializationId)
-  
+ 
   # User invoked startRecord()/endRecord()
   if (recordrEnv$execMeta@console) {
     # If the user has run with startRecord()/eneRecord(), then retrieve all commands typed
@@ -354,13 +347,60 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # TODO: Set access control on the action object to be public
   addData(recordrEnv$dataPkg, programD1Obj)
   # Serialize/Save the entire package object to the run directory
-  filePath <- sprintf("%s/%s.pkg", runDir, recordrEnv$execMeta@datapackageId)
-  saveRDS(recordrEnv$dataPkg, file=filePath)
-  dataPkg <- recordrEnv$dataPkg
+  
+  # Check if the metadata template file exists, if no, then copy the initial version
+  # to the user's .recordr directory.
+  metadataTemplateFile <- getConfig(recordrEnv$config, "package_metadata_template_path")
+  if(!file.exists(metadataTemplateFile)) {
+      file.copy(system.file("extdata/package_metadata_template.R", package="recordr"), metadataTemplateFile)
+      message(sprintf("An initial package metadata template file has been copied to \"%s\"", metadataTemplateFile))
+      message("Please review the \"dataone\" package documentation section 'Configuring dataone'")
+      message("and then edit the configuration file with values appropriate for your installation.")
+      setConfig(recordrEnv$config, "package_metadata_template_path", metadataTemplateFile)
+      saveConfig(recordrEnv$config)
+  }
+    
+  #mdfile <- sprintf("%s/metadata.R", path.expand("~"), recordr@recordrDir)
+  success <- source(metadataTemplateFile, local=TRUE)
+  # Set the identifier scheme to "uuid" for now, the user might specify "doi" during the
+  # publish step.
+  system <- "uuid"
+  eml <- makeEML(id=recordrEnv$execMeta@executionId, system, title, creators, abstract, 
+                 methodDescription, geo_coverage, temp_coverage)
+  eml_xml <- as(eml, "XMLInternalElementNode")
+  #print(eml_xml)
+  # Write the eml file to the execution directory
+  eml_file <- sprintf("%s/%s.eml", runDir, recordrEnv$execMeta@metadataId)
+  saveXML(eml_xml, file = eml_file)
+  #message(sprintf("Saved EML to file: %s\n", eml_file))
+  metaObj <- new("DataObject", id=recordrEnv$execMeta@metadataId, format="eml://ecoinformatics.org/eml-2.1.1", 
+                 filename=eml_file)
+  addData(recordrEnv$dataPkg, metaObj)
+  metaObjId <- getIdentifier(metaObj)
+  # Now add the relationships between the science objects in the package and the metadata object
+  # "metaObj documents sciObj"
+  sciObjIds <- as.character(list())
+  for (id in getIdentifiers(recordrEnv$dataPkg)) {
+    if(id == metaObjId) next()
+    sciObjIds <- c(sciObjIds, id)
+  }
+  
+  if (length(sciObjIds) > 0) insertRelationship(recordrEnv$dataPkg, metaObjId, sciObjIds)
+  # Save the package relationships to disk so that we can recreate this package
+  # at a later date.
+  provRels <- getRelationships(recordrEnv$dataPkg)
+  filePath <- sprintf("%s/%s.csv", runDir, recordrEnv$execMeta@metadataId)
+  write.csv(provRels, file=filePath, row.names=FALSE)
+  # Use the datapackage id as the resourceMap id
+  #serializationId = recordrEnv$execMeta@datapackageId
+  #filePath <- sprintf("%s/%s.rdf", runDir, serializationId)
+  #status <- serializePackage(recordrEnv$dataPkg, file=filePath, id=serializationId)
+  #filePath <- sprintf("%s/%s.pkg", runDir, recordrEnv$execMeta@datapackageId)
+  #saveRDS(recordrEnv$dataPkg, file=filePath)
+  #dataPkg <- recordrEnv$dataPkg
   
   # Save execution metadata to a file in the run directory
   updateExecMeta(recordr, executionId=recordrEnv$execMeta@executionId, endTime=recordrEnv$execMeta@endTime, errorMessage=recordrEnv$execMeta@errorMessage)
-  
   # Don't print this object if startRecord()/endRecord() was called
   if(recordrEnv$execMeta@console) {
     base::invisible(recordrEnv$execMeta@executionId)
@@ -393,7 +433,7 @@ setGeneric("record", function(recordr, file, ...) {
 #' rc <- new("Recordr")
 #' executionId <- record(rc, file="myscript.R", tag="first run of myscript.R")
 #' }
-setMethod("record", signature("Recordr"), function(recordr, file, tag="", config=as.character(NA), ...) {
+setMethod("record", signature("Recordr"), function(recordr, file, tag="", configFile=as.character(NA), ...) {
   # Check if a recording session didn't clean up properly by removing the
   # temporary environments. If yes, then remove them now. The recordr pacakge
   # does not allow concurrent execution of two record() sessions.
@@ -408,7 +448,7 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", config
     stop(sprintf("Error, file \"%s\" does not exist\n", file))
   }
   
-  execId <- startRecord(recordr, tag, .file=file, .console=FALSE, config=config)
+  execId <- startRecord(recordr, tag, .file=file, .console=FALSE, configFile=configFile)
   recordrEnv <- as.environment(".recordr")
   # recordrConfigEnv <- as.environment(".recordrConfig")
   setProvCapture(TRUE)
@@ -734,6 +774,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
   for(i in 1:nrow(runs)) {     
     thisRow <- runs[i,]       
     executionId         <- thisRow[["executionId"]]
+    metadataId          <- thisRow[["metadataId"]]
     tag                 <- thisRow[["tag"]]
     datapackageId       <- thisRow[["datapackageId"]]
     user                <- thisRow[["user"]]
@@ -754,10 +795,11 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, executionId)
     
     # Read the archived data package
-    packageFile <- sprintf("%s/%s.pkg", thisRunDir, thisRow[["datapackageId"]])
+    #packageFile <- sprintf("%s/%s.pkg", thisRunDir, thisRow[["datapackageId"]])
     # Deserialize saved data package
-    pkg <- readRDS(file=packageFile)
-    relations <- getRelationships(pkg)
+    #pkg <- readRDS(file=packageFile)
+    #relations <- getRelationships(pkg)
+    relations <- read.csv(sprintf("%s/%s.csv", thisRunDir, metadataId), stringsAsFactors=FALSE)
     scriptURL <- relations[relations$predicate == "http://www.w3.org/ns/prov#hadPlan","object"]
     # Clear screen before showing results if we are paging the results
     if (i == 1 && page) cat("\014")
@@ -917,9 +959,9 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   }
   
   if(!is.na(seq)) {
-    thisExecMeta <- readExecMeta(rc, seq=seq)
+    thisExecMeta <- readExecMeta(recordr, seq=seq)
   } else if (!is.na(id)) {
-    thisExecMeta <- readExecMeta(rc, id=id)
+    thisExecMeta <- readExecMeta(recordr, id=id)
   }
   
   if(nrow(thisExecMeta) == 0) {
@@ -971,31 +1013,19 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   packageId <- thisExecMeta[['datapackageId']]
   pkg <- new("DataPackage", packageId=packageId)
 
+  # TODO: if the user requests DOI, fix the metadata entry in the EML
+  # to denote this.
  # Generate a unique identifier for the metadatobject
-  if (assignDOI) {
-    metadataId <- generateIdentifier(mn, "DOI")
-    # TODO: check if we actually got one, if not then error
-    system <- "doi"
-  } else {
-    metadataId <- paste0("urn:uuid:", UUIDgenerate())
-    system <- "uuid"
-  }
+#   if (assignDOI) {
+#     metadataId <- generateIdentifier(mn, "DOI")
+#     # TODO: check if we actually got one, if not then error
+#     system <- "doi"
+#   } else {
+#     metadataId <- paste0("urn:uuid:", UUIDgenerate())
+#     system <- "uuid"
+#   }
+#   
 
-  if(!quiet) cat(sprintf("Creating metadata object with id: %s\n", metadataId))
-  mdfile <- sprintf("%s/metadata.R", path.expand("~"), recordr@recordrDir)
-  success <- source(mdfile, local=TRUE)
-  eml <- makeEML(id=metadataId, system, title, creators, abstract, methodDescription, geo_coverage, temp_coverage, datapackage=NULL, mn@endpoint)
-  eml_xml <- as(eml, "XMLInternalElementNode")
-  #print(eml_xml)
-  # Write the eml file to the execution directory
-  eml_file <- sprintf("%s/%s.eml", runDir, metadataId)
-  saveXML(eml_xml, file = eml_file)
-  #message(sprintf("Saved EML to file: %s\n", eml_file))
-  cat(sprintf("Creating dataobject with filename %s\n", eml_file))
-  metaObj <- new("DataObject", id=metadataId, format="eml://ecoinformatics.org/eml-2.1.1", 
-                 user=subject, mnNodeId=mnId, filename=eml_file)
-  addData(pkg, metaObj)
- 
   # Upload each data object that was added to the datapackage
   if(!quiet) cat(sprintf("Getting file info for execution %s\n", id))
   files <- readFileMeta(recordr, executionId=id)
@@ -1005,7 +1035,6 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     fileId <- thisFile[['fileId']]
     filePath <- sprintf("%s/%s", recordr@recordrDir, thisFile[['archivedFilePath']])
     # Create DataObject for the science dataone
-    cat(sprintf("Creating dataobject with id: %s, filename %s\n", fileId, filePath))
     sciObj <- new("DataObject", format=format, user=subject, mnNodeId=mnId, filename=filePath)
     if (public) sciObj <- setPublicAccess(sciObj)
     # Associate each science object with the metadata object
@@ -1025,30 +1054,177 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   invisible(metadataId)
 })
 
+
+#' Retrieve the metadata object for a run
+#' @description When a script or console session is recorded (see record() and startrecord()), 
+#' a metadata object is created that describes the objects associated with the run, using the
+#' Ecological Metadata Language \link{https://knb.ecoinformatics.org/#external//emlparser/docs/index.html}.
+#' This metadata can be retrieved from the recordr cache for review or editing if desired. If the metadata
+#' is updated, it can be re-inserted into the recordr cache using the \code{putMetadata} method.
+#' @param recordr a Recordr instance
+#' seealso \code{\link[=Recordr-class]{Recordr}} { class description}
+#' @export
+setGeneric("getMetadata", function(recordr, ...) {
+  standardGeneric("getMetadata")
+})
+
+#' @describeIn getMetadata
+#' @param id The identifier for a run
+#' @param seq The sequence number for a run
+#' @param as Form to return the metadata as. Possible values are: "text", "parsed" (for parsed XML)
+#' @return A character vector containing the metadata
+setMethod("getMetadata", signature("Recordr"), function(recordr, id=as.character(NA), 
+                                                       seq=as.character(NA), 
+                                                       as=as.character("text")) {
+  # User must specify "id" or "seq"
+  if(is.na(id) && is.na(seq)) {
+    stop("Please specify either \"id\" or \"seq\" parameter\n")
+  }
+  
+  if(!is.na(seq)) {
+    execMeta <- readExecMeta(recordr, seq=seq)
+  } else if (!is.na(id)) {
+    execMeta <- readExecMeta(recordr, executionId=id)
+  }
+  
+  # Is this a vaiid id or seq?
+  if(nrow(execMeta) == 0) {
+      stop(sprintf("No exeuction found\n"))
+  }
+  
+  # Locate the metadata file
+  if(is.na(id)) id <- execMeta[['executionId']]
+  runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
+  if (! file.exists(runDir)) {
+    msg <- sprintf("A directory was not found for execution identifier: %s\n", id)
+    stop(msg)
+  }
+  
+  metadataId <- execMeta[['metadataId']]
+  metadataFile <- sprintf("%s/%s.eml", runDir, metadataId)
+  metadata <- readLines(metadataFile, warn=FALSE)
+  
+  if(as == "text") {
+    return(metadata)
+  } else if (as == "parsed") {
+    return(xmlInternalTreeParse(metadata, asText=TRUE))
+  }
+})
+
+#' Update the metadata object for a run
+#' @description Put a metadata document into the recordr cache for an run, replacing the
+#' existing metadata object for the specified run, if one exists.
+#' @param recordr a Recordr instance
+#' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
+#' @export
+setGeneric("putMetadata", function(recordr, ...) {
+  standardGeneric("putMetadata")
+})
+
+#' @describeIn putMetadata
+#' @details The \code{metadata} parameter can specify either a character vector that contains the metadata
+#' this parameter can be a filename that contains the metadata. The \code{asText} parameter is used to
+#' specify which type of value is specified. If \code{asText} is TRUE, then the \code{metadata} parameter
+#' is a character vector, if it is FALSE, then the \code{metadata} parameter is a filename.
+#' @param id The identifier for a run
+#' @param seq The sequence number for a run
+#' @param metadata The replacement metadata, as the actual text, or as a filename containing the metadata
+#' @param asText A logical. See 'Details'.
+#'  If TRUE, then the \code{metadata} parameter is a character vector containing metadata, ir FALSE it is a filename. The
+#' default is TRUE.
+#' @return A character vector containing the metadata
+setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character(NA), 
+                                                       seq=as.character(NA), metadata=as.character(NA),
+                                                       asText=TRUE) {
+  # User must specify "id" or "seq"
+  if(is.na(id) && is.na(seq)) {
+    stop("Please specify either \"id\" or \"seq\" parameter\n")
+  }
+  
+  if(!is.na(seq)) {
+    execMeta <- readExecMeta(recordr, seq=seq)
+  } else if (!is.na(id)) {
+    execMeta <- readExecMeta(recordr, executionId=id)
+  }
+  
+  # Is this a vaiid id or seq?
+  if(nrow(execMeta) == 0) {
+      stop(sprintf("No exeuction found for the specified execution or sequence number\n"))
+  }
+  
+  # Locate the metadata file
+  if(is.na(id)) id <- execMeta[['executionId']]
+  runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
+  if (! file.exists(runDir)) {
+    msg <- sprintf("A directory was not found for execution identifier: %s\n", id)
+    stop(msg)
+  }
+  
+  metadataId <- execMeta[['metadataId']]
+  metadataFile <- sprintf("%s/%s.eml", runDir, metadataId)
+  metadataFileBackup <- sprintf("%s.bak", metadataFile)
+  
+  # Either writeout the metadata to the run directory, or copy the user file to that location
+  if(asText) {
+    # Save a backup copy first
+    file.rename(metadataFile, metadataFileBackup)
+    # Overwrite the existing metadata file
+    writeLines(metadata, metadataFile)
+  } else {
+    if(!file.exists(metadata)) {
+      stop(sprintf("Metadata file %s does not exists, unable to update run metadata\n", metadata))
+    } else {
+      file.copy(metadata, metadataFile)
+    }
+  }
+})
+
 recordrShutdown <- function() {
-  if (is.element(".recordr", base::search())) detach(".recordr")
+  
+  if (is.element(".recordr", base::search())) {
+    recordrEnv <- as.environment(".recordr")
+    unloadConfig(recordrEnv$config)
+    detach(".recordr")
+  }
   #if (is.element(".recordrConfig", base::search())) detach(".recordrConfig")
 }
+
 #' Create a minimal EML document.
 #' Creating EML should be more complete, but this minimal example will suffice to create a valid document.
-makeEML <- function(id, system, title, creators, abstract=NA, methodDescription=NA, geo_coverage=NA, temp_coverage=NA, datapackage=NULL, endpoint=NA) {
+makeEML <- function(id, system, title, creators, abstract=NA, methodDescription=NA, geo_coverage=NA, temp_coverage=NA, endpoint=NA) {
   #dt <- eml_dataTable(dat, description=description)
   oe_list <- as(list(), "ListOfotherEntity")
-  if (!is.null(datapackage)) {
-    for (id in getIdentifiers(datapackage)) {
-      print(paste("Creating entity for ", id, sep=" "))
-      current_do <- getMember(datapackage, id)
-      oe <- new("otherEntity", entityName=basename(current_do@filename), entityType="text/csv")
-      oe@physical@objectName <- basename(current_do@filename)
-      oe@physical@size <- current_do@sysmeta@size
-      if (!is.na(endpoint)) {
-        oe@physical@distribution@online@url <- paste(endpoint, id, sep="/")
-      }
-      f <- new("externallyDefinedFormat", formatName="Comma Separated Values")
+  fileMeta <- readFileMeta(recordr, executionId=id)
+  
+  # Loop through each file for this run and add an EML "otherEntity"
+  # entry for each output file and script that was run.
+  for (fileNum in 1:nrow(fileMeta)) {
+    thisFile <- fileMeta[fileNum,]
+    fileId <- thisFile[["fileId"]]
+    access <- thisFile[["access"]]
+    # Skip this file if it was not run or generated by this execution. Recordr
+    # also tracks input files, but those should not be included in the metadata
+    # object as this execution did not create them.
+    if(!access %in% c("write", "execute")) next
+    filePath <- thisFile[["filePath"]]
+    format <- thisFile[["format"]]
+    fileSize <- thisFile[["size"]]
+    oe <- new("otherEntity", entityName=basename(filePath), entityType=format)
+    oe@physical@objectName <- basename(filePath)
+    oe@physical@size <- fileSize
+    oe@entityName <- basename(filePath)
+    # Store the unique identifier for this entity, so that we can find it and
+    # update it later if necessary
+    oe@alternateIdentifier <- fileId
+    if (!is.na(endpoint)) {
+      oe@physical@distribution@online@url <- paste(endpoint, id, sep="/")
+    }
+    if(!is.na(format)) {
+      f <- new("externallyDefinedFormat", formatName=format)
       df <- new("dataFormat", externallyDefinedFormat=f)
       oe@physical@dataFormat <- df
-      oe_list <- c(oe_list, oe)
     }
+    oe_list <- c(oe_list, oe)
   }
   creator <- new("ListOfcreator", lapply(as.list(with(creators, paste(given, " ", surname, " ", "<", email, ">", sep=""))), as, "creator"))
   ds <- new("dataset",

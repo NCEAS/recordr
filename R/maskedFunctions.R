@@ -312,18 +312,19 @@ setMethod("getProvCapture", signature(), function(x) {
 #' @param file The file to save in the archive
 #' @return The name of the archived file path relative to the recordr home directory
 #' @import uuid
-## TODO: remove export once testing is done
-#' @export
+#' @note This function is intended to run only during a record() session, i.e. the
+#' recordr environment needs to be available.
 archiveFile <- function(file) {
   if(!file.exists(file)) {
     message("Cannot copy file %s, it does not exist\n", file)
     return(NULL)
   }
   
+  recordrEnv <- as.environment(".recordr") 
   # First check if a file with the same sha256 has been accessed before.
   # If it has, then don't archive this file again, and return the
   # archived location of the previously archived fileo
-  fm <- readFileMeta(rc, sha256=digest::digest(object=file, algo="sha256", file=TRUE))
+  fm <- readFileMeta(recordrEnv$recordr, sha256=digest::digest(object=file, algo="sha256", file=TRUE))
   if(nrow(fm) > 0) {
     archivedRelFilePath <- fm[1, "archivedFilePath"]
     return(archivedRelFilePath)

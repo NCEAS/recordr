@@ -9,7 +9,7 @@
 startRecord(recordr, ...)
 
 \S4method{startRecord}{Recordr}(recordr, tag = "", .file = as.character(NA),
-  .console = TRUE, config = as.character(NA))
+  .console = TRUE, configFile = as.character(NA))
 }
 \arguments{
 \item{recordr}{a Recordr instance}

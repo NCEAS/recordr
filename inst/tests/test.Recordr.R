@@ -37,11 +37,18 @@ test_that("Can record a script execution", {
   # Check that tests have been setup
   expect_that(class(uuidTag), equals("character"))
   recordr <- new("Recordr")  
-  pkg <- record(recordr, scriptPath, tag=uuidTag)
   
+  # Check that package metadata can be retrieved and updated
+  executionId <- record(recordr, scriptPath, tag=uuidTag)
+  metadata <- getMetadata(recordr, id=executionId)
+  metadata <- gsub("John", "Stephen", metadata)
+  metadata <- gsub("Smith", "Hubbell", metadata)
+  putMetadata(recordr, id=executionId, asText=TRUE)
+  newMeta <- getMetadata(recordr, id=executionId)
+  expect_true(any(grepl("Hubbell", metadata)))
   # Check the D1 package created by the record() call  
-  expect_that(is.null(pkg@sysmeta@identifier), is_false())
-  expect_that(pkg, is_a("DataPackage"))
+  #expect_that(is.null(pkg@sysmeta@identifier), is_false())
+  #expect_that(pkg, is_a("DataPackage"))
   
   # Test startRecord() / endRecord()
   newTag <- UUIDgenerate()
@@ -51,10 +58,10 @@ test_that("Can record a script execution", {
   outFile <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".csv")
   write.csv(file=outFile, outData)
   # Record this run and check the resulting package
-  pkg <- endRecord(recordr)
-  expect_that(length(getIdentifiers(pkg)), equals(2))
+  #pkg <- endRecord(recordr)
+  #expect_that(length(getIdentifiers(pkg)), equals(2))
   
-  expect_that(class(pkg@sysmeta)[1], equals("SystemMetadata"))
+  #expect_that(class(pkg@sysmeta)[1], equals("SystemMetadata"))
   mdf <- listRuns(recordr, tag=newTag, quiet = TRUE)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())

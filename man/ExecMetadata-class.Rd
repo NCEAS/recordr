@@ -12,6 +12,8 @@ A class representing a script execution with the run manager
 \describe{
 \item{\code{executionId}}{}
 
+\item{\code{metadataId}}{}
+
 \item{\code{tag}}{}
 
 \item{\code{datapackageId}}{}

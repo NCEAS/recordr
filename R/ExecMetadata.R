@@ -21,6 +21,7 @@
 #' A class representing a script execution with the run manager
 #' @author slaughter
 #' @slot executionId
+#' @slot metadataId
 #' @slot tag
 #' @slot datapackageId
 #' @slot user
@@ -49,6 +50,7 @@
 #' @seealso \code{\link{recordr}}{ package description.}
 #' @export
 setClass("ExecMetadata", slots = c(executionId      = "character",
+                                   metadataId       = "character",
                                    tag              = "character",
                                    datapackageId    = "character",
                                    user             = "character",
@@ -81,6 +83,7 @@ setClass("ExecMetadata", slots = c(executionId      = "character",
 setMethod("initialize", signature = "ExecMetadata", definition = function(.Object, programName=as.character(NA), tag=as.character(NA)) {
   
   .Object@executionId <- sprintf("urn:uuid:%s", UUIDgenerate())
+  .Object@metadataId <- sprintf("urn:uuid:%s", UUIDgenerate())
   .Object@tag         <- tag
   .Object@datapackageId <- sprintf("urn:uuid:%s", UUIDgenerate())
   .Object@user <- Sys.info()[['user']]
@@ -147,6 +150,7 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
     createStatement <- "CREATE TABLE execmeta
             (seq                INTEGER PRIMARY KEY,
             executionId         TEXT not null,
+            metadataId          TEXT,
             tag                 TEXT,
             datapackageId       TEXT,
             user                TEXT,

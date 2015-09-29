@@ -31,6 +31,8 @@ This class is used internally by the recordr package.
 
 \item{\code{access}}{}
 
+\item{\code{format}}{}
+
 \item{\code{archivedFilePath}}{}
 }}
 \section{Methods}{
