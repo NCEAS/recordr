@@ -34,3 +34,5 @@ RecordrHome              <- normalizePath("~/.recordr")
 metadataTemplatePath     <- sprintf("%s/package_metadata_template.R", RecordrHome)
 #DefaultConfigFile        <- sprintf("%s/configParams.R", RecordrHome)
 #InitialConfigFile        <- system.file(package="dataone", "extdata/configParams.R")
+
+EML_211_FORMAT <- "eml://ecoinformatics.org/eml-2.1.1"
