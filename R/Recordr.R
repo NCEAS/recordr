@@ -1097,7 +1097,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
                                      preferredNodes=preferredNodes, public=public)
   # Use the metadata id as the 'published identifier' for this datapackage. This will be displayed in the 
   # viewRuns() output for this under "Published ID".
-  if(!quiet) cat(sprintf("Uploaded data package with package id: %s", resourceMapId))
+  if(!quiet) cat(sprintf("Uploaded data package with resource map id: %s", resourceMapId))
   # Record the time that this execution was published, the published id, subject that submitted the data.
   updateExecMeta(recordr, executionId=id, subject=subject, publishTime=publishTime, publishNodeId=mnId, 
                  publishId=metadataId) 
@@ -1270,8 +1270,8 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
     # update it later if necessary. Turns out that DataONE doesn't recognize
     # <otherEntity><alternateIdentifier as a valid element, so use 'additionalInfo
     # instead.
-    oe@alternateIdentifier <- fileId
-    #oe@additionalInfo <- fileId
+    #oe@alternateIdentifier <- fileId
+    oe@additionalInfo <- fileId
     if (!is.na(endpoint)) {
       oe@physical@distribution@online@url <- paste(endpoint, id, sep="/")
     }
