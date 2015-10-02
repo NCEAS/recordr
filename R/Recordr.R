@@ -208,6 +208,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # override R functions
   recordrEnv$read.csv <- recordr::recordr_read.csv
   recordrEnv$write.csv <- recordr::recordr_write.csv
+  recordrEnv$ggsave <- recordr::recordr_ggsave
   
   # Create the run metadata directory for this record()
   dir.create(sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId), recursive = TRUE)

@@ -255,6 +255,51 @@ setMethod("recordr_read.csv", signature("textConnection"), function(file, ...) {
   obj <- utils::read.csv(file, ...)
 })
 
+# Override ggplot2::ggsave function
+#' @export
+setGeneric("recordr_ggsave", function(filename, ...) {
+  standardGeneric("recordr_ggsave")
+})
+
+setMethod("recordr_ggsave", signature("character"), function(filename, ...) {
+  
+  cat(sprintf("In recordr_ggsave\n"))
+  # Call the original function that we are overriding
+  obj <- ggplot2::ggsave(filename, ...)
+  cat(sprintf("Done calling ggsave.\n"))
+  
+  # Record the provenance relationship between the user's script and the derived data file
+  if (getProvCapture()) {
+    recordrEnv <- as.environment(".recordr")
+    setProvCapture(FALSE)
+    user <- recordrEnv$execMeta@user
+    #datasetId <- sprintf("%s_%s.%s", tools::file_path_sans_ext(basename(file)), UUIDgenerate(), tools::file_ext(file))
+    datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    # Create a data package object for the derived dataset
+    #TODO: determine format type for other image types, based on file extention
+    dataFmt <- "image/png"
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, user=user, mnNodeId=recordrEnv$mnNodeId, filename=filename)
+    # TODO: use file argument when file size is greater than a configuration value
+    #dataObj <- new("DataObject", id=datasetId, filename=normalizePath(file), format=dataFmt, user=user, mnNodeId=recordrEnv$mnNodeId)    
+    # Record prov:wasGeneratedBy relationship between the execution and the output dataset
+    addData(recordrEnv$dataPkg, dataObj)
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
+    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, datasetId)
+    # Save a copy of this generated file to the recordr archiv
+    archivedFilePath <- archiveFile(file=filename)
+    filemeta <- new("FileMetadata", file=filename, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="write", format=dataFmt,
+                    archivedFilePath=archivedFilePath)
+    writeFileMeta(recordrEnv$recordr, filemeta)
+    setProvCapture(TRUE)
+    cat(sprintf("record_ggsave done\n"))
+  }
+})
+
 #' Disable or enable provenance capture temporarily
 #' It may be necessary to disable provenance capture temporarily, for example when
 #' record() is writting out a housekeeping file.
