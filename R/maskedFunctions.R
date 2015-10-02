@@ -263,10 +263,10 @@ setGeneric("recordr_ggsave", function(filename, ...) {
 
 setMethod("recordr_ggsave", signature("character"), function(filename, ...) {
   
-  cat(sprintf("In recordr_ggsave\n"))
+  #cat(sprintf("In recordr_ggsave\n"))
   # Call the original function that we are overriding
   obj <- ggplot2::ggsave(filename, ...)
-  cat(sprintf("Done calling ggsave.\n"))
+  #cat(sprintf("Done calling ggsave.\n"))
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture()) {
@@ -296,7 +296,7 @@ setMethod("recordr_ggsave", signature("character"), function(filename, ...) {
                     archivedFilePath=archivedFilePath)
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
-    cat(sprintf("record_ggsave done\n"))
+    #cat(sprintf("record_ggsave done\n"))
   }
 })
 
