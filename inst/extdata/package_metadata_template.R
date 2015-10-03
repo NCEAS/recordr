@@ -1,8 +1,8 @@
-title <- "Recordr publish test"
+title <- "My package title"
 creators <- data.frame(
-    surname=c("Peter"),
-    given=c("Slaughter"),
-    email=c("slaughter@nceas.ucsb.edu"),
+    surname=c("John"),
+    given=c("Smith"),
+    email=c("jsmith@example.com"),
     stringsAsFactors=FALSE)
 abstract <- "This is an example abstract for the data set. This is only a test."
 methodDescription <- "This is the method description."
