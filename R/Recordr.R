@@ -192,10 +192,11 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # Store the Prov relationship: association -> prov:agent -> user
   # TODO: when available, check session API for orchid and use that instead of user, i.e.
   #   insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@orcid, predicate=provAgent, objectType="uri")
-  userId <- recordrEnv$execMeta@user
-  insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=userId, predicate=provAgent, objectType="literal", dataTypeURI=xsdString)
+  # TODO: implement user as blank node
+  #userId <- recordrEnv$execMeta@user
+  #insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=userId, predicate=provAgent, objectType="literal", dataTypeURI=xsdString)
   # Record a relationship identifying the user
-  insertRelationship(recordrEnv$dataPkg, subjectID=userId, objectIDs=provONEuser, predicate=rdfType, objectType="uri")
+  #insertRelationship(recordrEnv$dataPkg, subjectID=userId, objectIDs=provONEuser, predicate=rdfType, objectType="uri")
   
   # Override R functions
   recordrEnv$source <- recordr::recordr_source
@@ -219,7 +220,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # Record relationship identifying this id as a provone:Execution
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=provONEexecution, predicate=rdfType, objectType="uri")
   # Record relationship between the Exectution and the User
-  insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=userId, predicate=provWasAssociatedWith, objectType="uri")
+  #insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=userId, predicate=provWasAssociatedWith, objectType="uri")
   
   # If startRecord()/endRecord() was invoked by the user (vs invoked by record(), then capture
   # all the commands typed by setting marks in the history, then reading the history when
@@ -941,10 +942,11 @@ setGeneric("publishRun", function(recordr, ...) {
 #' @param assignDOI a boolean value: if TRUE, assign DOI values for system metadata, otherwise assign uuid values
 #' @param update a boolean value: if TRUE, republish a previously published execution
 #' @param quiet A boolean value: if TRUE, informational messages are not printed (default=TRUE)
+#' @param verbose A boolean value: if TRUE, additional informational messages are printed
 #' @return The published identifier of the uploaded package
 setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(NA), 
                                                        seq=as.character(NA), 
-                                                       assignDOI=FALSE, update=FALSE, quiet=TRUE) {
+                                                       assignDOI=FALSE, update=FALSE, quiet=TRUE, verbose=FALSE) {
   
   if(is.na(id) && is.na(seq) ||
      !is.na(id) && !is.na(seq)) {
@@ -986,7 +988,9 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   if (!quiet) cat(sprintf("Publishing execution %s to %s\n", id, mnId))
   cm <- CertificateManager()
   isExpired <- isCertExpired(cm)
-  publishTime <- format(Sys.time(), format="%Y-%m-%d")
+  # PublishTime for EML 
+  publishDay <- format(Sys.time(), format="%Y-%m-%d")
+  publishTime <- Sys.time()
   
   # Stop if the DataONE certificate is expired
   if(isExpired) {
@@ -1035,13 +1039,14 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   metadataFile <- sprintf("%s/%s.xml", runDir, metadataId)
   emlObj <- eml_read(metadataFile)
   
-  # Upload each data object that was added to the datapackage
-  if(!quiet) cat(sprintf("Getting file info for execution %s\n", id))
+  # Upload each data object that was used or geneated by the datapackage
+  if(!verbose) cat(sprintf("Getting file info for execution %s\n", id))
   files <- readFileMeta(recordr, executionId=id)
   for (iRow in 1:nrow(files)) {
     thisFile <- files[iRow,]
     format <- thisFile[['format']]
     fileId <- thisFile[['fileId']]
+    access <- thisFile[['access']]
     filePath <- sprintf("%s/%s", recordr@recordrDir, thisFile[['archivedFilePath']])
     # Create DataObject for the science dataone
     sciObj <- new("DataObject", id=fileId, format=format, user=subject, mnNodeId=mnId, filename=filePath)
@@ -1050,7 +1055,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     # via insertRelationship() with the 'documetns' relationship. These relationships
     # were stored with the rest of the package relationships, so we don't have to add them
     # in again.
-    if(!quiet) cat(sprintf("Adding science object with id: %s\n", getIdentifier(sciObj)))
+    if(verbose) cat(sprintf("Adding science object with id: %s\n", getIdentifier(sciObj)))
     addData(pkg, sciObj)
     # Now update the metadata object corresponding to this dataset in order to set the
     # Online distribution value so that MetacatUI can properly identify and display this item.
@@ -1067,7 +1072,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     }
   }
   
-  emlObj@dataset@pubDate <- publishTime
+  emlObj@dataset@pubDate <- publishDay
   # Update the metadata stored for this run. The putMetadata() function
   # can't read eml objects yet, so have to write it to a file.
   tempMetadataFile <- tempfile()
@@ -1090,13 +1095,23 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     thisDataTypeURI <- thisRelationship[["dataTypeURI"]]
     insertRelationship(pkg, thisSubject, thisObject, thisPredicate, thisSubjectType,
                        thisObjectType, thisDataTypeURI)
+#     if(!quiet) cat(sprintf("subject: %s predicate: %s object: %s\n", thisSubject,
+#                    thisPredicate, thisObject))
   }
   
   if(!quiet) cat(sprintf("Uploading data package..."))
+  resolveURI <- sprintf("%s/resolve", cn@endpoint)
   resourceMapId <- uploadDataPackage(mn, pkg, replicate=replicationAllowed, numberReplicas=numberOfReplicas, 
-                                     preferredNodes=preferredNodes, public=public)
+                                     preferredNodes=preferredNodes, public=public, quiet=quiet, resolveURI=resolveURI)
   # Use the metadata id as the 'published identifier' for this datapackage. This will be displayed in the 
   # viewRuns() output for this under "Published ID".
+  # start DEBUG
+  #tf <- tempfile()
+  #serializationId <- paste0("urn:uuid:", UUIDgenerate())
+  #resolveURI <- sprintf("%s/resolve", cn@endpoint)
+  #status <- serializePackage(pkg, tf, id="1234", resolveURI=resolveURI)
+  #cat(sprintf("resmap: %s\n", tf))
+  # end DEBUG
   if(!quiet) cat(sprintf("Uploaded data package with resource map id: %s", resourceMapId))
   # Record the time that this execution was published, the published id, subject that submitted the data.
   updateExecMeta(recordr, executionId=id, subject=subject, publishTime=publishTime, publishNodeId=mnId, 
@@ -1258,7 +1273,7 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
     # Skip this file if it was not run or generated by this execution. Recordr
     # also tracks input files, but those should not be included in the metadata
     # object as this execution did not create them.
-    if(!is.element(access, c("write", "execute"))) next
+    if(!is.element(access, c("read", "write", "execute"))) next
     filePath <- thisFile[["filePath"]]
     format <- thisFile[["format"]]
     fileSize <- thisFile[["size"]]
