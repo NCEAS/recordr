@@ -1006,13 +1006,14 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # e.g. "PROD" for production, "STAGING", "SANDBOX", "DEV"
   if(!quiet) cat(sprintf("Contacting coordinating node for environment %s...\n", d1Env))
   cn <- CNode(d1Env)
+  resolveURI <- sprintf("%s/resolve", cn@endpoint)
   # message(sprintf("Obtaining member node information for %s", mnId))
   if(!quiet) cat(sprintf("Getting member node url for memober node id: %s...\n", mnId))
   mn <- getMNode(cn, mnId)
   if (is.null(mn)) {
     stop(sprintf("Member node %s encounted an error on the get() request", mnId))
   }
-
+ 
   packageId <- thisExecMeta[['datapackageId']]
   pkg <- new("DataPackage", packageId=packageId)
   
@@ -1055,7 +1056,8 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     # via insertRelationship() with the 'documetns' relationship. These relationships
     # were stored with the rest of the package relationships, so we don't have to add them
     # in again.
-    if(verbose) cat(sprintf("Adding science object with id: %s\n", getIdentifier(sciObj)))
+    if(verbose) cat(sprintf("Adding science object with id: %s, file: %s\n", 
+                            getIdentifier(sciObj), basename(thisFile[['filePath']])))
     addData(pkg, sciObj)
     # Now update the metadata object corresponding to this dataset in order to set the
     # Online distribution value so that MetacatUI can properly identify and display this item.
@@ -1065,7 +1067,8 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
       thisDatasetId <- emlObj@dataset@otherEntity[[iEntity]]@additionalInfo
       #thisDatasetId <- emlObj@dataset@otherEntity[[iEntity]]@alternateIdentifier
       if(fileId == thisDatasetId) {
-        url <- sprintf("%s/object/%s", mn@endpoint, fileId)
+        #url <- sprintf("%s/object/%s", mn@endpoint, fileId)
+        url <- sprintf("%s/%s", resolveURI, fileId)
         emlObj@dataset@otherEntity[[iEntity]]
         emlObj@dataset@otherEntity[[iEntity]]@physical@distribution@online@url <- url
       }
@@ -1100,9 +1103,9 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   }
   
   if(!quiet) cat(sprintf("Uploading data package..."))
-  resolveURI <- sprintf("%s/resolve", cn@endpoint)
   resourceMapId <- uploadDataPackage(mn, pkg, replicate=replicationAllowed, numberReplicas=numberOfReplicas, 
                                      preferredNodes=preferredNodes, public=public, quiet=quiet, resolveURI=resolveURI)
+  
   # Use the metadata id as the 'published identifier' for this datapackage. This will be displayed in the 
   # viewRuns() output for this under "Published ID".
   # start DEBUG
