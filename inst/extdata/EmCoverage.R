@@ -16,5 +16,5 @@ write.csv(endocladia_coverage, file = csvOutFile)
 
 plotFile <- sprintf("%s/emCoverage.png", myDir)
 qplot(em$longitude.dd., em$latitude.dd., xlab="longitude", ylab="latitude",
-       main="Endocladia muricata distribution"))
+       main="Endocladia muricata distribution")
 ggsave(plotFile, plot=last_plot())
