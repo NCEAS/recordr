@@ -48,7 +48,7 @@
 #'  \item{\code{\link{updateExecMeta}}}{: Update saved execution metadata.}
 #' }
 #' @seealso \code{\link{recordr}}{ package description.}
-#' @export
+## @export
 setClass("ExecMetadata", slots = c(executionId      = "character",
                                    metadataId       = "character",
                                    tag              = "character",
@@ -246,7 +246,7 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
 #' @param recordr A Recordr object
 #' @param executionId The execution id of the execution to be updated
 #' @seealso \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
-#' @export
+## @export
 setGeneric("updateExecMeta", function(recordr, executionId, ...) {
   standardGeneric("updateExecMeta")
 })
