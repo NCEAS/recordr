@@ -57,6 +57,7 @@ test_that("Can record a script execution", {
   outData <- myData[myData$percent_cover > 35.0, ]
   outFile <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".csv")
   write.csv(file=outFile, outData)
+  endRecord(recordr)
   # Record this run and check the resulting package
   #pkg <- endRecord(recordr)
   #expect_that(length(getIdentifiers(pkg)), equals(2))
@@ -94,5 +95,3 @@ test_that("Can delete a script execution", {
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
 })
-
-
