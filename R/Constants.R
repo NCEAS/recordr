@@ -30,8 +30,8 @@ D1_View_URL              <- "https://search.dataone.org/#view"
 OREterms_URI <- "http://www.openarchives.org/ore/terms"
 
 # Recordr configuration constants
-RecordrHome              <- normalizePath("~/.recordr")
-metadataTemplatePath     <- sprintf("%s/package_metadata_template.R", RecordrHome)
+#RecordrHome              <- normalizePath("~/.recordr")
+#metadataTemplatePath     <- sprintf("%s/package_metadata_template.R", RecordrHome)
 #DefaultConfigFile        <- sprintf("%s/configParams.R", RecordrHome)
 #InitialConfigFile        <- system.file(package="dataone", "extdata/configParams.R")
 
