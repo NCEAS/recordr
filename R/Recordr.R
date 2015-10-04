@@ -67,7 +67,6 @@ setMethod("initialize", signature = "Recordr",
   .Object@recordrDir <- recordrDir
   # Open a connection to the database that contains execution metadata,
   .Object@dbFile <- sprintf("%s/recordr.sqlite", recordrDir)
-  cat(sprintf("initialize: attempting to open db file: %s\n", .Object@dbFile))
   dbConn <- getDBconnection(dbFile=.Object@dbFile)
   if (is.null(dbConn)) {
     stop("Unable to create a Recordr object\n")
@@ -1356,9 +1355,7 @@ coverageElement <- function(gc, tempc) {
 #' Get a database connection
 #' @import RSQLite
 getDBconnection <- function(dbFile) {
-  cat(sprintf("getDBconnection: dbFile: %s\n", dbFile))
   dbDir <- dirname(dbFile)
-  cat(sprintf("getDBconnection: dbDir: %s\n", dbDir))
   if(!file.exists(dbDir)) {
     dir.create(dbDir, recursive=T)
   }
