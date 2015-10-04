@@ -13,8 +13,7 @@ endocladia_coverage <- df[df$final_classification=="endocladia muricata",]
 myDir <- tempdir()
 csvOutFile <- sprintf("%s/Endocladia_muricata.csv", myDir)
 write.csv(endocladia_coverage, file = csvOutFile)
-
 plotFile <- sprintf("%s/emCoverage.png", myDir)
-qplot(em$longitude.dd., em$latitude.dd., xlab="longitude", ylab="latitude",
+qplot(endocladia_coverage$longitude.dd., endocladia_coverage$latitude.dd., xlab="longitude", ylab="latitude",
        main="Endocladia muricata distribution")
 ggsave(plotFile, plot=last_plot())
