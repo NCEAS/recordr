@@ -783,7 +783,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     subject             <- thisRow[["subject"]]
     hostId              <- thisRow[["hostId"]]
     startTime           <- thisRow[["startTime"]]
-    operatingSystem     <- thisRow[["endTime"]]
+    operatingSystem     <- thisRow[["operatingSystem"]]
     runtime             <- thisRow[["runtTime"]]
     softwareApplication <- thisRow[["softwareApplication"]]
     moduleDependencies  <- thisRow[["moduleDependencies"]]
