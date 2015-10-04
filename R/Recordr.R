@@ -1352,13 +1352,16 @@ coverageElement <- function(gc, tempc) {
 }
 
 #' Get a database connection
+#' @import RSQLite
 getDBconnection <- function(dbFile) {
-  dbConn <- dbConnect(drv=RSQLite::SQLite(), dbname=dbFile)
+  dbDir <- dirname(dbFile)
+  if(!file.exists(dbDir)) {
+    dir.create(dbDir, recursive=T)
+  }
+  dbConn <- dbConnect(RSQLite::SQLite(), dbFile)
   if (dbIsValid(dbConn)) {
     return(dbConn)
   } else {
-    message(sprintf("Error opening database connection to %s\n", dbFile))
-    return(NULL)
+    stop(sprintf("Error opening database connection to %s\n", dbFile))
   }
 }
-  
