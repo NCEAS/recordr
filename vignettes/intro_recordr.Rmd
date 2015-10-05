@@ -15,31 +15,37 @@ The recorded information for a script constitutes data provenance for the data p
 #Using recordr
 ### Recording a Script Execution
 The *record()* method takes an R script as an argument and sources it, recording files that
-were read and written by R functions that are registered with *recordr*.
+were read and written by R functions that are registered with *recordr*. It is not necessary to 
+modify an R script in order to use *record*. 
 
 The following example runs a sample script that is included with the *recordr* package:
 
-```{r,warning=F,message=F}
+```{r echo=F,warning=F,message=F}
 library(recordr)
 rc <- new("Recordr")
-runid <- record(rc, system.file("extdata/EmCoverage.R", package="recordr") , tag="first recordr run")
+deleteRuns(rc, seq="1:1000", quiet=T)
 ```
-It is not necessary to modify an R script in order to use *record*. The *record()* method
-sources the specified R script and collects information automatically for the R 
-functions that are registered with *recorder*.
 
-Information about the script execution is stored in the *recordr* cache directory and can be searched and viewed, then individual runs can be uploaded to a  data repository.
+```{r record,warning=F,message=F}
+library(recordr)
+rc <- new("Recordr")
+sampleScript <- system.file("extdata/EmCoverage.R", package="recordr")
+runid <- record(rc, sampleScript , tag="first recordr run")
+```
+
+Information about the script execution is stored in the *recordr* cache (~/.recordr). *recordr* provides methods to
+search, view, modify and publish items stored in the cache. It is not recommended that files or directories be manually edited or deleted from the cache directories, with the exception of the items mentioned in this document.
 
 ### Listing Script Executions
 Script runs that have been recorded can be listed using the *listRuns()* method. The
 listing can be filtered by the tag value specified when a run was recorded.
-Runs can also be filtered by start time, run end time, the text of error messages for a run and by a sequence number, which is an integer
+Runs can also be filtered by run start time, run end time, the text of error messages for a run and by a sequence number, which is an integer
 value assigned to each run to assist in easily specifying a particular run for listing, 
 viewing or publishing.
 
 In this example, all runs with a tag containing the string "first" are listed. Because
 recordr has only run once in this demo, only one run is listed:
-```{r,warning=F,message=F}
+```{r listRuns,warning=F,message=F}
 library(recordr)
 rc <- new("Recordr")
 listRuns(rc, tag="first")
@@ -51,8 +57,8 @@ If no search parameters are specified to *listRuns*, then all recorded runs are 
 The first time that recordr() is run, an initial metadata template file is copied to 
 the file "~/.record/package_metadata_template.R". Each time that record() is called, a
 metdata file is created for the current run by using the template file as a starting
-point and generating an EML document creating EML elements for the items in
-the template file. In addtion 'otherEntity' element is created for each each data
+point and generating an EML document, creating EML elements for the items in
+the template file. In addition 'otherEntity' element is created for each each data
 object that is created by the run and the R script that was run.
 
 The metadata template file can be edited before a run, using the values you specify
@@ -60,20 +66,22 @@ to affect the generated EML document.
 
 If you are using Rstudio, click on File->Open File (Ctrl-O)
 and open ~/.recordr, then click on "package_metadata_template.R" in the File pane. 
-Use Rstudio Ctrl-O to open the file.
 
 Currently only the items that are in the template file can be updated, and new elements
 cannot be added, so for example, the 'title', 'abstract' and 'creators' can be edited.
 
-These values will be displayed when the uploaded package is viewed on the DataONE
-member node that the run has been published to.
-
-### Recording An R Console Sesion
+### Recording An R Console Session
 
 *recordr* can also collect information during an R console session using the
-startRecord() method to begin recording and endRecord() to stop information capture. 
+*startRecord()* and *endRecord()* methods. When *startRecord()* is typed in
+the R console, information capture begins. Information will be captured for any
+function registered with *recordr*, while all other console input will not cause
+any information capture. Informaiton capture is terminated when *endRecord()* is
+entered in the console, and execution information is written to the *recordr* 
+cache.
 
 ```
+# {r console session,warning=F,message=F}
 rc <- new("Recordr")
 startRecord(rc, tag="first console run")
 
@@ -87,7 +95,7 @@ endRecord(rc)
 ```
 
 The history of all statements typed during this recorded console session is
-saved in the *recordr* cache and will be included in the datapackage uploaded 
+saved in the *recordr* cache and will be included in the data package uploaded 
 to a data repository when publishRun() is called.
 
 ### Viewing Script Executions
@@ -95,12 +103,18 @@ to a data repository when publishRun() is called.
 More detailed information can be retrieved and viewed for a run or set of runs
 using the *viewRuns()* method.
 
-```{r,warning=F,message=F}
+```
+# {r viewRuns,warning=F,message=F}
 library(recordr)
 rc <- new("Recordr")
-viewRuns(rc, tag="console run")
+viewRuns(rc, tag="console run", sections=c("details", "used", "generated"))
 ```
-### Publishing
+
+Information for all matching runs is retrieved and displayed, 
+The output displayed by *viewRuns* is divided into the secions "details", "used" 
+and "generated", which can be selectively displayed using the _sections_ parameter.
+
+## Publishing
 The *recordr* package uses the R package *dataone* to assist in packaging and publishing data generated by a script execution. 
 
 The *dataone* package uses a configuration file to assist
@@ -114,16 +128,14 @@ package is published to.
 
 Open the file ~/.dataone/sessionConfig.R and make the following changes:
 - change the parameter dataone_env to "SANDBOX2"
-- change the parameter target_member_node to "urn:node:mnDemo2"
-
-### Editing Generated Metadata For a Run
+- change the parameter target_member_node to *urn:node:mnDemo2*
 
 The metadata file that was created for the run should now be edited. Use
 the following calls to retrieve the metdata for the console session that
 was recorded:
 
 ```
-myMeta <- getMetadata(rc, seq=2)
+myMeta <- getMetadata(rc, seq=2 get)
 writeLines("/tmp/my.eml", myMeta)
 ```
 
