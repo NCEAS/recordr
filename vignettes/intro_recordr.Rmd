@@ -21,9 +21,10 @@ modify an R script in order to use *record*.
 The following example runs a sample script that is included with the *recordr* package:
 
 ```{r echo=F,warning=F,message=F}
-library(recordr)
-rc <- new("Recordr")
-deleteRuns(rc, seq="1:1000", quiet=T)
+# For recordr package maintainer only
+# library(recordr)
+# rc <- new("Recordr")
+# deleteRuns(rc, seq="1:1000", quiet=T)
 ```
 
 ```{r record,warning=F,message=F}
@@ -46,8 +47,6 @@ viewing or publishing.
 In this example, all runs with a tag containing the string "first" are listed. Because
 recordr has only run once in this demo, only one run is listed:
 ```{r listRuns,warning=F,message=F}
-library(recordr)
-rc <- new("Recordr")
 listRuns(rc, tag="first")
 ```
 If no search parameters are specified to *listRuns*, then all recorded runs are listed. 
@@ -80,9 +79,7 @@ any information capture. Informaiton capture is terminated when *endRecord()* is
 entered in the console, and execution information is written to the *recordr* 
 cache.
 
-```
-# {r console session,warning=F,message=F}
-rc <- new("Recordr")
+```{r console session,warning=F,message=F}
 startRecord(rc, tag="first console run")
 
 df <- read.csv(file = system.file("./extdata/coverages_2001-2010.csv", package="recordr"))
@@ -104,9 +101,7 @@ More detailed information can be retrieved and viewed for a run or set of runs
 using the *viewRuns()* method.
 
 ```
-# {r viewRuns,warning=F,message=F}
-library(recordr)
-rc <- new("Recordr")
+#{r viewRuns,warning=F,message=F}
 viewRuns(rc, tag="console run", sections=c("details", "used", "generated"))
 ```
 
@@ -130,20 +125,20 @@ Open the file ~/.dataone/sessionConfig.R and make the following changes:
 - change the parameter dataone_env to "SANDBOX2"
 - change the parameter target_member_node to *urn:node:mnDemo2*
 
-The metadata file that was created for the run should now be edited. Use
+The metadata file that was created for the run can now be edited. Use
 the following calls to retrieve the metdata for the console session that
 was recorded:
 
-```
-myMeta <- getMetadata(rc, seq=2 get)
-writeLines("/tmp/my.eml", myMeta)
+```{r getMetadata,warning=F,message=F}
+myMeta <- getMetadata(rc, seq=2)
+writeLines(myMeta, "/tmp/my.eml")
 ```
 
 Now save the file back into the *recordr* cache so that it will be included
 with the published package:
 
-```
-putMetadata(rc, seq=1, metadata="/tmp/my.eml", asText=F)
+```{r getMetadata,warning=F,message=F}
+putMetadata(rc, seq=2, metadata="/tmp/my.eml", asText=F)
 ```
 
 The parameter 'asText' tells *putMetdata()* that *metadata="/tmp/my.xml"*
@@ -153,9 +148,7 @@ Now the run can be published, using the values that we specified for DataONE
 environment and memmber node, and usign the modified metadata document:
 
 ```
-library(recordr)
-rc <- new("Recordr")
-publishRun(rc)
+publishRun(rc, seq=2, quiet=F)
 ```
 
 The uploaded data package can be viewed at 'http://mn-demo-2.test.dataone.org'
