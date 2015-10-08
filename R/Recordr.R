@@ -785,7 +785,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     hostId              <- thisRow[["hostId"]]
     startTime           <- thisRow[["startTime"]]
     operatingSystem     <- thisRow[["operatingSystem"]]
-    runtime             <- thisRow[["runtTime"]]
+    runtime             <- thisRow[["runtime"]]
     softwareApplication <- thisRow[["softwareApplication"]]
     moduleDependencies  <- thisRow[["moduleDependencies"]]
     endTime             <- thisRow[["endTime"]]
@@ -841,6 +841,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
       cat(sprintf("Data package Id: %s\n", datapackageId))
       cat(sprintf("HostId: %s\n", hostId))
       cat(sprintf("Operating system: %s\n", operatingSystem))
+      cat(sprintf("R version: %s\n", runtime))
       cat(sprintf("Runtime: %s\n", runtime))
       cat(sprintf("Dependencies: %s\n", moduleDependencies))
       if(console) {
