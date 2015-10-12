@@ -51,7 +51,7 @@ listRuns(rc, tag="first")
 ```
 If no search parameters are specified to *listRuns*, then all recorded runs are listed. 
 
-### Preparing Metdata for a Run
+### Preparing Metadata for a Run
 
 The first time that recordr() is run, an initial metadata template file is copied to 
 the file "~/.record/package_metadata_template.R". Each time that record() is called, a
