@@ -75,7 +75,7 @@ cannot be added, so for example, the 'title', 'abstract' and 'creators' can be e
 *startRecord()* and *endRecord()* methods. When *startRecord()* is typed in
 the R console, information capture begins. Information will be captured for any
 function registered with *recordr*, while all other console input will not cause
-any information capture. Informaiton capture is terminated when *endRecord()* is
+any information capture. Information capture is terminated when *endRecord()* is
 entered in the console, and execution information is written to the *recordr* 
 cache.
 
