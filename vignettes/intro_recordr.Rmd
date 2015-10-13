@@ -51,7 +51,7 @@ listRuns(rc, tag="first")
 ```
 If no search parameters are specified to *listRuns*, then all recorded runs are listed. 
 
-### Preparing Metadata for a Run
+### Preparing Metdata for a Run
 
 The first time that recordr() is run, an initial metadata template file is copied to 
 the file "~/.record/package_metadata_template.R". Each time that record() is called, a
@@ -75,7 +75,7 @@ cannot be added, so for example, the 'title', 'abstract' and 'creators' can be e
 *startRecord()* and *endRecord()* methods. When *startRecord()* is typed in
 the R console, information capture begins. Information will be captured for any
 function registered with *recordr*, while all other console input will not cause
-any information capture. Information capture is terminated when *endRecord()* is
+any information capture. Informaiton capture is terminated when *endRecord()* is
 entered in the console, and execution information is written to the *recordr* 
 cache.
 
@@ -137,7 +137,7 @@ writeLines(myMeta, "/tmp/my.eml")
 Now save the file back into the *recordr* cache so that it will be included
 with the published package:
 
-```{r getMetadata,warning=F,message=F}
+```{r putMetadata,warning=F,message=F}
 putMetadata(rc, seq=2, metadata="/tmp/my.eml", asText=F)
 ```
 
