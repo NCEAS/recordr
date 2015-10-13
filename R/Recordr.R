@@ -190,14 +190,36 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # Record a relationship identifying the program (script or console log)
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$programId, objectIDs=provONEprogram, predicate=rdfType, objectType="uri")
   
+  # Associate a user identity as the agent executing this script.
+  # If an ORCID has been specified, then that takes priority and we will use it.
+  # If not ORCID has been specified, then use a FOAF:name if that is specified.
+  # If neither of these is specified, then create a blank node specifying the username
+  
+  orcidIdentifier <- getConfig(config, "orcid_identifier")
+  orcidURI <- sprintf("https://%s", orcidIdentifier)
+  foafName <- getConfig(config, "foaf_name")
   # Store the Prov relationship: association -> prov:agent -> user
-  # TODO: when available, check session API for orchid and use that instead of user, i.e.
-  #   insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=recordrEnv$execMeta@orcid, predicate=provAgent, objectType="uri")
-  # TODO: implement user as blank node
-  #userId <- recordrEnv$execMeta@user
-  #insertRelationship(recordrEnv$dataPkg, subjectID=associationId , objectIDs=userId, predicate=provAgent, objectType="literal", dataTypeURI=xsdString)
-  # Record a relationship identifying the user
-  #insertRelationship(recordrEnv$dataPkg, subjectID=userId, objectIDs=provONEuser, predicate=rdfType, objectType="uri")
+  # Create the 'user' object as an RDF blank node, so that we can describe a user without a URI. All types of user id info will
+  # be stored this way: orcid, foaf:name, local compuassociationId ter account
+  userBlankNodeId <- "_:U1"
+  insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = provONEuser, predicate = rdfType, subjectType = "blank", objectType="uri")
+  insertRelationship(recordrEnv$dataPkg, subjectID = associationId, objectIDs=userBlankNodeId, predicate=provAgent, subjectType = "uri", objectType="blank")
+  insertRelationship(recordrEnv$dataPkg, subjectID = recordrEnv$execMeta@executionId, objectIDs=userBlankNodeId, predicate=provWasAssociatedWith, objectType="blank")
+  if(!is.na(orcidIdentifier) && !is.null(orcidIdentifier)) {
+    # TODO: properly type the orcid, i.e. the predicate in the following statement is not a type. It appears that there is
+    # no ORCID ontology that defines the type for an ORCID
+    #insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = orcidURI, predicate = ORCID_NS, subjectType = "blank", objectType = "uri")
+    insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = orcidURI, predicate = ORCID_TYPE, subjectType = "blank", objectType = "uri")
+    insertRelationship(recordrEnv$dataPkg, subjectID = orcidURI, objectID = ORCID_TYPE, predicate = rdfType)
+  } else if (!is.na(foafName) && !is.null(foafName)) {
+    insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = foafName, predicate = FOAF_NAME, subjectType = "blank", objectType = "uri")
+    insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = FOAF_PERSON, predicate=rdfType, subjectType = "blank", objectType="uri")
+  } else {
+    # No other identification information available, so just use the username
+    # Store the Prov relationship: association
+    userId <- recordrEnv$execMeta@user
+    insertRelationship(recordrEnv$dataPkg, subjectID = associationId , objectIDs=userId, predicate=provAgent, objectType="literal", dataTypeURI=xsdString)
+  } 
   
   # Override R functions
   recordrEnv$source <- recordr::recordr_source
@@ -220,9 +242,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   #cat(sprintf("filePath: %s\n", recordrEnv$scriptPath))
   # Record relationship identifying this id as a provone:Execution
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=provONEexecution, predicate=rdfType, objectType="uri")
-  # Record relationship between the Exectution and the User
-  #insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=userId, predicate=provWasAssociatedWith, objectType="uri")
-  
+ 
   # If startRecord()/endRecord() was invoked by the user (vs invoked by record(), then capture
   # all the commands typed by setting marks in the history, then reading the history when
   # endRecord() is called.

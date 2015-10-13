@@ -28,11 +28,17 @@ D1_View_URL              <- "https://search.dataone.org/#view"
 
 # Define constants from Open Archives Initiative Object Reuse and Exchange
 OREterms_URI <- "http://www.openarchives.org/ore/terms"
-
-# Recordr configuration constants
-#RecordrHome              <- normalizePath("~/.recordr")
-#metadataTemplatePath     <- sprintf("%s/package_metadata_template.R", RecordrHome)
-#DefaultConfigFile        <- sprintf("%s/configParams.R", RecordrHome)
-#InitialConfigFile        <- system.file(package="dataone", "extdata/configParams.R")
-
 EML_211_FORMAT <- "eml://ecoinformatics.org/eml-2.1.1"
+
+# User identity
+ORCID_NS                 <- "http://www.orcid.org/ns/"
+ORCID_TYPE               <- "http://www.orcid.org/ns/orcid"
+ORCID_Base_URL           <- "http://orcid.org"
+#orcidIdentifier          <- sprintf("%s/%s", ORCID_NS)
+FOAF_NS                  <- "http://xmlns.com/foaf/0.1/"
+FOAF_NAME                <- sprintf("%sname", FOAF_NS)
+FOAF_PERSON              <- sprintf("%sPerson", FOAF_NS)
+
+DC_TERMS                  <- "http://purl.org/dc/terms/"
+DC_IDENTIFIER             <- sprintf("%s/identifier", DC_TERMS)
+DC_AGENT                  <- sprintf("%s/Agent", DC_TERMS)
