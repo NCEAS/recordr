@@ -256,7 +256,6 @@ setMethod("recordr_read.csv", signature("textConnection"), function(file, ...) {
 })
 
 # Override ggplot2::ggsave function
-#' @import ggplot2
 #' @export
 setGeneric("recordr_ggsave", function(filename, ...) {
   standardGeneric("recordr_ggsave")
