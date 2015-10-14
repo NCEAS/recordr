@@ -12,6 +12,8 @@ written, and details about the execution environment at the time of execution. R
 analysis, support reproducibilty, and provide an easy way to publish data products and all files that
 contributed to those products to a data repository such as the DataONE network.
 
+A *recordr* overview vignette can be viewed at https://github.com/NCEAS/recordr/blob/master/vignettes/intro_recordr.Rmd.
+
 ## Installation Notes 
 
 One of the R packages that recordr imports (the redland R package) depends on the Redland RDF libraries that must be
@@ -34,8 +36,10 @@ apt-get install librdf0-dev
 
 Once the Redland RDF libraries are installed, the *recordr* package can be installed.
 Please note that the *recordr* package is not yet available via CRAN but a pre-release version of *recordr* and
-the R packages it depends on can be installed via the NCEAS drat repository. From the R console, enter
-the following commands:
+the R packages it depends on can be installed via the NCEAS drat repository. The *recordr* package also
+depends on the rOpenSci *EML* package that is also available as a pre-release R package.
+
+From the R console, enter the following commands:
 
 ```r
 library("devtools")
@@ -51,10 +55,6 @@ library(recordr)
 
 The `recordr` package is licensed as open source software under the Apache 2.0 license.
 
-## Authors
-
-- Peter Slaughter <slaughter@nceas.ucsb.edu>\- Matthew Jones <jones@nceas.ucsb.edu>
-
 ## Example Usage
 
 The `recordr` package can be used to track code execution in R, data inputs and outputs to 
@@ -68,7 +68,6 @@ rc <- new("Recordr")
 record(rc, system.file("extdata/EmCoverage.R", package="recordr"), tag="First recordr run")
 listRuns(rc)
 viewRuns(rc)
-
 ```
 
 [![nceas_footer](https://www.nceas.ucsb.edu/files/newLogo_0.png)](http://www.nceas.ucsb.edu)
