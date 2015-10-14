@@ -181,11 +181,12 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
     
   # Add the ProvONE Execution type
   # Store the provONE relationship: execution -> prov:qualifiedAssociation -> association
-  associationId <- sprintf("urn:uuid:%s", UUIDgenerate())
-  insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=associationId, predicate=provQualifiedAssociation)
-  insertRelationship(recordrEnv$dataPkg, subjectID=associationId, objectIDs=recordrEnv$programId, predicate=provHadPlan)
+  #associationId <- sprintf("urn:uuid:%s", UUIDgenerate())
+  associationId <- "_:A0"
+  insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=associationId, predicate=provQualifiedAssociation, objectTypes="blank")
+  insertRelationship(recordrEnv$dataPkg, subjectID=associationId, objectIDs=recordrEnv$programId, predicate=provHadPlan, subjectType="blank")
   # Record relationship identifying this id as a provone:Execution
-  insertRelationship(recordrEnv$dataPkg, subjectID=associationId, objectIDs=provAssociation, predicate=rdfType, objectType="uri")
+  insertRelationship(recordrEnv$dataPkg, subjectID=associationId, objectIDs=provAssociation, predicate=rdfType, subjectType="blank", objectType="uri")
   
   # Record a relationship identifying the program (script or console log)
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$programId, objectIDs=provONEprogram, predicate=rdfType, objectType="uri")
@@ -203,7 +204,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # be stored this way: orcid, foaf:name, local compuassociationId ter account
   userBlankNodeId <- "_:U1"
   insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = provONEuser, predicate = rdfType, subjectType = "blank", objectType="uri")
-  insertRelationship(recordrEnv$dataPkg, subjectID = associationId, objectIDs=userBlankNodeId, predicate=provAgent, subjectType = "uri", objectType="blank")
+  insertRelationship(recordrEnv$dataPkg, subjectID = associationId, objectIDs=userBlankNodeId, predicate=provAgent, subjectType = "blank", objectType="blank")
   insertRelationship(recordrEnv$dataPkg, subjectID = recordrEnv$execMeta@executionId, objectIDs=userBlankNodeId, predicate=provWasAssociatedWith, objectType="blank")
   if(!is.na(orcidIdentifier) && !is.null(orcidIdentifier)) {
     # TODO: properly type the orcid, i.e. the predicate in the following statement is not a type. It appears that there is
@@ -218,7 +219,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
     # No other identification information available, so just use the username
     # Store the Prov relationship: association
     userId <- recordrEnv$execMeta@user
-    insertRelationship(recordrEnv$dataPkg, subjectID = associationId , objectIDs=userId, predicate=provAgent, objectType="literal", dataTypeURI=xsdString)
+    insertRelationship(recordrEnv$dataPkg, subjectID = associationId , objectIDs=userId, predicate=provAgent, subjectType="blank", objectType="literal", dataTypeURI=xsdString)
   } 
   
   # Override R functions
@@ -1386,4 +1387,3 @@ getDBconnection <- function(dbFile) {
   } else {
     stop(sprintf("Error opening database connection to %s\n", dbFile))
   }
-}
