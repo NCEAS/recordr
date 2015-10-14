@@ -41,10 +41,10 @@ Authors
 
 ## Example Usage
 
-The `redland` library can be used for a wide variety of RDF parsing and creation tasks.  Some examples
-are provided in the `redland_overview` vignette.  As a quick start, here is an example that
-creates an RDF graph using an in-memory storage model, adds some triples, and then
-serializes the graph to disk.
+The `recordr` package can be used to track code execution in R, data inputs and outputs to 
+those executions, and the software environment during the execution (e.g., R, OS versions).  
+Some examples are provided in the overview vignette.  As a quick start, here is an example that
+starts recordr, executes a precanned R script, and then views the details of that script run.
 
 ```r
 library(recordr)
