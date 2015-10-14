@@ -93,6 +93,7 @@ setMethod("initialize", signature = "Recordr",
 #' @param config A \code{\link[dataone]{SessionConfig-class}} objec
 #' @import dataone
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
+#' @import ggplot2
 #' @export
 setGeneric("startRecord", function(recordr, ...) {
   standardGeneric("startRecord")
@@ -1387,3 +1388,4 @@ getDBconnection <- function(dbFile) {
   } else {
     stop(sprintf("Error opening database connection to %s\n", dbFile))
   }
+}
