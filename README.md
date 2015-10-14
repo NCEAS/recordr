@@ -17,11 +17,15 @@ contributed to those products to a data repository such as the DataONE network.
 The recordr package is not yet available via CRAN but a pre-release version of recordr and
 the R packages it depends on can be installed via the NCEAS drat repository:
 
+```r
   $ R
   > install.packages("drat"))
   > library(drat)
-  > addReport("NCEAS")
-  > install.packages("recordr")"
+  > addRepo("NCEAS")
+  > install.packages("recordr")
+```
+
+Note that `recordr` depends on the [redland package](https://github.com/ropensci/redland-bindings/blob/master/R/redland/README.md), which in turn requires the redland C libraries being installed first.
 
 License
 -------
@@ -31,17 +35,8 @@ The `recordr` package is licensed as open source software under the Apache 2.0 l
 Authors
 -------
 
-- Peter Slaughter <slaughter@nceas.ucsb.edu>\- Matthew Jones <jones@nceas.ucsb.edu>
-
-
-
-
-
-
-
-
-
-
+- Peter Slaughter <slaughter@nceas.ucsb.edu>
+- Matthew Jones <jones@nceas.ucsb.edu>
 
 
 ## Example Usage
