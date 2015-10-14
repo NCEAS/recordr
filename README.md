@@ -14,10 +14,9 @@ contributed to those products to a data repository such as the DataONE network.
 
 ## Installation Notes 
 
-One of the R packages that recordr imports (redland R pacakge) depends on the Redland RDF libraries that must be
+One of the R packages that recordr imports (the redland R package) depends on the Redland RDF libraries that must be
 installed before installing *recordr*.
 
-<<<<<<< HEAD
 On Mac OSX you can use Macports to install the necessary libraries. From a terminal window
 you can enter the command:
 
@@ -38,44 +37,23 @@ Please note that the *recordr* package is not yet available via CRAN but a pre-r
 the R packages it depends on can be installed via the NCEAS drat repository. From the R console, enter
 the following commands:
 
-  ```r
-  library("devtools")
-  install_github("ropensci/EML", build=FALSE, dependencies=c("DEPENDS", "IMPORTS"))
-  install.packages("drat"))
-  library(drat)
-  addRepo("NCEAS")
-  install.packages("recordr")
-  library(recordr)
-  ```
-=======
 ```r
-  $ R
-  > install.packages("drat"))
-  > library(drat)
-  > addRepo("NCEAS")
-  > install.packages("recordr")
+library("devtools")
+install_github("ropensci/EML", build=FALSE, dependencies=c("DEPENDS", "IMPORTS"))
+install.packages("drat"))
+library(drat)
+addRepo("NCEAS")
+install.packages("recordr")
+library(recordr)
 ```
-
-Note that `recordr` depends on the [redland package](https://github.com/ropensci/redland-bindings/blob/master/R/redland/README.md), which in turn requires the redland C libraries being installed first.
->>>>>>> 4306a44e698f18d5cd33754cd71e0f98203c9dba
-
-License
--------
+  
+## License
 
 The `recordr` package is licensed as open source software under the Apache 2.0 license.
 
-Authors
--------
+## Authors
 
-<<<<<<< HEAD
 - Peter Slaughter <slaughter@nceas.ucsb.edu>\- Matthew Jones <jones@nceas.ucsb.edu>
-
-## Example Usage
-
-=======
-- Peter Slaughter <slaughter@nceas.ucsb.edu>
-- Matthew Jones <jones@nceas.ucsb.edu>
-
 
 ## Example Usage
 
@@ -84,7 +62,6 @@ those executions, and the software environment during the execution (e.g., R, OS
 Some examples are provided in the overview vignette.  As a quick start, here is an example that
 starts recordr, executes a precanned R script, and then views the details of that script run.
 
->>>>>>> 4306a44e698f18d5cd33754cd71e0f98203c9dba
 ```r
 library(recordr)
 rc <- new("Recordr")
