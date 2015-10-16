@@ -29,9 +29,10 @@ sudo port install redland
 On Ubuntu the redland C libraries are installed from a terminal window with the commands:
 
 ```
-apt-get update
-apt-get install librdf0
-apt-get install librdf0-dev
+sudo apt-get update
+sudo apt-get install librdf0
+sudo apt-get install librdf0-dev
+sudo apt-get install pkg-config
 ```
 
 Once the Redland RDF libraries are installed, the *recordr* package can be installed.
@@ -42,9 +43,9 @@ depends on the rOpenSci *EML* package that is also available as a pre-release R 
 From the R console, enter the following commands:
 
 ```r
-library("devtools")
+library(devtools)
 install_github("ropensci/EML", build=FALSE, dependencies=c("DEPENDS", "IMPORTS"))
-install.packages("drat"))
+install.packages(drat)
 library(drat)
 addRepo("NCEAS")
 install.packages("recordr")
