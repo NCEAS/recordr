@@ -63,7 +63,15 @@ setClass("Recordr", slots = c(recordrDir = "character",
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
 setMethod("initialize", signature = "Recordr", 
           definition = function(.Object,
-                                recordrDir = normalizePath("~/.recordr")) { 
+                                recordrDir = as.character(NA)) {
+  # User didn't specify recordr dir, use ~/.recordr
+  if (is.na(recordrDir)) {
+    recordrDir <- sprintf("%s/.recordr", path.expand("~"))
+  }
+  # If recordrDir doesn't exist, create it
+  if(!dir.exists(recordrDir)) {
+    dir.create(recordrDir, recursive=TRUE)
+  }
   .Object@recordrDir <- recordrDir
   # Open a connection to the database that contains execution metadata,
   .Object@dbFile <- sprintf("%s/recordr.sqlite", recordrDir)
