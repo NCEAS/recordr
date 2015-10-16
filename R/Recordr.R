@@ -206,8 +206,18 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # If neither of these is specified, then create a blank node specifying the username
   
   orcidIdentifier <- getConfig(config, "orcid_identifier")
-  orcidURI <- sprintf("https://%s", orcidIdentifier)
+  if(is.null(orcidIdentifier) || is.na(orcidIdentifier)) {
+    orcidURL <- as.character(NA)
+    orcidIdentifier <- as.character(NA)
+  } else {
+    orcidURI <- sprintf("https://%s", orcidIdentifier) 
+  }
+  
   foafName <- getConfig(config, "foaf_name")
+  if(is.null(foafName) || is.na(foafName)) {
+    foafName <- as.character(NA)
+  } 
+  
   # Store the Prov relationship: association -> prov:agent -> user
   # Create the 'user' object as an RDF blank node, so that we can describe a user without a URI. All types of user id info will
   # be stored this way: orcid, foaf:name, local compuassociationId ter account
@@ -215,13 +225,13 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = provONEuser, predicate = rdfType, subjectType = "blank", objectType="uri")
   insertRelationship(recordrEnv$dataPkg, subjectID = associationId, objectIDs=userBlankNodeId, predicate=provAgent, subjectType = "blank", objectType="blank")
   insertRelationship(recordrEnv$dataPkg, subjectID = recordrEnv$execMeta@executionId, objectIDs=userBlankNodeId, predicate=provWasAssociatedWith, objectType="blank")
-  if(!is.na(orcidIdentifier) && !is.null(orcidIdentifier)) {
+  if(!is.na(orcidIdentifier)) {
     # TODO: properly type the orcid, i.e. the predicate in the following statement is not a type. It appears that there is
     # no ORCID ontology that defines the type for an ORCID
     #insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = orcidURI, predicate = ORCID_NS, subjectType = "blank", objectType = "uri")
     insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = orcidURI, predicate = ORCID_TYPE, subjectType = "blank", objectType = "uri")
     insertRelationship(recordrEnv$dataPkg, subjectID = orcidURI, objectID = ORCID_TYPE, predicate = rdfType)
-  } else if (!is.na(foafName) && !is.null(foafName)) {
+  } else if (!is.na(foafName)) {
     insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = foafName, predicate = FOAF_NAME, subjectType = "blank", objectType = "uri")
     insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = FOAF_PERSON, predicate=rdfType, subjectType = "blank", objectType="uri")
   } else {
@@ -541,20 +551,6 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.charact
                                                        tag=as.character(NA), errorMessage=as.character(NA), seq=as.integer(NA), orderBy="-startTime", delete=FALSE) {
   
   colNames = c("script", "tag", "startTime", "endTime", "runId", "packageId", "publishTime", "errorMessage", "console", "seq")
-  
-  # Find all run directories
-  df <- data.frame(script = character(), 
-                   tag = character(),
-                   startTime = character(),
-                   endTime = character(),
-                   runId = character(),
-                   packageId = character(), 
-                   publishTime = character(),
-                   errorMessage = character(),
-                   console = logical(),
-                   seq = integer(),
-                   row.names = NULL)
-  
   sortOrder = "ascending"
   # Is the column that the user specified for ordering correct?
   if (!is.na(orderBy)) {
