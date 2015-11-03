@@ -203,7 +203,6 @@ setGeneric("recordr_read.csv", function(...) {
 })
 
 setMethod("recordr_read.csv", signature(), function(...) {
-  #cat(sprintf("In recordr_read.csv\n"))
   dataRead <- utils::read.csv(...)
   # Record the provenance relationship between the user's script and an input data file.
   # If the user didn't specify a data file, i.e. they are reading from a text connection,
@@ -212,15 +211,18 @@ setMethod("recordr_read.csv", signature(), function(...) {
   # 'text' argument.
   argList <- list(...)
   argListLen <- length(argList)
+  # read.csv() args: no "file=", but "text="
   if (!"file" %in% names(argList) && "text" %in% names(argList)) {
     #cat(sprintf("text connection: %s", argList$text))
     return(dataRead)
   } else if ("file" %in% names(argList)) {
+    # read.csv() args: "file=" specified
     #cat(sprintf("file: %s\n", argList$file))
     fileArg <- argList$file
   } else if (!"file" %in% names(argList) && !"text" %in% names(argList)) {
-    #cat(sprintf("file: %s\n", argList[1]))
-    fileArg <- argList[1]
+    # read.csv() args: no "file=" or "text=", so first arg must be the filename
+    #cat(sprintf("file: %s\n", argList[[1]]))
+    fileArg <- argList[[1]]
   } else {
     cat(paste0("Error: unknown arguments passed to record_read.csv: ", argList))
   }
@@ -251,7 +253,7 @@ setMethod("recordr_read.csv", signature(), function(...) {
 })
 
 setMethod("recordr_read.csv", signature("textConnection"), function(file, ...) {
-  print("recordr_read.csv for textConnection\n")
+  #print("recordr_read.csv for textConnection\n")
   obj <- utils::read.csv(file, ...)
 })
 
