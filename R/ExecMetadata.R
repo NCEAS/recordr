@@ -735,7 +735,7 @@ createTagsTable <- function(recordr) {
             (seq                INTEGER PRIMARY KEY,
             executionId         TEXT not NULL,
             tag TEXT not NULL,
-            unique(executionId, tag),
+            unique(executionId, tag) ON CONFLICT IGNORE,
             foreign key (executionId) references execmeta(executionId)
             on delete cascade);"
     
