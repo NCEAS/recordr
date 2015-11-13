@@ -39,6 +39,7 @@
 #' @slot publishId
 #' @slot console
 #' @slot seq
+#' @import RSQLite
 #' @include Recordr.R
 #' @section Methods:
 #' \itemize{
@@ -51,7 +52,7 @@
 ## @export
 setClass("ExecMetadata", slots = c(executionId      = "character",
                                    metadataId       = "character",
-                                   tag              = "character",
+                                   tag             = "character",
                                    datapackageId    = "character",
                                    user             = "character",
                                    subject          = "character",
@@ -76,35 +77,84 @@ setClass("ExecMetadata", slots = c(executionId      = "character",
 #' Initialize an execution metadata object
 #' @param .Object The ExecMetada object
 #' @param programName The name of the program that is being run.
-#' @param tag A character string that describes this execution.
+#' @param tag A character vector that describes this execution.
 #' @rdname initialize-ExecMetadata
 #' @aliases initialize-ExecMetadata
 #' @seealso \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
-setMethod("initialize", signature = "ExecMetadata", definition = function(.Object, programName=as.character(NA), tag=as.character(NA)) {
+setMethod("initialize", signature = "ExecMetadata", definition = function(.Object,
+    executionId = as.character(NA), metadataId = as.character(NA), tag=as.character(NA), datapackageId = as.character(NA),
+    user = as.character(NA), subject = as.character(NA), hostId = as.character(NA), startTime = as.character(NA),
+    operatingSystem = as.character(NA), runtime = as.character(NA), moduleDependencies = as.character(NA), programName=as.character(NA), 
+    endTime = as.character(NA), errorMessage = as.character(NA), publishTime = as.character(NA), publishNodeId = as.character(NA),
+    publishId = as.character(NA), console = FALSE, seq = as.integer(0)) { 
   
-  .Object@executionId <- sprintf("urn:uuid:%s", UUIDgenerate())
-  .Object@metadataId <- sprintf("urn:uuid:%s", UUIDgenerate())
-  .Object@tag         <- tag
-  .Object@datapackageId <- sprintf("urn:uuid:%s", UUIDgenerate())
-  .Object@user <- Sys.info()[['user']]
-  .Object@subject <- as.character(NA)
-  .Object@hostId <- Sys.info()[['nodename']]
-  .Object@startTime <- as.character(Sys.time())
-  .Object@operatingSystem <- R.Version()$platform
-  .Object@runtime <- R.Version()$version.string
+  if(is.na(executionId)) {
+    .Object@executionId <- sprintf("urn:uuid:%s", UUIDgenerate())
+  } else {
+    .Object@executionId <- executionId
+  }
+  
+  if(is.na(metadataId)) {
+    .Object@metadataId <- sprintf("urn:uuid:%s", UUIDgenerate())
+  } else {
+    .Object@metadataId <- metadataId
+  }
+  .Object@tag <- tag
+  
+  if(is.na(datapackageId)) {
+    .Object@datapackageId <- sprintf("urn:uuid:%s", UUIDgenerate())
+  } else {
+    .Object@datapackageId <- datapackageId
+  }
+  if(is.na(user)) {
+    .Object@user    <- Sys.info()[['user']]
+  } else {
+    .Object@user    <- user
+  }
+  
+  .Object@subject <- subject
+  if(is.na(hostId)) {
+    .Object@hostId <- Sys.info()[['nodename']]
+  } else {
+    .Object@hostId <- hostId
+  }
+  
+  if(is.na(startTime)) {
+    .Object@startTime <- as.character(Sys.time())
+  } else {
+    .Object@startTime <- startTime
+  }
+  
+  if(is.na(operatingSystem)) {
+    .Object@operatingSystem <- R.Version()$platform
+  } else {
+    .Object@operatingSystem <-operatingSystem
+  }
+  
+  if(is.na(runtime)) {
+    .Object@runtime <- R.Version()$version.string
+  } else {
+    .Object@runtime <- runtime
+  }
+  
+  if(is.na(moduleDependencies)) {
+    # Get list of packages that recordr has loaded and store as characters, i.e.
+    # "recordr 0.1, uuid 0.1-1, dataone 1.0.0, dataonelibs 1.0.0, XML 3.98-1.1, rJava 0.9-6"
+    pkgs <- sessionInfo()$otherPkgs
+    .Object@moduleDependencies <- paste(lapply(pkgs, function(x) paste(x$Package, x$Version)), collapse = ', ')
+  } else {
+    .Object@moduleDependencies <- moduleDependencies  
+  }
+    
   .Object@softwareApplication  <- programName
-  .Object@endTime <- as.character(NA)
-  .Object@errorMessage <- as.character(NA)
-  .Object@publishTime <- as.character(NA)
-  .Object@publishNodeId <- as.character(NA)
-  .Object@publishId <- as.character(NA)
-  .Object@console <- FALSE
-  .Object@seq <- as.integer(0)
+  .Object@endTime <- endTime
+  .Object@errorMessage <- errorMessage
+  .Object@publishTime <- publishTime
+  .Object@publishNodeId <- publishNodeId
+  .Object@publishId <- publishId
+  .Object@console <- console
+  .Object@seq <- seq
   
-  # Get list of packages that recordr has loaded and store as characters, i.e.
-  # "recordr 0.1, uuid 0.1-1, dataone 1.0.0, dataonelibs 1.0.0, XML 3.98-1.1, rJava 0.9-6"
-  pkgs <- sessionInfo()$otherPkgs
-  .Object@moduleDependencies <- paste(lapply(pkgs, function(x) paste(x$Package, x$Version)), collapse = ', ')
   return(.Object)
 })
 
@@ -131,6 +181,7 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
     if(is.null(dbConn)) {
       stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
     }
+    tmpDBconn <- TRUE
   } else {
     dbConn <- recordr@dbConn
   }
@@ -151,7 +202,6 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
             (seq                INTEGER PRIMARY KEY,
             executionId         TEXT not null,
             metadataId          TEXT,
-            tag                 TEXT,
             datapackageId       TEXT,
             user                TEXT,
             subject             TEXT,
@@ -169,18 +219,28 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
             console             INTEGER,
             unique(executionId));"
     
-    #cat(sprintf("create: %s\n", createStatement))
     result <- dbSendQuery(conn=dbConn, statement=createStatement)
     dbClearResult(result)
   }
   
+  if (!is.element("tags", dbListTables(dbConn))) {
+    createTagsTable(recordr)
+  }
+  
   execSlotNames <- slotNames("ExecMetadata")
+  # "tag" is a slot but not a column in 'execmeta' table, so don't process it here.
+  # Tags are contained in the tags table, so they are added to the tags table separately.
+  tagInd <- which(execSlotNames=="tag")
+  #execSlotNames <- [-which(execSlotNames=="tag")]
+  execSlotNames <- execSlotNames[-tagInd]
   # Get slot types
   slotDataTypes <- getSlots("ExecMetadata")
+  slotDataTypes <- slotDataTypes[-tagInd]
   # Get values from all the slots for the execution metadata, in the order they were declared in the class definition.
   slotValues <- unlist(lapply(execSlotNames, function(x) as.character(slot(execMeta, x))))
   slotValuesStr <- NULL
-  execSlotNamesStr <- paste(execSlotNames, collapse=",")
+  # "tag" is a slot but not a column in 'execmeta' table, so remove 'tag' from the list.
+  execSlotNamesStr <- paste(execSlotNames[execSlotNames != "tag"], collapse=",")
   # SQLite doesn't like the 'fancy' quotes that R uses for output, so switch to standard quotes
   quoteOption <- getOption("useFancyQuotes")
   options(useFancyQuotes="FALSE")
@@ -224,11 +284,19 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
                               slotValuesStr <- paste(slotValuesStr, slotValues[i], sep=","))
     }
   }
-  options(useFancyQuotes=quoteOption)
   insertStatement <- paste("INSERT INTO execmeta ", "(", execSlotNamesStr, ")", " VALUES (", slotValuesStr, ")", sep=" ")
   #cat(sprintf("insert: %s\n", insertStatement))
   result <- dbSendQuery(conn=dbConn, statement=insertStatement)
   dbClearResult(result)
+  
+  # Insert tag into 'tags' table, one record per tag, if tag was specified for this execution.
+  for(i in 1:length(execMeta@tag)) {
+    insertStatement <- sprintf("INSERT INTO tags ('executionId', 'tag') VALUES (%s, %s)", sQuote(execMeta@executionId), 
+                               sQuote(execMeta@tag[[i]]))
+    result <- dbSendQuery(conn=dbConn, statement=insertStatement)
+    dbClearResult(result)
+  }
+  options(useFancyQuotes=quoteOption)
   # We can't return this database connection we just opened, as we are not returning the recordr object with a
   # slot that contains the new database connection, so just disconnect. 
   if(tmpDBconn) dbDisconnect(dbConn)
@@ -272,6 +340,7 @@ setMethod("updateExecMeta", signature("Recordr"), function(recordr,
     if(is.null(dbConn)) {
       stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
     }
+    tmpDBconn <- TRUE
   } else {
     dbConn <- recordr@dbConn
   }
@@ -335,7 +404,6 @@ setMethod("updateExecMeta", signature("Recordr"), function(recordr,
   }
   
   updateStatement <- sprintf("%s %s where executionId=\'%s\'", update, setClause, executionId)
-  #cat(sprintf("update: %s\n", updateStatement))
   result <- dbSendQuery(conn = dbConn, statement=updateStatement)
   dbClearResult(result)
   
@@ -368,21 +436,22 @@ setGeneric("readExecMeta", function(recordr, ...) {
 #' @param seq An exectioin sequence nuber
 #' @param orderBy The column to sort the result set by.
 #' @param sortOrder The sort order. Values include "ascending", "descending".
-#' @return A dataframe containing execution metadata objects
+#' @return A list of ExecMetadata objects 
 setMethod("readExecMeta", signature("Recordr"), function(recordr, 
                                     executionId=as.character(NA),  script=as.character(NA), 
                                     startTime=as.character(NA),  endTime=as.character(NA), 
-                                    tag=as.character(NA),  errorMessage=as.character(NA), 
+                                    tag=as.character(NA), errorMessage=as.character(NA), 
                                     seq=as.character(NA), orderBy=as.character(NA), 
                                     sortOrder="ascending", delete=FALSE, ...) {
   
   # Check if the connection to the database is still working
-  tmpDBconn<- FALSE
+  tmpDBconn <- FALSE
   if (!dbIsValid(recordr@dbConn)) {
     dbConn <- getDBconnection(dbFile=recordr@dbFile)
     if(is.null(dbConn)) {
       stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
     }
+    tmpDBconn <- TRUE
   } else {
     dbConn <- recordr@dbConn
   }
@@ -391,11 +460,15 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   if (!is.element("execmeta", dbListTables(dbConn))) {
     return(data.frame())
   }
+   
+  if (!is.element("tags", dbListTables(dbConn))) {
+    createTagsTable(recordr)
+  }
   
   # Construct a SELECT statement to retrieve the runs that match the specified search criteria.
-  select <- "SELECT * from execmeta"
+  select <- "SELECT e.*, t.tag from execmeta e, tags t "
   whereClause <- NULL
-  colNames <- c("script", "tag", "startTime", "endTime", "runId", "packageId", "publishTime", "errorMessage", "console", "seq")
+  #colNames <- c("script", "startTime", "endTime", "runId", "packageId", "publishTime", "errorMessage", "console", "seq")
   # Is the column that the user specified for ordering correct?
   orderByClause <- ""
   if (!is.na(orderBy)) {
@@ -409,10 +482,10 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   }
   
   if(!is.na(executionId)) {    
-    matchClause <- "executionId = "
+    matchClause <- "e.executionId = "
     if(grepl("*", executionId)) {
       executionId <- gsub("\\*", "%", executionId)
-      matchClause <- "executionId LIKE "
+      matchClause <- "e.executionId LIKE "
     } 
     if(!is.null(whereClause)) {
       whereClause <- sprintf(" %s and %s \'%s\'", whereClause, matchClause, executionId)
@@ -423,12 +496,12 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   
   if(!is.na(script)) { 
     if(!is.null(whereClause)) {
-      whereClause <- sprintf(" %s and softwareApplication like \'%%%s%%\'", whereClause, script)
+      whereClause <- sprintf(" %s and e.softwareApplication like \'%%%s%%\'", whereClause, script)
     } else {
-      whereClause <- sprintf(" where softwareApplication like \'%%%s%%\'", script)
+      whereClause <- sprintf(" where e.softwareApplication like \'%%%s%%\'", script)
     }
   }
-  
+   
   if(!all(is.na(startTime))) { 
     if (length(startTime) > 1) {
       start <- startTime[1]
@@ -438,9 +511,9 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
       end <- "9999-99-99"
     }
     if(!is.null(whereClause)) {
-      whereClause <- sprintf(" %s and startTime BETWEEN \'%s\' AND \'%s\'", whereClause, start, end)
+      whereClause <- sprintf(" %s and e.startTime BETWEEN \'%s\' AND \'%s\'", whereClause, start, end)
     } else {
-      whereClause <- sprintf(" where startTime BETWEEN \'%s\' AND \'%s\'", start, end)
+      whereClause <- sprintf(" where e.startTime BETWEEN \'%s\' AND \'%s\'", start, end)
     }
   }
   
@@ -453,25 +526,36 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
       end <- "9999-99-99"
     }
     if(!is.null(whereClause)) {
-      whereClause <- sprintf(" %s and endTime BETWEEN \'%s\' AND \'%s\'", whereClause, start, end)
+      whereClause <- sprintf(" %s and e.endTime BETWEEN \'%s\' AND \'%s\'", whereClause, start, end)
     } else {
-      whereClause <- sprintf(" where endTime BETWEEN \'%s\' AND \'%s\'", start, end)
+      whereClause <- sprintf(" where e.endTime BETWEEN \'%s\' AND \'%s\'", start, end)
     }
   }
   
-  if(!is.na(tag)) { 
-    if(!is.null(whereClause)) {
-      whereClause <- sprintf(" %s and tag like \'%%%s%%\'", whereClause, tag)
-    } else {
-      whereClause <- sprintf(" where tag like \'%%%s%%\'", tag)
+  # Tags are specified as a list of character strings, so add each tag in an 'or' relationship
+  # Have to structure the query so that this is a subselect returning the matching values from the
+  # child table. If we didn't use a subselect, the 'or' operator would all matching rows. 
+  subSelect <- NULL
+  if(!all(is.na(tag))) { 
+    # ... and t.seq in (select t.seq where t.tag like '%them%' or t.tag like '%those%') and e.executionId == t.executionId  ... 
+    subSelect <- 't.executionId in (select distinct executionId from tags '
+    subWhereClause <- NULL
+    for(i in 1:length(tag)) {
+      thisTag <- tag[[i]]
+      if(!is.null(subWhereClause)) {
+        subWhereClause <- sprintf(" %s or tag like \'%%%s%%\'", subWhereClause, thisTag)
+      } else {
+        subWhereClause <- sprintf(" where tag like \'%%%s%%\'", thisTag)
+      }
     }
+    subSelect <- sprintf("%s %s ) ", subSelect, subWhereClause)
   }
   
   if(!is.na(errorMessage)) { 
     if(!is.null(whereClause)) {
-      whereClause <- sprintf(" %s and errorMessage like \'%%%s%%\'", whereClause, errorMessage)
+      whereClause <- sprintf(" %s and e.errorMessage like \'%%%s%%\'", whereClause, errorMessage)
     } else {
-      whereClause <- sprintf(" where errorMessage like \'%%%s%%\'", errorMessage)
+      whereClause <- sprintf(" where e.errorMessage like \'%%%s%%\'", errorMessage)
     }
   }
   
@@ -480,13 +564,13 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   # SQLite equivalent.
   if(!is.na(seq)) { 
     seqStr <- as.character(seq)
-    if(grepl(":", seq)) {
+    if(grepl(":", seqStr)) {
       seqVals <- unlist(strsplit(seq, ":"))
       lowVal <- seqVals[[1]]
       highVal <- seqVals[[2]]
-      seqClause <- sprintf(" seq BETWEEN %s and %s ", lowVal, highVal)
+      seqClause <- sprintf(" e.seq BETWEEN %s and %s ", lowVal, highVal)
     } else {
-      seqClause <- sprintf("seq=%s", seq)
+      seqClause <- sprintf("e.seq=%s", seq)
     }
     if(!is.null(whereClause)) {
       whereClause <- sprintf("%s and %s", whereClause, seqClause)
@@ -501,29 +585,167 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
     # Don't allow the user to delete all records unless they specify at
     # least one search term, possibly with a wildcard that will match
     # all records.
-    if (is.null(whereClause)) {
+    if (is.null(whereClause) && is.null(subSelect)) {
       message("Deleting all records is not allowed unless at least one search term is supplied.") 
       if(tmpDBconn) dbDisconnect(dbConn)
       return(data.frame())
     } 
   }
   
+  if(!is.null(whereClause)) {
+    deleteWhereClause <- paste(whereClause, "and", subSelect, sep=" ")
+  } else {
+    deleteWhereClause <- paste(" where" , subSelect, sep=" ")
+  }
+  # Remove table name abbreviations, i.e. 'e.executionId, t.tags' because SQLite doesn't allow them in DELETE statements
+  deleteWhereClause <- gsub("e\\.", "", deleteWhereClause, perl=TRUE)
+  deleteWhereClause <- gsub("t\\.", "", deleteWhereClause, perl=TRUE)
+  # Always need this constraint as the join between parent (execmeta) and child (tags)
+  join <- sprintf(" e.executionId == t.executionId ")
+  
+  if(!is.null(whereClause)) {
+    whereClause <- sprintf(" %s and %s", whereClause, join)
+  } else {
+    whereClause <- sprintf(" where %s", join)
+  }
+  
   # Retrieve records that match search criteria
-  selectStatement <- paste(select, whereClause, orderByClause, sep=" ")
+  if(!is.null(subSelect)) {
+    selectStatement <- paste(select, whereClause, "and", subSelect, orderByClause, sep=" ")
+  } else {
+    selectStatement <- paste(select, whereClause, orderByClause, sep=" ")
+  }
   #cat(sprintf("select: %s\n", selectStatement))
   result <- dbSendQuery(conn = dbConn, statement=selectStatement)
   resultdf <- dbFetch(result)
   dbClearResult(result)
   
+  # If no result were returned from the query, return an empty list
+  # and don't do a delete (even if 'delete=TRUE' was specified)
+  if(nrow(resultdf) == 0) return(list())
+  # Convert the SQLite result set to a list of ExecMetadata objects, so that the
+  # caller of this method doesn't have to know about result set structure and can
+  # just deal with a list of ExecMetadata objects.
+  execIds = ""
+  execMetas <- list()
+  for (i in 1:nrow(resultdf)) {
+    executionId <- resultdf[i, 'executionId']        
+    metadataId <- resultdf[i, 'metadataId']
+    if(is.null(metadataId)) metadataId <- as.character(NA)
+    tag <- resultdf[i, 'tag']
+    if(is.null(tag)) tag <- as.character(NA)
+    datapackageId <- resultdf[i, 'datapackageId']
+    if(is.null(datapackageId)) datapackageId <- as.character(NA)
+    user  <- resultdf[i, 'user']
+    if(is.null(user)) user <- as.character(NA)
+    subject <- resultdf[i, 'subject']
+    if(is.null(subject)) subject <- as.character(NA)
+    hostId <- resultdf[i, 'hostId']
+    if(is.null(hostId)) hostId<- as.character(NA)
+    startTime <- resultdf[i, 'startTime']
+    if(is.null(startTime)) startTime <- as.character(NA)
+    operatingSystem <-resultdf[i, 'operatingSystem']
+    if(is.null(operatingSystem)) operatingSystem <- as.character(NA)
+    runtime  <- resultdf[i, 'runtime']
+    if(is.null(runtime)) runtime <- as.character(NA)
+    moduleDependencies <- resultdf[i, 'moduleDependencies']
+    if(is.null(moduleDependencies)) moduleDependencies <- as.character(NA)
+    programName <- resultdf[i, 'softwareApplication']
+    if(is.null(programName)) programName <- as.character(NA)
+    endTime <- resultdf[i, 'endTime']
+    if(is.null(endTime)) endTime <- as.character(NA)
+    errorMessage  <- resultdf[i, 'errorMessage']
+    if(is.null(errorMessage)) errorMessage <- as.character(NA)
+    publishTime <- resultdf[i, 'publishTime']
+    if(is.null(publishTime)) publishTime <- as.character(NA)
+    publishNodeId  <- resultdf[i, 'publishNodeId']
+    if(is.null(publishNodeId)) publishNodeId <- as.character(NA)
+    publishId <- resultdf[i, 'publishId']
+    if(is.null(publishId)) publishId <- as.character(NA)
+    console <- as.logical(resultdf[i, 'console'])
+    seq  <- resultdf[i,'seq']
+    
+    # We have seen this executionId before, so just add the new tag
+    # to the ExecMetadata entry for this executionId.
+    if (is.element(executionId, execIds)) {
+      thisExecMeta <- execMetas[[executionId]]
+      # Get current tag
+      newTag <- resultdf[i,'tag']
+      savedTags <- thisExecMeta@tag
+      # Add additional tag to tag list for this executionId
+      savedTags[[length(savedTags)+1]] <- newTag
+      thisExecMeta@tag <- savedTags
+      # Put the modified execMeta back into the list
+      execMetas[[executionId]] <- thisExecMeta
+    } else {
+      # We haven't seen this executionId before, so create a new execMetadata object and
+      # add it to our result list
+      thisExecMeta <- new("ExecMetadata",  executionId=executionId, metadataId=metadataId, 
+                       tag=tag, datapackageId=datapackageId, user = user, subject=subject,
+                       hostId=hostId, startTime=startTime, operatingSystem=operatingSystem,
+                       runtime=runtime, moduleDependencies=moduleDependencies,
+                       programName=programName, endTime=endTime, errorMessage=errorMessage,
+                       publishTime=publishTime, publishNodeId=publishNodeId, publishId=publishId,
+                       console=console, seq=seq)
+      # Haven't seen this executionId yet, so just add it to the flattened result
+      emNames <- names(execMetas)
+      execMetas[length(execMetas)+1] <- thisExecMeta
+      if(length(execMetas) == 1) {
+         names(execMetas) <- executionId
+         execIds <- executionId
+      } else {
+        names(execMetas) <- c(emNames, executionId)
+        execIds <- c(execIds, executionId)
+      }
+    }
+  }
+  
   # Now delete records if requested.
   if(delete) {
-    deleteStatement <- paste("DELETE from execmeta ", whereClause, sep=" ")
+    # Delete from the execmeta table (which will be propagated to the delete to the child 'tags' table).
+    deleteStatement <- sprintf("DELETE from execmeta %s",  gsub("e\\.", "", deleteWhereClause, perl=TRUE))
+    #cat(sprintf("Delete: %s", deleteStatement))
     result <- dbSendQuery(conn=dbConn, statement=deleteStatement)
     dbClearResult(result)
   }
   
+  if(tmpDBconn) dbDisconnect(dbConn)
+  return(execMetas)
+})
+
+# Create the table that contains informational tags. Multiple tags can
+# be associatd with a single
+createTagsTable <- function(recordr) {
+  
+  # Check if the connection to the database is still working and if
+  # not, create a new, temporary connection.
+  tmpDBconn <- FALSE
+  if (!dbIsValid(recordr@dbConn)) {
+    dbConn <- getDBconnection(dbFile=recordr@dbFile)
+    if(is.null(dbConn)) {
+      stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
+    }
+    tmpDBconn <- TRUE
+  } else {
+    dbConn <- recordr@dbConn
+  }
+  
+  if (!is.element("tags", dbListTables(dbConn))) {
+    createStatement <- "CREATE TABLE tags
+            (seq                INTEGER PRIMARY KEY,
+            executionId         TEXT not NULL,
+            tag TEXT not NULL,
+            unique(executionId, tag),
+            foreign key (executionId) references execmeta(executionId)
+            on delete cascade);"
+    
+    result <- dbSendQuery(conn=dbConn, statement=createStatement)
+    dbClearResult(result)
+  }
   # We can't return this database connection we just opened, as we are not returning the recordr object with a
   # slot that contains the new database connection, so just disconnect. 
-  if(tmpDBconn) dbDisconnect(dbConn)
-  return(resultdf)
-})
+  if(tmpDBconn) {
+    dbDisconnect(dbConn)
+  }
+  return(TRUE)
+}
