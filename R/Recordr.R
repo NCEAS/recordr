@@ -1532,7 +1532,9 @@ upgradeToDbv090 <- function(recordr) {
   # The database version number to use with the new version or recordr.
   newDbVersion <- "0.9.0"
   # Backup database file
-  
+  oldDbFile <- recordr@dbFile
+  backupDbFile <- sprintf("%s.bck", recordr@dbFile)
+  file.copy(oldDbFile, backupDbFile)
   # Add tags table
   if(!createTagsTable(recordr)) {
     stop("Unable to create tags table during upgrade.")
@@ -1563,7 +1565,6 @@ upgradeToDbv090 <- function(recordr) {
   for(irow in 1:nrow(resultdf)) {
     execId <- sQuote(resultdf[irow,"executionId"])
     tag <- sQuote(resultdf[irow,"tag"])
-    cat(sprintf("id: %s, tag: %s\n", execId, tag))
     insertStatement <- sprintf("INSERT into tags (executionId, tag) VALUES (%s, %s);", execId, tag)
     result <- dbSendQuery(conn=dbConn, statement=insertStatement)
     dbClearResult(result)
@@ -1622,7 +1623,8 @@ upgradeToDbv090 <- function(recordr) {
   # We can't return this database connection we just opened, as we are not returning the recordr object with a
   # slot that contains the new database connection, so just disconnect. 
   if(tmpDBconn) dbDisconnect(dbConn)
-  return(TRUE)
+  message(sprintf("The recordr database has been upgraded to %s", newDbVersion))
+  invisible(return(TRUE))
 }
 
 getRecordrDbVersion <- function(recordr) {
