@@ -98,7 +98,6 @@ setMethod("initialize", signature = "Recordr",
 #' @param tag a string that is associated with this run
 #' @param .file the filename for the script to run (only used internally when startRecord() is called from record())
 #' @param .console a logical argument that is used internally by the recordr package
-#' @param config A \code{\link[dataone]{SessionConfig-class}} objec
 #' @import dataone
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
 #' @import ggplot2
@@ -116,7 +115,7 @@ setGeneric("startRecord", function(recordr, ...) {
 #' x <- read.csv(file="./test.csv")
 #' runIdentifier <- endRecord(rc)
 #' }
-setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=as.character(NA), .console=TRUE, configFile=as.character(NA)) {
+setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=as.character(NA), .console=TRUE) {
   
   # Check if a recording session has already been started.
   if (is.element(".recordr", base::search())) {
@@ -134,21 +133,6 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # and R normally from their interactive R session.
   attach(NULL, name=".recordr")
   recordrEnv <- as.environment(".recordr")
-  # If the user specified a configuration session instance, use it, otherwise use
-  # the default configuration session.
-  if(!is.na(configFile)) {
-    config <- new("SessionConfig")
-    loadConfig(configFile)
-  } else {
-    # If the user didn't specify a config file, then try to load the default file,
-    # otherwise copy an initial file (from dataone package) to the default file location
-    # and load that.
-    config <- new("SessionConfig")
-    loadConfig(config)
-  }
-  # Save the session configuration object to the recordr environment so it will be available to all methods
-  recordrEnv$config <- config
-  
   # Put a copy of the recordr object itself info the recordr environment, in case
   # to the overriding functions need any information that it contains, such as the db connection
   # Note: The recordr object contains the db connection that has to be open in the Recordr class
@@ -185,7 +169,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   #
   # Create an empty D1 datapackage object and make it globally avilable, i.e. available
   # to the masking functions, e.g. "recordr_write.csv".
-  recordrEnv$mnNodeId <- getConfig(recordrEnv$config, "target_member_node_id")
+  recordrEnv$mnNodeId <- getOption("target_member_node_id")
   recordrEnv$dataPkg <- new("DataPackage", packageId=recordrEnv$execMeta@datapackageId)
     
   # Add the ProvONE Execution type
@@ -205,7 +189,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
   # If not ORCID has been specified, then use a FOAF:name if that is specified.
   # If neither of these is specified, then create a blank node specifying the username
   
-  orcidIdentifier <- getConfig(config, "orcid_identifier")
+  orcidIdentifier <- getOption("orcid_identifier")
   if(is.null(orcidIdentifier) || is.na(orcidIdentifier)) {
     orcidURL <- as.character(NA)
     orcidIdentifier <- as.character(NA)
@@ -213,7 +197,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
     orcidURI <- sprintf("https://%s", orcidIdentifier) 
   }
   
-  foafName <- getConfig(config, "foaf_name")
+  foafName <- getOption("foaf_name")
   if(is.null(foafName) || is.na(foafName)) {
     foafName <- as.character(NA)
   } 
@@ -271,8 +255,6 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
     timestamp (stamp = c(date(), startMarker), quiet = TRUE)
   }
   
-  # Load configuration values.
-  #loadConfig(recordr)
   setProvCapture(TRUE)
   # The Recordr provenance capture capability is now setup and when startRecord() returns, the
   # user can continue to work in the calling context, i.e. the console and provenance will be
@@ -310,7 +292,6 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   
   on.exit(recordrShutdown())
   recordrEnv <- as.environment(".recordr")
-  #recordrConfigEnv <- as.environment(".recordrConfig")
   runDir <- sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId)
   if (!file.exists(runDir)) {
       dir.create(runDir, recursive = TRUE)
@@ -393,14 +374,12 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   
   # Check if the metadata template file exists, if no, then copy the initial version
   # to the user's .recordr directory.
-  metadataTemplateFile <- getConfig(recordrEnv$config, "package_metadata_template_path")
-  if(!file.exists(metadataTemplateFile)) {
+  metadataTemplateFile <- getOption("package_metadata_template_path")
+  if(is.null(metadataTemplateFile) || !file.exists(metadataTemplateFile)) {
       file.copy(system.file("extdata/package_metadata_template.R", package="recordr"), metadataTemplateFile)
       message(sprintf("An initial package metadata template file has been copied to \"%s\"", metadataTemplateFile))
-      message("Please review the \"dataone\" package documentation section 'Configuring dataone'")
-      message("and then edit the configuration file with values appropriate for your installation.")
-      setConfig(recordrEnv$config, "package_metadata_template_path", metadataTemplateFile)
-      saveConfig(recordrEnv$config)
+      message("Please review the \"recordr\" package documentation section 'Configuring recordr'")
+      message("and then set the options parameters with values appropriate for your installation.")
   }
     
   #mdfile <- sprintf("%s/metadata.R", path.expand("~"), recordr@recordrDir)
@@ -461,7 +440,6 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
 #' @param recordr a Recordr instance
 #' @param file The name of the R script to run and collect provenance information for
 #' @param tag A string that will be associated with this run
-#' @param config A \code{\link[dataone]{SessionConfig-class}} object
 #' @param ... additional parameters that will be passed to the R \code{"base::source()"} function
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
 #' @export
@@ -476,24 +454,20 @@ setGeneric("record", function(recordr, file, ...) {
 #' rc <- new("Recordr")
 #' executionId <- record(rc, file="myscript.R", tag="first run of myscript.R")
 #' }
-setMethod("record", signature("Recordr"), function(recordr, file, tag="", configFile=as.character(NA), ...) {
+setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
   # Check if a recording session didn't clean up properly by removing the
   # temporary environments. If yes, then remove them now. The recordr pacakge
   # does not allow concurrent execution of two record() sessions.
   if ( is.element(".recordr", base::search())) {
     detach(".recordr")
   }
-#   if ( is.element(".recordrConfig", base::search())) {
-#     detach(".recordrConfig")
-#   }
 
   if(!file.exists(file)) {
     stop(sprintf("Error, file \"%s\" does not exist\n", file))
   }
   
-  execId <- startRecord(recordr, tag, .file=file, .console=FALSE, configFile=configFile)
+  execId <- startRecord(recordr, tag, .file=file, .console=FALSE)
   recordrEnv <- as.environment(".recordr")
-  # recordrConfigEnv <- as.environment(".recordrConfig")
   setProvCapture(TRUE)
   # Source the user's script, passing in arguments that they intended for the 'source' call.  
   result = tryCatch ({
@@ -512,6 +486,7 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", config
     cat(sprintf("Error:: %s\n", recordrEnv$execMeta@errorMessage))
   }, finally = {
     # Disable provenance capture while some housekeeping is done
+    
     setProvCapture(FALSE)
 
     # Stop recording provenance and finalize the data package    
@@ -519,9 +494,6 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", config
     if (is.element(".recordr", base::search())) {
       detach(".recordr", unload=TRUE)
     }
-#     if (is.element(".recordrConfig", base::search())) {
-#       detach(".recordrConfig", unload=TRUE)
-#     }
     # return the execution identifier
     return(execId)
   })
@@ -970,11 +942,10 @@ setGeneric("publishRun", function(recordr, ...) {
 #' @param assignDOI a boolean value: if TRUE, assign DOI values for system metadata, otherwise assign uuid values
 #' @param update a boolean value: if TRUE, republish a previously published execution
 #' @param quiet A boolean value: if TRUE, informational messages are not printed (default=TRUE)
-#' @param verbose A boolean value: if TRUE, additional informational messages are printed
 #' @return The published identifier of the uploaded package
 setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(NA), 
                                                        seq=as.character(NA), 
-                                                       assignDOI=FALSE, update=FALSE, quiet=TRUE, verbose=FALSE) {
+                                                       assignDOI=FALSE, update=FALSE, quiet=TRUE) {
   
   if(is.na(id) && is.na(seq) ||
      !is.na(id) && !is.na(seq)) {
@@ -1003,44 +974,49 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     stop(msg)
   }
   
-  # Get configuration parameters from the dataone SessionConfig
-  sc <- new("SessionConfig")
-  loadConfig(sc)
-  public <- getConfig(sc, "public_read_allowed")
-  subjectDN <- getConfig(sc, "subject_dn")
-  replicationAllowed <- getConfig(sc, "replication_allowed") 
-  numberOfReplicas <- getConfig(sc, "number_of_replicas")
-  preferredNodes <- getConfig(sc, "preferred_replica_node_list")
-  mnId <- getConfig(sc, "target_member_node_id")
-  d1Env <- getConfig(sc, "dataone_env")
-  if (!quiet) cat(sprintf("Publishing execution %s to %s\n", id, mnId))
-  cm <- CertificateManager()
-  isExpired <- isCertExpired(cm)
+  # Get configuration parameters
+  public <- getOption("public_read_allowed")
+  subjectDN <- getOption("subject_dn")
+  replicationAllowed <- getOption("replication_allowed") 
+  numberOfReplicas <- getOption("number_of_replicas")
+  preferredNodes <- getOption("preferred_replica_node_list")
+  mnId <- getOption("target_member_node_id")
+  d1Env <- getOption("dataone_env")
   # PublishTime for EML 
   publishDay <- format(Sys.time(), format="%Y-%m-%d")
   publishTime <- Sys.time()
   
-  # Stop if the DataONE certificate is expired
-  if(isExpired) {
-    stop("Please create a valid DataONE certificate before calling publish()")
-  }
-   
   if(is.null(subjectDN) || is.na(subjectDN)) {
     subject <- showClientSubject(cm)
   } else {
     subject <- subjectDN
   }
-  # Read the session configuration value for the DataONE environment to use,
+  # Read the options value for the DataONE environment to use,
   # e.g. "PROD" for production, "STAGING", "SANDBOX", "DEV"
   if(!quiet) cat(sprintf("Contacting coordinating node for environment %s...\n", d1Env))
-  cn <- CNode(d1Env)
-  resolveURI <- sprintf("%s/resolve", cn@endpoint)
-  # message(sprintf("Obtaining member node information for %s", mnId))
   if(!quiet) cat(sprintf("Getting member node url for memober node id: %s...\n", mnId))
-  mn <- getMNode(cn, mnId)
-  if (is.null(mn)) {
-    stop(sprintf("Member node %s encounted an error on the get() request", mnId))
+  d1c <- D1Client(env = d1Env, mNodeid = mnId)
+  if (is.null(d1c@mn)) {
+    stop(sprintf("Unable to contact member node \"%s\".\nUnable to publish run.\n", mnId))
   }
+  resolveURI <- sprintf("%s/resolve", d1c@cn@endpoint)
+  
+  # Check the user's DataONE authentication.
+  am <- AuthenticationManager()
+  if(!isAuthValid(am, d1c@mn)) {
+    authMethod <- getAuthMethod(am)
+    if(authMethod == "token") {
+      msg <- "Your DataONE authentication token is invalid or expired."
+    } else if (authMethod == "cert") {
+      msg <- "Your DataONE X.509 certificate is invalid or expired."
+    } else {
+      msg <- "A DataONE authentication token is required."
+    }
+    msg <- sprintf("Unable to publish run: %s", msg)
+    stop(msg)
+  }
+  
+  if (!quiet) cat(sprintf("Publishing execution %s to %s\n", id, mnId))
  
   packageId <- thisExecMeta[['datapackageId']]
   pkg <- new("DataPackage", packageId=packageId)
@@ -1069,7 +1045,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   emlObj <- eml_read(metadataFile)
   
   # Upload each data object that was used or geneated by the datapackage
-  if(!verbose) cat(sprintf("Getting file info for execution %s\n", id))
+  if(!quiet) cat(sprintf("Getting file info for execution %s\n", id))
   files <- readFileMeta(recordr, executionId=id)
   for (iRow in 1:nrow(files)) {
     thisFile <- files[iRow,]
@@ -1084,7 +1060,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     # via insertRelationship() with the 'documetns' relationship. These relationships
     # were stored with the rest of the package relationships, so we don't have to add them
     # in again.
-    if(verbose) cat(sprintf("Adding science object with id: %s, file: %s\n", 
+    if(!quiet) cat(sprintf("Adding science object with id: %s, file: %s\n", 
                             getIdentifier(sciObj), basename(thisFile[['filePath']])))
     addData(pkg, sciObj)
     # Now update the metadata object corresponding to this dataset in order to set the
@@ -1130,19 +1106,12 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
 #                    thisPredicate, thisObject))
   }
   
-  if(!quiet) cat(sprintf("Uploading data package..."))
-  resourceMapId <- uploadDataPackage(mn, pkg, replicate=replicationAllowed, numberReplicas=numberOfReplicas, 
+  if(!quiet) cat(sprintf("Uploading data package...\n"))
+  # uploadDataPackage returns the "package pid" 'published identifier' for this datapackage. This will be displayed in the 
+  # viewRuns() output for this under "Published ID".
+  resourceMapId <- uploadDataPackage(d1c, pkg, replicate=replicationAllowed, numberReplicas=numberOfReplicas, 
                                      preferredNodes=preferredNodes, public=public, quiet=quiet, resolveURI=resolveURI)
   
-  # Use the metadata id as the 'published identifier' for this datapackage. This will be displayed in the 
-  # viewRuns() output for this under "Published ID".
-  # start DEBUG
-  #tf <- tempfile()
-  #serializationId <- paste0("urn:uuid:", UUIDgenerate())
-  #resolveURI <- sprintf("%s/resolve", cn@endpoint)
-  #status <- serializePackage(pkg, tf, id="1234", resolveURI=resolveURI)
-  #cat(sprintf("resmap: %s\n", tf))
-  # end DEBUG
   if(!quiet) cat(sprintf("Uploaded data package with resource map id: %s", resourceMapId))
   # Record the time that this execution was published, the published id, subject that submitted the data.
   updateExecMeta(recordr, executionId=id, subject=subject, publishTime=publishTime, publishNodeId=mnId, 
@@ -1280,10 +1249,8 @@ recordrShutdown <- function() {
   
   if (is.element(".recordr", base::search())) {
     recordrEnv <- as.environment(".recordr")
-    unloadConfig(recordrEnv$config)
     detach(".recordr")
   }
-  #if (is.element(".recordrConfig", base::search())) detach(".recordrConfig")
 }
 
 #' Create a minimal EML document.
