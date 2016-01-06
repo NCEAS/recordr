@@ -441,7 +441,7 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
                                     executionId=as.character(NA),  script=as.character(NA), 
                                     startTime=as.character(NA),  endTime=as.character(NA), 
                                     tag=as.character(NA), errorMessage=as.character(NA), 
-                                    seq=as.character(NA), orderBy=as.character(NA), 
+                                    seq=as.integer(NA), orderBy=as.character(NA), 
                                     sortOrder="ascending", delete=FALSE, ...) {
   
   # Check if the connection to the database is still working
@@ -534,7 +534,7 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   
   # Tags are specified as a list of character strings, so add each tag in an 'or' relationship
   # Have to structure the query so that this is a subselect returning the matching values from the
-  # child table. If we didn't use a subselect, the 'or' operator would all matching rows. 
+  # child table. If we didn't use a subselect, the 'or' operator would match all rows. 
   subSelect <- NULL
   if(!all(is.na(tag))) { 
     # ... and t.seq in (select t.seq where t.tag like '%them%' or t.tag like '%those%') and e.executionId == t.executionId  ... 
@@ -562,12 +562,10 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   # The 'seq' column is an integer, so in R interger ranges can be specified as 'n:n'
   # If the user specified a range for 'seq' values to return, translate this into the
   # SQLite equivalent.
-  if(!is.na(seq)) { 
-    seqStr <- as.character(seq)
-    if(grepl(":", seqStr)) {
-      seqVals <- unlist(strsplit(seq, ":"))
-      lowVal <- seqVals[[1]]
-      highVal <- seqVals[[2]]
+  if(!all(is.na(seq))) { 
+    if(length(seq) > 1) {
+      lowVal <- seq[[1]]
+      highVal <- seq[[length(seq)]]
       seqClause <- sprintf(" e.seq BETWEEN %s and %s ", lowVal, highVal)
     } else {
       seqClause <- sprintf("e.seq=%s", seq)
@@ -593,10 +591,15 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   }
   
   if(!is.null(whereClause)) {
-    deleteWhereClause <- paste(whereClause, "and", subSelect, sep=" ")
+    deleteWhereClause <- whereClause
   } else {
-    deleteWhereClause <- paste(" where" , subSelect, sep=" ")
+    deleteWhereClause <- " where"
   }
+   
+  if(!is.null(subSelect)) {
+    deleteWhereClause <- paste(deleteWhereClause, " and", subSelect, sep=" ")
+  } 
+  
   # Remove table name abbreviations, i.e. 'e.executionId, t.tags' because SQLite doesn't allow them in DELETE statements
   deleteWhereClause <- gsub("e\\.", "", deleteWhereClause, perl=TRUE)
   deleteWhereClause <- gsub("t\\.", "", deleteWhereClause, perl=TRUE)
