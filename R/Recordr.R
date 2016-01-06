@@ -63,7 +63,7 @@ setClass("Recordr", slots = c(recordrDir = "character",
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
 setMethod("initialize", signature = "Recordr", 
           definition = function(.Object,
-                                recordrDir = as.character(NA)) {
+                                recordrDir = as.character(NA), quiet=FALSE) {
   # User didn't specify recordr dir, use ~/.recordr
   if (is.na(recordrDir)) {
     recordrDir <- sprintf("%s/.recordr", path.expand("~"))
@@ -80,7 +80,63 @@ setMethod("initialize", signature = "Recordr",
     stop("Unable to create a Recordr object\n")
   } else {
     .Object@dbConn <- dbConn
+  } 
+  
+  if (!dbIsValid(dbConn)) {
+    if(is.null(dbConn)) {
+      stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
+    }
   }
+  
+  # Check the recordr database version and see if it is current for the
+  # recordr version that is loaded.
+  # Recordr Database versions
+  # Recordr version     Database version
+  # "0.9.0.9005"          No admin database, so no version number
+  # "0.9.0.9006"          "0.9.0"
+  # If the admin table doesn't exist, either this is the first time recordr is being run,
+  # or this must be a pre-release version of recordr, so create the admin table now and
+  # later check if upgrade is necessary.
+  # TODO: check version of recordr and compare to version from recordr admin 
+  # table, if it exists.
+  
+  dbVersion <- getRecordrDbVersion(.Object)
+  
+  # Get recordr version from admin table. 
+  recordrVersion <- packageDescription(pkg="recordr")$Version
+  verInfo <- unlist(strsplit(recordrVersion, "\\.", perl=TRUE))
+  rcVersionMajor <- verInfo[[1]]
+  rcVersionMinor <- verInfo[[2]]
+  rcVersionPatch <- verInfo[[3]]
+  # Is this a development version?
+  if (length(verInfo) > 4) {
+    rcVersionDev <- verInfo[[4]]
+  } else {
+    rcVersionDev <- as.character(NA)
+  }
+  
+  # This is an upgrade requirement for the initial pre-release version of recordr,
+  # which didn't have an admin database and so no version number. Have the user
+  # manually invoke the function to upgrade the database.
+  if (rcVersionMajor == "0" && rcVersionMinor == "9" && rcVersionPatch == "0") {
+    if(is.na(dbVersion)) {
+      if (!quiet) {
+        msg <-"The recordr database requires upgrading to the current version.\n"
+        msg <- paste(msg, "Please upgrade your recordr database by typing the command 'upgradeRecordr()'\n")
+        msg <- paste(msg, "See the recordr installation notes at https://github.com/NCEAS/recordr\n")
+        message(msg)
+      }
+      # Return the object so that the upgrade script can perform the upgrade
+      return(.Object)
+    }
+  } 
+  
+  # The 'admin' table doesn't exist, so create a new one with
+  # the current database version.
+  if (!is.element("admin", dbListTables(.Object@dbConn))) {
+    createAdminTable(.Object)
+  }
+   
   return(.Object)
 })
 
@@ -115,7 +171,7 @@ setGeneric("startRecord", function(recordr, ...) {
 #' x <- read.csv(file="./test.csv")
 #' runIdentifier <- endRecord(rc)
 #' }
-setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=as.character(NA), .console=TRUE) {
+setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .file=as.character(NA), .console=TRUE) {
   
   # Check if a recording session has already been started.
   if (is.element(".recordr", base::search())) {
@@ -157,7 +213,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag="", .file=a
     }
   }
 
-  recordrEnv$execMeta <- new("ExecMetadata", recordrEnv$scriptPath, tag=tag)
+  recordrEnv$execMeta <- new("ExecMetadata", programName=recordrEnv$scriptPath, tag=tag)
   recordrEnv$execMeta@console <- .console
   # Write out execution metadata now, and update the metadata during endRecord()
   # and possibly publish().
@@ -540,7 +596,7 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.charact
     }
   }
   
-  # Retrieve the execution metadata that match the search criteria
+  # Retrieve the execution metadata entries that match the search criteria
   execMeta <- readExecMeta(recordr, executionId=runId, script=script, 
     startTime=startTime, endTime=endTime,
     tag=tag, errorMessage=errorMessage,
@@ -578,7 +634,8 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
                                                        seq = as.integer(NA), noop = FALSE, quiet = FALSE) {
 
   runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, delete=TRUE)
-  if (nrow(runs) == 0) {
+  # selectRuns returns a list of ExecMeta objects
+  if (length(runs) == 0) {
     if (!quiet) {
       message(sprintf("No runs matched search criteria."))
     }
@@ -586,9 +643,9 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
   } else {
     if (!quiet) {
       if (noop) {
-        message(sprintf("The following %d runs would have been deleted:\n", nrow(runs)))
+        message(sprintf("The following %d runs would have been deleted:\n", length(runs)))
       } else {
-        message(sprintf("The following %d runs have been deleted:\n", nrow(runs)))
+        message(sprintf("The following %d runs have been deleted:\n", length(runs)))
       }
     }
   }
@@ -598,9 +655,9 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
   }
   
   # Loop through selected runs
-  for(i in 1:nrow(runs)) {
-    row <- runs[i,]
-    thisrunId <- row["executionId"]
+  for(i in 1:length(runs)) {
+    row <- runs[[i]]
+    thisrunId <- row@executionId
     thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, thisrunId)
     if (!noop) {
       if(thisRunDir == sprintf("%s/runs", recordr@recordrDir) || thisRunDir == "") {
@@ -608,13 +665,13 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
       }
       unlink(thisRunDir, recursive = TRUE)
       # TODO: delete all files associated with this run from the file archive
-      # TODO: delete run metadata using readExecMeta
     }
     if (! quiet) {
       printRun(row)
     }
   }
-  invisible(runs)
+  
+  invisible(execMetaTodata.frame(runs))
 })
   
 #' List all runs recorded by record() or startRecord()
@@ -659,7 +716,7 @@ setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA
                                                      error=as.character(NA), seq=as.character(NA), quiet=FALSE, orderBy = "-startTime") {
   
   runs <- selectRuns(recordr, runId=id, script=script, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=as.character(seq), orderBy=orderBy)
-  if (nrow(runs) == 0) {
+  if (length(runs) == 0) {
     if (!quiet) {
       message(sprintf("No runs matched search criteria."))
     }
@@ -668,15 +725,14 @@ setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA
 
   if (!quiet) {
     # Print header line
-    if (!quiet) printRun(headerOnly = TRUE)
+    printRun(headerOnly = TRUE)
     # Loop through selected runs
-    for(i in 1:nrow(runs)) {
-      row <- runs[i,]
-      printRun(row)
+    for(i in 1:length(runs)) {
+      printRun(runs[[i]])
     }
   }
-  
-  invisible(runs)
+     
+  invisible(execMetaTodata.frame(runs))
 })
 
 # Internal function used to print execution metadata for a single run
@@ -686,44 +742,59 @@ setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA
 # @param headerOnly if TRUE then only the header line is printed, if FALSE then only the row is printed
 # authoer: slaughter
 
-printRun <- function(row=list(), headerOnly = FALSE) {
+printRun <- function(run=NA, headerOnly = FALSE)  {
   
   tagLength = 20
   scriptNameLength = 30
   errorMsgLength = 30
-  
+ 
   #fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
   fmt <- paste("%-6s", "%-", sprintf("%2d", scriptNameLength), "s", 
                " %-", sprintf("%2d", tagLength), "s",
                # " %-19s %-19s %-45s %-19s",
                " %-19s %-19s %-13s %-19s",
                " %-", sprintf("%2d", errorMsgLength), "s", "\n", sep="")
+  # Padding for blank values for seq & script name
+  paddingLength <- 6 + scriptNameLength 
+  padding <- paste(character(paddingLength), collapse=" ") 
+  fmtSecondary <-  paste("%-", sprintf("%2d", paddingLength), "s", 
+                     " %-", sprintf("%2d", tagLength), "s", "\n", sep="")
   
+  # Print only the column headings
   if (headerOnly) {
     cat(sprintf(fmt, "Seq", "Script", "Tag", "Start Time", "End Time", "Run Id", "Published Time", "Error Message"), sep = " ")
+    # Print additional lines, i.e. column values from child tables
   } else {
-    console          <- row[["console"]]
+    console <- run@console
     if(console) {
       thisScript <- "Console log"
-    }
-    else {
-      thisScript       <- row[["softwareApplication"]]
+    } else {
+      thisScript       <- run@softwareApplication
       # Print shortened form of script name, e.g. "/home/slaugh...ocalReadWrite.R"
       if(nchar(thisScript) > scriptNameLength-nchar("...")) {
         thisScript       <- sprintf("%s...%s", substring(thisScript, 1, 12), substring(thisScript, nchar(thisScript)-14, nchar(thisScript)))
       } 
     }
-    thisStartTime    <- row[["startTime"]]
-    thisEndTime      <- row[["endTime"]]
-    thisRunId       <- row[["executionId"]]
+    thisStartTime    <- run@startTime
+    thisEndTime      <- run@endTime
+    thisRunId       <- run@executionId
+    # Only print the last 10 digits of the runid, because people don't like to see a long uuid, and
+    # the entire string takes up too much space.
     thisRunId       <- sprintf("...%s", substring(thisRunId, nchar(thisRunId)-9, nchar(thisRunId)))
-    #thisPackageId    <- row[["datapackageId"]]
-    thisPublishTime  <- row[["publishTime"]]
-    thisErrorMessage <- row[["errorMessage"]]
-    thisTag         <- row[["tag"]]
-    thisSeq         <- row[["seq"]]
+    #thisPackageId    <- run@datapackageId
+    thisPublishTime  <- run@publishTime
+    thisErrorMessage <- run@errorMessage
+    thisTag         <- run@tag[[1]]
+    thisSeq         <- run@seq
     cat(sprintf(fmt, thisSeq, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime, 
                 thisEndTime, thisRunId, thisPublishTime, strtrim(thisErrorMessage, errorMsgLength)), sep = " ")
+    # Print additional tag values for this executionId, with only the tag displayed on the line (which is beneath the .
+    if(length(run@tag) > 1) {
+      for(iTag in 2:length(run@tag)) {
+        thisTag <- run@tag[[iTag]]
+        cat(sprintf(fmtSecondary, padding, strtrim(thisTag, tagLength)))
+    }
+    }
   }
 }
 
@@ -763,8 +834,8 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
                                                  seq=as.character(NA), orderBy="-startTime", sections=c("details","used","generated"), verbose=FALSE, page=TRUE, quiet=TRUE) {
   
   runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, orderBy=orderBy)
-  
-  if (nrow(runs) == 0) {
+  # selectRuns returns a list of ExecMetadata objects
+  if (length(runs) == 0) {
     if (!quiet) {
       message(sprintf("No runs matched search criteria."))
     }
@@ -772,27 +843,27 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
   }
         
   # Loop through selected runs
-  for(i in 1:nrow(runs)) {     
-    thisRow <- runs[i,]       
-    executionId         <- thisRow[["executionId"]]
-    metadataId          <- thisRow[["metadataId"]]
-    tag                 <- thisRow[["tag"]]
-    datapackageId       <- thisRow[["datapackageId"]]
-    user                <- thisRow[["user"]]
-    subject             <- thisRow[["subject"]]
-    hostId              <- thisRow[["hostId"]]
-    startTime           <- thisRow[["startTime"]]
-    operatingSystem     <- thisRow[["operatingSystem"]]
-    runtime             <- thisRow[["runtime"]]
-    softwareApplication <- thisRow[["softwareApplication"]]
-    moduleDependencies  <- thisRow[["moduleDependencies"]]
-    endTime             <- thisRow[["endTime"]]
-    errorMessage        <- thisRow[["errorMessage"]]
-    publishTime         <- thisRow[["publishTime"]]
-    console             <- as.logical(thisRow[["console"]])
-    publishNodeId       <- thisRow[["publishNodeId"]]
-    publishId           <- thisRow[["publishId"]]
-    seq                 <- thisRow[["seq"]]
+  for(i in 1:length(runs)) {     
+    thisRow <- runs[[i]]       
+    executionId         <- thisRow@executionId
+    metadataId          <- thisRow@metadataId
+    tag                 <- thisRow@tag
+    datapackageId       <- thisRow@datapackageId
+    user                <- thisRow@user
+    subject             <- thisRow@subject
+    hostId              <- thisRow@hostId
+    startTime           <- thisRow@startTime
+    operatingSystem     <- thisRow@operatingSystem
+    runtime             <- thisRow@runtime
+    softwareApplication <- thisRow@softwareApplication
+    moduleDependencies  <- thisRow@moduleDependencies
+    endTime             <- thisRow@endTime
+    errorMessage        <- thisRow@errorMessage
+    publishTime         <- thisRow@publishTime
+    console             <- as.logical(thisRow@console)
+    publishNodeId       <- thisRow@publishNodeId
+    publishId           <- thisRow@publishId
+    seq                 <- thisRow@seq
     thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, executionId)
     
     # Read the archived data package
@@ -818,7 +889,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
         } 
         cat(sprintf("%s was executed on %s\n", dQuote(thisScript), startTime))
       }
-      cat(sprintf("Tag: %s\n", dQuote(tag)))
+      cat(sprintf("Tag: %s\n", dQuote(paste(tag, collapse=","))))
       cat(sprintf("Run sequence #: %d\n", seq))
       if(is.na(publishTime) || is.null(publishTime)) {
         published <- FALSE
@@ -840,7 +911,6 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
       cat(sprintf("HostId: %s\n", hostId))
       cat(sprintf("Operating system: %s\n", operatingSystem))
       cat(sprintf("R version: %s\n", runtime))
-      cat(sprintf("Runtime: %s\n", runtime))
       cat(sprintf("Dependencies: %s\n", moduleDependencies))
       if(console) {
         cat(sprintf("Record console input start time: %s\n", startTime))
@@ -917,7 +987,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
       print(relations)
     }
     # Page console output if multiple runs are being viewed
-    if (nrow(runs) > 1 && page) {
+    if (length(runs) > 1 && page) {
       inputLine <- readline("enter <return> to continue, q<return> to quit: ")
       if (inputLine == "q") break
       # Clear the console screen
@@ -952,16 +1022,20 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     stop("Please specify either \"seq\" or \"id\" parameter")
   }
   
+  # readExecMeta returns a list of ExecMetadata objects
   if(!is.na(seq)) {
     thisExecMeta <- readExecMeta(recordr, seq=seq)
   } else if (!is.na(id)) {
     thisExecMeta <- readExecMeta(recordr, id=id)
   }
   
-  if(nrow(thisExecMeta) == 0) {
+  if(length(thisExecMeta) == 0) {
       stop(sprintf("No exeuction found\n"))
+  } else {
+    # Get the first (and only) ExecMetadata object
+    thisExecMeta <- thisExecMeta[[1]]
   }
-  if(is.na(id)) id <- thisExecMeta[['executionId']]
+  if(is.na(id)) id <- thisExecMeta@executionId
  
   runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
   if (! file.exists(runDir)) {
@@ -969,8 +1043,8 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     stop(msg)
   }
   # See if this execution has been published before
-  if (!is.na(thisExecMeta[['publishTime']])) {
-    msg <- sprintf("The datapackage for this execution was published on %s\n", thisExecMeta[['publishTime']])
+  if (!is.na(thisExecMeta@publishTime)) {
+    msg <- sprintf("The datapackage for this execution was published on %s\n", thisExecMeta@publishTime)
     stop(msg)
   }
   
@@ -1018,7 +1092,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   
   if (!quiet) cat(sprintf("Publishing execution %s to %s\n", id, mnId))
  
-  packageId <- thisExecMeta[['datapackageId']]
+  packageId <- thisExecMeta@datapackageId
   pkg <- new("DataPackage", packageId=packageId)
   
   # TODO: if the user requests DOI, fix the metadata entry in the EML
@@ -1037,7 +1111,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # Retrieve metadata that was created for this run and create a DataObject with it.
   # TODO: use the in-memory object when datapackage can upload it
   #metadata <- getMetadata(recordr, id=id)
-  metadataId <- thisExecMeta[["metadataId"]]
+  metadataId <- thisExecMeta@metadataId
   # TODO: use getMetadata() output when eml_read accepts
   # XMLInternalDocument, as the documentation says it should
   #metadata <- getMetadata(recordr, id=id, as="parsed")
@@ -1119,7 +1193,6 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   invisible(metadataId)
 })
 
-
 #' Retrieve the metadata object for a run
 #' @description When a script or console session is recorded (see record() and startrecord()), 
 #' a metadata object is created that describes the objects associated with the run, using the
@@ -1146,26 +1219,29 @@ setMethod("getMetadata", signature("Recordr"), function(recordr, id=as.character
     stop("Please specify either \"id\" or \"seq\" parameter\n")
   }
   
+  # readExecMeta returns a list of ExecMetadata objects
   if(!is.na(seq)) {
     execMeta <- readExecMeta(recordr, seq=seq)
   } else if (!is.na(id)) {
     execMeta <- readExecMeta(recordr, executionId=id)
   }
   
-  # Is this a vaiid id or seq?
-  if(nrow(execMeta) == 0) {
+  # Was an execution found for this seq or id?
+  if(length(execMeta) == 0) {
       stop(sprintf("No exeuction found\n"))
+  } else {
+    execMeta <- execMeta[[1]]
   }
   
   # Locate the metadata file
-  if(is.na(id)) id <- execMeta[['executionId']]
+  if(is.na(id)) id <- execMeta@executionId
   runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
   if (! file.exists(runDir)) {
     msg <- sprintf("A directory was not found for execution identifier: %s\n", id)
     stop(msg)
   }
   
-  metadataId <- execMeta[['metadataId']]
+  metadataId <- execMeta@metadataId
   metadataFile <- sprintf("%s/%s.xml", runDir, metadataId)
   metadata <- readLines(metadataFile, warn=FALSE)
   
@@ -1206,6 +1282,7 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
     stop("Please specify either \"id\" or \"seq\" parameter\n")
   }
   
+  # readExecMeta returns a list of ExecMetadata objects
   if(!is.na(seq)) {
     execMeta <- readExecMeta(recordr, seq=seq)
   } else if (!is.na(id)) {
@@ -1213,19 +1290,21 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
   }
   
   # Is this a vaiid id or seq?
-  if(nrow(execMeta) == 0) {
+  if(length(execMeta) == 0) {
       stop(sprintf("No exeuction found for the specified execution or sequence number\n"))
+  } else {
+    execMeta <- execMeta[[1]]
   }
   
   # Locate the metadata file
-  if(is.na(id)) id <- execMeta[['executionId']]
+  if(is.na(id)) id <- execMeta@executionId
   runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
   if (! file.exists(runDir)) {
     msg <- sprintf("A directory was not found for execution identifier: %s\n", id)
     stop(msg)
   }
   
-  metadataId <- execMeta[['metadataId']]
+  metadataId <- execMeta@metadataId
   metadataFile <- sprintf("%s/%s.xml", runDir, metadataId)
   metadataFileBackup <- sprintf("%s.bak", metadataFile)
   
@@ -1258,8 +1337,10 @@ recordrShutdown <- function() {
 makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDescription=NA, geo_coverage=NA, temp_coverage=NA, endpoint=NA) {
   #dt <- eml_dataTable(dat, description=description)
   oe_list <- as(list(), "ListOfotherEntity")
-  execMeta <- readExecMeta(recordr, executionId=id)
-  metadataId <- execMeta[['metadataId']]
+  # readExecMeta returns a list of execMeta objects, so get the first result, which should be the only result
+  # when an executionId is specified.
+  execMeta <- readExecMeta(recordr, executionId=id)[[1]]
+  metadataId <- execMeta@metadataId
   fileMeta <- readFileMeta(recordr, executionId=id)
   
   # Loop through each file for this run and add an EML "otherEntity"
@@ -1318,7 +1399,6 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
              packageId = metadataId,
              system = system,
              dataset = ds)
-  return(eml)
 }
 
 #' Create a geographic coverage element from a description and bounding coordinates
@@ -1359,4 +1439,225 @@ getDBconnection <- function(dbFile) {
   } else {
     stop(sprintf("Error opening database connection to %s\n", dbFile))
   }
+}
+
+createAdminTable <- function(recordr, newDbVersion) {
+  
+  if (!is.element("admin", dbListTables(recordr@dbConn))) {
+    #cat(sprintf("create: %s\n", createStatement))
+    createStatement <- "CREATE TABLE admin
+              (id INTEGER PRIMARY KEY,
+              version             TEXT not null,
+              unique(version));"
+    result <- dbSendQuery(conn=recordr@dbConn, statement=createStatement)
+    dbClearResult(result)
+  } 
+  
+  # Insert the new database version into the admin table
+  quoteOption <- getOption("useFancyQuotes")
+  options(useFancyQuotes="FALSE")
+  insertStatement <- sprintf("INSERT into admin (version) VALUES (%s);", sQuote(newDbVersion))
+  options(useFancyQuotes=quoteOption)
+  result <- dbSendQuery(conn=recordr@dbConn, statement=insertStatement)
+  dbClearResult(result)
+}
+
+#' Update the recordr database to the current version
+#' @param recordr A recordr object
+#' @return logical TRUE if the upgrade was successful, FALSE if a problem was encountered.
+#' @export
+upgradeRecordr <- function(recordr) {
+  
+  # User can pass in a record instance, but not required.
+  if(missing(recordr)) {
+    recordr <- new("Recordr", quiet=TRUE)
+  }
+  
+  dbVersion <- getRecordrDbVersion(recordr)
+  # Get recordr version from admin table. 
+  recordrVersion <- packageDescription(pkg="recordr")$Version
+  verInfo <- unlist(strsplit(recordrVersion, "\\.", perl=TRUE))
+  rcVersionMajor <- verInfo[[1]]
+  rcVersionMinor <- verInfo[[2]]
+  rcVersionPatch <- verInfo[[3]]
+  # Is this a development version?
+  if (length(verInfo) > 4) {
+    rcVersionDev <- verInfo[[4]]
+  } else {
+    rcVersionDev <- as.character(NA)
+  }
+  
+  if (rcVersionMajor == "0" && rcVersionMinor == "9" && rcVersionPatch == "0") {
+    if(is.na(dbVersion)) {
+      upgradeToDbv090(recordr)
+    }
+  } 
+}
+  
+upgradeToDbv090 <- function(recordr) {
+  
+  # The database version number to use with the new version or recordr.
+  newDbVersion <- "0.9.0"
+  # Backup database file
+  oldDbFile <- recordr@dbFile
+  backupDbFile <- sprintf("%s.bck", recordr@dbFile)
+  file.copy(oldDbFile, backupDbFile)
+  # Add tags table
+  if(!createTagsTable(recordr)) {
+    stop("Unable to create tags table during upgrade.")
+  }
+  
+  tmpDBconn <- FALSE
+  if (!dbIsValid(recordr@dbConn)) {
+    cat(sprintf("v090: getting db conn\n"))
+    dbConn <- getDBconnection(dbFile=recordr@dbFile)
+    if(is.null(dbConn)) {
+      stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
+    }
+    tmpDBconn <- TRUE
+  } else {
+    dbConn <- recordr@dbConn
+  }
+  
+  # Populate the tags table with values from exemeta table (executionId, tag)
+  selectStatement <- "SELECT executionId, tag from execmeta;"
+  result <- dbSendQuery(conn=dbConn, statement=selectStatement)
+  resultdf <- dbFetch(result)
+  dbClearResult(result)
+  
+  # SQLite doesn't like the 'fancy' quotes that R uses for output, so switch to standard quotes
+  quoteOption <- getOption("useFancyQuotes")
+  options(useFancyQuotes="FALSE")
+  
+  for(irow in 1:nrow(resultdf)) {
+    execId <- sQuote(resultdf[irow,"executionId"])
+    tag <- sQuote(resultdf[irow,"tag"])
+    insertStatement <- sprintf("INSERT into tags (executionId, tag) VALUES (%s, %s);", execId, tag)
+    result <- dbSendQuery(conn=dbConn, statement=insertStatement)
+    dbClearResult(result)
+  }
+  
+  
+  # Retrieve all recorded runs and order by startTime (ascending).
+  runs <- selectRuns(recordr, startTime="1900-01-01",  orderBy="+startTime")
+  
+  # Hoy! SQLite doesn't allow you to drop a column from a table, so you
+  # Have to rename the old table, create the new table without the undesired
+  # column, then copy all dadta from the old table to the new.
+  alterStatement <- "ALTER TABLE execmeta rename to execmeta_old;"
+  result <- dbSendQuery(conn=dbConn, statement=alterStatement)
+  dbClearResult(result)
+  
+  for(i in 1:length(runs)) {
+    thisExecMeta <- new("ExecMetadata")
+    thisRun <- runs[[i]]       
+    thisExecMeta@executionId         <- thisRun@executionId
+    thisExecMeta@metadataId          <- thisRun@metadataId
+    thisExecMeta@tag                 <- thisRun@tag
+    thisExecMeta@datapackageId       <- thisRun@datapackageId
+    thisExecMeta@user                <- thisRun@user
+    thisExecMeta@subject             <- thisRun@subject
+    thisExecMeta@hostId              <- thisRun@hostId
+    thisExecMeta@startTime           <- thisRun@startTime
+    thisExecMeta@operatingSystem     <- thisRun@operatingSystem
+    thisExecMeta@runtime             <- thisRun@runtime
+    thisExecMeta@softwareApplication <- thisRun@softwareApplication
+    thisExecMeta@moduleDependencies  <- thisRun@moduleDependencies
+    thisExecMeta@endTime             <- thisRun@endTime
+    thisExecMeta@errorMessage        <- thisRun@errorMessage
+    thisExecMeta@publishTime         <- thisRun@publishTime
+    thisExecMeta@console             <- as.logical(thisRun@console)
+    thisExecMeta@publishNodeId       <- thisRun@publishNodeId
+    thisExecMeta@publishId           <- thisRun@publishId
+    thisExecMeta@seq                 <- thisRun@seq
+    # Create a new 'execmeta' table by writing out a new execmeta object.
+    writeExecMeta(recordr, thisExecMeta)
+  }
+  
+  # TODO: check that the new table has the same of rows as the old table.
+  alterStatement <- "DROP TABLE if exists execmeta_old;"
+  result <- dbSendQuery(conn=dbConn, statement=alterStatement)
+  dbClearResult(result)
+  
+  createAdminTable(recordr, newDbVersion)
+  # Update database version number in 
+  insertStatement <- sprintf("INSERT into admin (version) VALUES (%s);", sQuote(newDbVersion))
+  result <- dbSendQuery(conn=dbConn, statement=alterStatement)
+  dbClearResult(result)
+  
+  options(useFancyQuotes=quoteOption)
+  
+  # We can't return this database connection we just opened, as we are not returning the recordr object with a
+  # slot that contains the new database connection, so just disconnect. 
+  if(tmpDBconn) dbDisconnect(dbConn)
+  message(sprintf("The recordr database has been upgraded to %s", newDbVersion))
+  invisible(return(TRUE))
+}
+
+getRecordrDbVersion <- function(recordr) {
+  # Check if the connection to the database is still working and if
+  # not, create a new, temporary connection.
+  tmpDBconn <- FALSE
+  dbVersion <- as.character(NA)
+  if (!dbIsValid(recordr@dbConn)) {
+    dbConn <- getDBconnection(dbFile=recordr@dbFile)
+    if(is.null(dbConn)) {
+      return(as.character(NA))
+    }
+    tmpDBconn <- TRUE
+  } else {
+    dbConn <- recordr@dbConn
+  }
+  
+  if (!is.element("admin", dbListTables(dbConn))) {
+    return(as.character(NA))
+  }
+  
+  selectStatement <- "SELECT version from admin DESC;"
+  result <- dbSendQuery(conn=dbConn, statement=selectStatement)
+  resultdf <- dbFetch(result)
+  dbClearResult(result)
+  # We can't return this database connection we just opened, as we are not returning the recordr object with a
+  # slot that contains the new database connection, so just disconnect. 
+  if(tmpDBconn) dbDisconnect(dbConn)
+  
+  # If no version found, return NA
+  if(nrow(resultdf) == 0) {
+    dbVersion <- as.character(NA)
+  } else {
+    dbVersion <- resultdf[1,"version"]
+  }
+  
+  if(tmpDBconn) {
+    dbDisconnect(dbConn)
+  }
+  return(dbVersion)
+}
+
+execMetaTodata.frame <- function(execMetaList) {
+  # Now conver the list of ExecMetadata objects to a data.frame for the user's consumption.
+  for (iRun in 1:length(execMetaList)) {
+    thisRun <- execMetaList[[iRun]]
+    #slotDataTypes <- getSlots("ExecMetadata")
+    thisRunList <- list()
+    #slotName <- execSlotNames[[i]]
+    #slotDataType <- slotDataTypes[[i]]
+    execSlotNames <- slotNames("ExecMetadata")
+    for (i in 1:length(execSlotNames)) {
+      thisSlotName <- execSlotNames[[i]]
+      if (thisSlotName == "tag") {
+        thisRunList[length(thisRunList) + 1] <- paste(slot(thisRun, thisSlotName), collapse=",")
+      } else {
+        thisRunList[length(thisRunList) + 1] <- slot(thisRun, thisSlotName)
+      }
+    }
+    names(thisRunList) <- slotNames("ExecMetadata")
+    if (iRun == 1) {
+      rundf <- as.data.frame(thisRunList, row.names=NULL, stringsAsFactors=F)
+    } else {
+      newdf <- as.data.frame(thisRunList, row.names=NULL, stringsAsFactors=F)
+      rundf <- rbind(rundf, newdf)
+    }
+  }
+  return(rundf)
 }
