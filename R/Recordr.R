@@ -1370,7 +1370,8 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
       oe@physical@distribution@online@url <- paste(endpoint, id, sep="/")
     }
     if(!is.na(format)) {
-      f <- new("externallyDefinedFormat", formatName=format)
+      formatCitation <- new("Citation")
+      f <- new("externallyDefinedFormat", formatName=format, citation=formatCitation)
       df <- new("dataFormat", externallyDefinedFormat=f)
       oe@physical@dataFormat <- df
     }
