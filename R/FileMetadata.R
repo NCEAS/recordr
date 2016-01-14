@@ -112,7 +112,7 @@ setGeneric("writeFileMeta", function(recordr, fileMeta, ...) {
   standardGeneric("writeFileMeta")
 })
 
-#' @describeIn writeFileMeta
+#' @rdname writeFileMeta
 setMethod("writeFileMeta", signature("Recordr", "FileMetadata"), function(recordr, fileMeta, ...) {
   
   # Check if the connection to the database is still working
@@ -199,7 +199,7 @@ setGeneric("readFileMeta", function(recordr, ...) {
   standardGeneric("readFileMeta")
 })
 
-#' @describeIn readFileMeta
+#' @rdname readFileMeta
 #' @param fileId The id of the file to search for
 #' @param executionId A character value that specifies an execution identifier to search for.
 #' @param filePath The path name of the file to search for.

@@ -162,7 +162,7 @@ setGeneric("startRecord", function(recordr, ...) {
   standardGeneric("startRecord")
 })
 
-#' @describeIn startRecord
+#' @rdname startRecord
 #' @return execution identifier that uniquely identifies this recorded session
 #' @examples 
 #' \dontrun{
@@ -329,7 +329,7 @@ setGeneric("endRecord", function(recordr) {
   standardGeneric("endRecord")
 })
 
-#' @describeIn endRecord
+#' @rdname endRecord
 #' @return id The execution identifier that uniquely identifiers this execution.
 #' @examples 
 #' \dontrun{
@@ -503,7 +503,7 @@ setGeneric("record", function(recordr, file, ...) {
   standardGeneric("record")
 })
 
-#' @describeIn record 
+#' @rdname record 
 #' @return The execution identifier for this run
 #' @examples
 #' \dontrun{
@@ -573,7 +573,7 @@ setGeneric("selectRuns", function(recordr, ...) {
   standardGeneric("selectRuns")
 })
 
-#' @describeIn selectRuns
+#' @rdname selectRuns
 #' @return A data.frame that contains execution metadata for executions that matched the search criteria
 setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.character(NA), script=as.character(NA), startTime=as.character(NA), endTime=as.character(NA), 
                                                        tag=as.character(NA), errorMessage=as.character(NA), seq=as.integer(NA), orderBy="-startTime", delete=FALSE) {
@@ -605,9 +605,9 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.charact
     return(execMeta)
 })
 
-#' Delete runs that match search parameters
-#' @description  The execution metadata and all archived files associated with
-#' each matching run are permanently delete from the file system. No backup is maintained
+#' @title Delete runs that match search parameters
+#' @description The execution metadata and all archived files associated with
+#' each matching run are permanently deleted from the file system. No backup is maintained
 #' by the recordr package, so this deletion is irreversible, unless the user
 #' maintains their own backup.
 #' @param recordr A Recordr instance
@@ -620,13 +620,13 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.charact
 #' @param seq The run sequence number (can be a single value or a range, e.g \code{seq="1:10"})
 #' @param noop Don't delete any date, just show what would be deleted.
 #' @param quiet Don't print any informational messages to the display
-#' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
+#' @seealso \code{\link[=Recordr-class]{Recordr}}{ class description}
 #' @export
 setGeneric("deleteRuns", function(recordr, ...) {
   standardGeneric("deleteRuns")
 })
 
-#' @describeIn deleteRuns
+#' @rdname deleteRuns
 #' @return A data.frame containing execution metadata for the runs that were deleted.
 setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.character(NA), file = as.character(NA), 
                                                        start = as.character(NA), end = as.character(NA), 
@@ -680,7 +680,7 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
 #' match all arguments. 
 #' @details The \code{"start"} and \code{"end"} parameters can be used to specify a time
 #' range to find runs that started execution and ended in the specified time range. For examples, specifying
-#' \code{"start=c("2015-01-01, "2015-01-31)} will cause the search to return any execution with a starting
+#' \code{"start=c("2015-01-01, "2015-01-31")} will cause the search to return any execution with a starting
 #' time in the first month of 2015. 
 #' @param recordr A Recordr instance
 #' @param file The name of the script to match 
@@ -693,23 +693,23 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
 #' @param seq A run sequence number (can be a range, e.g \code{seq=1:10})
 #' @param quiet Don't print any informational messages to the display
 #' @param orderBy The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime
-#' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
+#' @seealso \code{\link[=Recordr-class]{Recordr}}{ class description}
 #' @export
 setGeneric("listRuns", function(recordr, ...) {
   standardGeneric("listRuns")
 })
 
-#' @describeIn listRuns
+#' @rdname listRuns
 #' @return data frame containing information for each run
 #' @examples 
 #' \dontrun {
-#'   rc <- new("Recordr")
-#'   # List runs that started in January 2015
-#'   listRuns(rc, start=c("2015-01-01", "2015-01-31))
-#'   # List runs that started on or after March 1, 2014
-#'   listruns(rc, start="2014-03-01"
-#'   # List runs that contain a tag with the string "analysis v1.3")
-#'   listRuns(rc, tag="analysis v1.3")
+#' rc <- new("Recordr")
+#' # List runs that started in January 2015
+#' listRuns(rc, start=c("2015-01-01", "2015-01-31))
+#' # List runs that started on or after March 1, 2014
+#' listruns(rc, start="2014-03-01"
+#' # List runs that contain a tag with the string "analysis v1.3")
+#' listRuns(rc, tag="analysis v1.3")
 #' }
 #
 setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA), script=as.character(NA), start = as.character(NA), end=as.character(NA), tag=as.character(NA), 
@@ -807,7 +807,7 @@ setGeneric("viewRuns", function(recordr, ...) {
   standardGeneric("viewRuns")
 })
 
-#' @describeIn viewRuns 
+#' @rdname viewRuns 
 #' @param id The execution identifier of a run to view
 #' @param file The name of script to match 
 #' @param start Match runs that started in this time range (inclusive)
@@ -1005,7 +1005,7 @@ setGeneric("publishRun", function(recordr, ...) {
   standardGeneric("publishRun")
 })
 
-#' @describeIn publishRun
+#' @rdname publishRun
 #' @import EML
 #' @param id the run identifier for the execution to upload to DataONE
 #' @param seq The sequence number for the execution to upload to DataONE
@@ -1206,7 +1206,7 @@ setGeneric("getMetadata", function(recordr, ...) {
   standardGeneric("getMetadata")
 })
 
-#' @describeIn getMetadata
+#' @rdname getMetadata
 #' @param id The identifier for a run
 #' @param seq The sequence number for a run
 #' @param as Form to return the metadata as. Possible values are: "text", "parsed" (for parsed XML)
@@ -1262,7 +1262,7 @@ setGeneric("putMetadata", function(recordr, ...) {
   standardGeneric("putMetadata")
 })
 
-#' @describeIn putMetadata
+#' @rdname putMetadata
 #' @details The \code{metadata} parameter can specify either a character vector that contains the metadata
 #' this parameter can be a filename that contains the metadata. The \code{asText} parameter is used to
 #' specify which type of value is specified. If \code{asText} is TRUE, then the \code{metadata} parameter
