@@ -230,9 +230,17 @@ setMethod("recordr_read.csv", signature(), function(...) {
   if (getProvCapture()) {
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
+    user <- recordrEnv$execMeta@user
     # TODO: replace this with a user configurable faciltiy to specify how to generate identifiers
     #datasetId <- sprintf("%s_%s", basename(fileArg), UUIDgenerate())
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    # Create a data package object for the derived dataset
+    dataFmt <- "text/csv"
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, user=user, mnNodeId=recordrEnv$mnNodeId, filename=fileArg)
+    # TODO: use file argument when file size is greater than a configuration value
+    #dataObj <- new("DataObject", id=datasetId, filename=normalizePath(file), format=dataFmt, user=user, mnNodeId=recordrEnv$mnNodeId)    
+    # Record prov:wasGeneratedBy relationship between the execution and the output dataset
+    addData(recordrEnv$dataPkg, dataObj)
     # Record prov:wasUsedBy relationship between the input dataset and the execution
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
     # Record relationship identifying this dataset as a provone:Data
