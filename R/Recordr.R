@@ -1007,6 +1007,7 @@ setGeneric("publishRun", function(recordr, ...) {
 
 #' @rdname publishRun
 #' @import EML
+#' @import dataone
 #' @param id the run identifier for the execution to upload to DataONE
 #' @param seq The sequence number for the execution to upload to DataONE
 #' @param assignDOI a boolean value: if TRUE, assign DOI values for system metadata, otherwise assign uuid values
@@ -1050,7 +1051,6 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   
   # Get configuration parameters
   public <- getOption("public_read_allowed")
-  subjectDN <- getOption("subject_dn")
   replicationAllowed <- getOption("replication_allowed") 
   numberOfReplicas <- getOption("number_of_replicas")
   preferredNodes <- getOption("preferred_replica_node_list")
@@ -1059,12 +1059,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # PublishTime for EML 
   publishDay <- format(Sys.time(), format="%Y-%m-%d")
   publishTime <- Sys.time()
-  
-  if(is.null(subjectDN) || is.na(subjectDN)) {
-    subject <- showClientSubject(cm)
-  } else {
-    subject <- subjectDN
-  }
+
   # Read the options value for the DataONE environment to use,
   # e.g. "PROD" for production, "STAGING", "SANDBOX", "DEV"
   if(!quiet) cat(sprintf("Contacting coordinating node for environment %s...\n", d1Env))
@@ -1077,19 +1072,13 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   
   # Check the user's DataONE authentication.
   am <- AuthenticationManager()
-  if(!isAuthValid(am, d1c@mn)) {
-    authMethod <- getAuthMethod(am)
-    if(authMethod == "token") {
-      msg <- "Your DataONE authentication token is invalid or expired."
-    } else if (authMethod == "cert") {
-      msg <- "Your DataONE X.509 certificate is invalid or expired."
-    } else {
-      msg <- "A DataONE authentication token is required."
-    }
-    msg <- sprintf("Unable to publish run: %s", msg)
+  if(!dataone:::isAuthValid(am, d1c@mn)) {
+    msg <- sprintf("Please see \"DataONE Authentication\" in \"intro_recordr\" vignette.")
+    msg <- sprintf("%sEnter this command at the R console: \"vignette(\"intro_recordr\")", msg)
     stop(msg)
   }
   
+  subject <- dataone:::getAuthSubject(am, d1c@mn)
   if (!quiet) cat(sprintf("Publishing execution %s to %s\n", id, mnId))
  
   packageId <- thisExecMeta@datapackageId
@@ -1128,7 +1117,8 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     access <- thisFile[['access']]
     filePath <- sprintf("%s/%s", recordr@recordrDir, thisFile[['archivedFilePath']])
     # Create DataObject for the science dataone
-    sciObj <- new("DataObject", id=fileId, format=format, user=subject, mnNodeId=mnId, filename=filePath)
+    # sysmeta@sumitter and rightsholder will be set to subject from auth token or X.509 certificate
+    sciObj <- new("DataObject", id=fileId, format=format, mnNodeId=mnId, filename=filePath)
     if (public) sciObj <- setPublicAccess(sciObj)
     # During endRecord(), each science object was associated with the metadata object
     # via insertRelationship() with the 'documetns' relationship. These relationships
@@ -1159,7 +1149,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   tempMetadataFile <- tempfile()
   eml_write(emlObj, tempMetadataFile)
   putMetadata(recordr, id=id, metadata=tempMetadataFile, asText=FALSE)
-  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, user=subject, mnNodeId=mnId, filename=metadataFile)
+  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=metadataFile)
   addData(pkg, metaObj)
   
   #
