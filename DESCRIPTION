@@ -15,19 +15,20 @@ Description: The R package recordr provides methods to easily record data
     DataONE.
 Date: 2015
 Depends:
-    R (>= 3.1.0),
-    dataone (>= 1.0.0)
+    R (>= 3.1.1),
+    methods
 Imports:
-    uuid (>= 0.1-1),
-    datapackage (>= 0.9.0.9002),
+    uuid,
+    datapackage,
     digest,
     XML,
     EML,
-    dataone (>= 1.1.0.9002),
+    dataone,
     RSQLite
 Suggests:
     knitr,
-    testthat
+    testthat,
+    ggplot2
 License: Apache License 2.0
 URL: https://github.com/NCEAS/recordr
 BugReports: https://github.com/NCEAS/recordr/issues
@@ -39,3 +40,4 @@ Collate:
     'maskedFunctions.R'
     'onLoad.R'
     'recordr-package.R'
+RoxygenNote: 5.0.1
