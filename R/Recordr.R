@@ -1149,7 +1149,9 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   tempMetadataFile <- tempfile()
   eml_write(emlObj, tempMetadataFile)
   putMetadata(recordr, id=id, metadata=tempMetadataFile, asText=FALSE)
-  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=metadataFile)
+  # Use windows friendly filenames, i.e. no ":"
+  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=metadataFile,
+                 suggestedFilename=gsub(":", "_", basename(metadataFile)))
   addData(pkg, metaObj)
   
   #
