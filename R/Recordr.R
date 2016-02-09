@@ -88,20 +88,7 @@ setMethod("initialize", signature = "Recordr",
     }
   }
   
-  # Check the recordr database version and see if it is current for the
-  # recordr version that is loaded.
-  # Recordr Database versions
-  # Recordr version     Database version
-  # "0.9.0.9005"          No admin database, so no version number
-  # "0.9.0.9006"          "0.9.0"
-  # If the admin table doesn't exist, either this is the first time recordr is being run,
-  # or this must be a pre-release version of recordr, so create the admin table now and
-  # later check if upgrade is necessary.
-  # TODO: check version of recordr and compare to version from recordr admin 
-  # table, if it exists.
-  
-  dbVersion <- getRecordrDbVersion(.Object)
-  
+  #dbVersion <- getRecordrDbVersion(.Object)
   # Get recordr version from admin table. 
   recordrVersion <- packageDescription(pkg="recordr")$Version
   verInfo <- unlist(strsplit(recordrVersion, "\\.", perl=TRUE))
@@ -115,26 +102,10 @@ setMethod("initialize", signature = "Recordr",
     rcVersionDev <- as.character(NA)
   }
   
-  # This is an upgrade requirement for the initial pre-release version of recordr,
-  # which didn't have an admin database and so no version number. Have the user
-  # manually invoke the function to upgrade the database.
-  if (rcVersionMajor == "0" && rcVersionMinor == "9" && rcVersionPatch == "0") {
-    if(is.na(dbVersion)) {
-      if (!quiet) {
-        msg <-"The recordr database requires upgrading to the current version.\n"
-        msg <- paste(msg, "Please upgrade your recordr database by typing the command 'upgradeRecordr()'\n")
-        msg <- paste(msg, "See the recordr installation notes at https://github.com/NCEAS/recordr\n")
-        message(msg)
-      }
-      # Return the object so that the upgrade script can perform the upgrade
-      return(.Object)
-    }
-  } 
-  
   # The 'admin' table doesn't exist, so create a new one with
   # the current database version.
   if (!is.element("admin", dbListTables(.Object@dbConn))) {
-    createAdminTable(.Object)
+    createAdminTable(.Object, RECORDR_DB_VERSION)
   }
    
   return(.Object)
