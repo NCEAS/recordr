@@ -119,7 +119,7 @@ setMethod("initialize", signature = "ExecMetadata", definition = function(.Objec
   }
   
   if(is.na(startTime)) {
-    .Object@startTime <- as.character(format(Sys.time(), format="%Y-%M-%d %H:%M:%S %Z"))
+    .Object@startTime <- as.character(format(Sys.time(), format="%Y-%m-%d %H:%M:%S %Z"))
   } else {
     .Object@startTime <- startTime
   }

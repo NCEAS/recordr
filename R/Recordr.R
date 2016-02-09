@@ -355,7 +355,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   
   # Disable provenance capture now that endRecord() has been called
   setProvCapture(FALSE)
-  recordrEnv$execMeta@endTime <- as.character(format(Sys.time(), format="%Y-%M-%d %H:%M:%S %Z"))
+  recordrEnv$execMeta@endTime <- as.character(format(Sys.time(), format="%Y-%m-%d %H:%M:%S %Z")) 
   # For each output dataset created by this execution, record a prov relationship of 'wasDerivedFrom' for each of the 
   # input datasets
   for (outputId in recordrEnv$execOutputIds) {
