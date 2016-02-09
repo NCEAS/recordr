@@ -139,8 +139,10 @@ setMethod("initialize", signature = "ExecMetadata", definition = function(.Objec
   if(is.na(moduleDependencies)) {
     # Get list of packages that recordr has loaded and store as characters, i.e.
     # "recordr 0.1, uuid 0.1-1, dataone 1.0.0, dataonelibs 1.0.0, XML 3.98-1.1, rJava 0.9-6"
-    pkgs <- sessionInfo()$otherPkgs
-    .Object@moduleDependencies <- paste(lapply(pkgs, function(x) paste(x$Package, x$Version)), collapse = ', ')
+    basePkgs   <- paste(sessionInfo()$basePkgs, collapse=", ")
+    loadedPkgs <- paste(lapply(sessionInfo()$loadedOnly, function(x) paste(x$Package, x$Version, sep="_")), collapse = ', ')
+    otherPkgs  <- paste(lapply(sessionInfo()$otherPkgs, function(x) paste(x$Package, x$Version, sep="_")), collapse = ', ')
+    .Object@moduleDependencies <- sprintf("%s, %s, %s", basePkgs, loadedPkgs, otherPkgs)
   } else {
     .Object@moduleDependencies <- moduleDependencies  
   }
