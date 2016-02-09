@@ -13,7 +13,7 @@ provWasAssociatedWith    <- sprintf("%s%s", provNS, "wasAssociatedWith")
 provAgent                <- sprintf("%s%s", provNS, "Agent")
 
 # Define constants from the ProvONE Ontology
-provONE_NS               <- "http://purl.org/provone/2015/15/ontology#"
+provONE_NS               <- "http://purl.dataone.org/provone/2015/01/15/ontology#"
 provONEprogram           <- sprintf("%s%s", provONE_NS, "Program")
 provONEexecution         <- sprintf("%s%s", provONE_NS, "Execution")
 provONEdata              <- sprintf("%s%s", provONE_NS, "Data")
