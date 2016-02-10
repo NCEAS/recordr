@@ -1,6 +1,7 @@
 [![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/recordr)](http://cran.r-project.org/web/packages/recordr)
 
 - **Author**: Peter Slaughter, Matthew B. Jones, Christopher Jones ([NCEAS](http://www.nceas.ucsb.edu))
+- [doi:10.5063/F1GF0RF6](http://doi.org/10.5063/F1GF0RF6)
 - **License**: [Apache 2](http://opensource.org/licenses/Apache-2.0)
 - [Package source code on Github](https://github.com/NCEAS/recordr)
 - [**Submit Bugs and feature requests**](https://github.com/NCEAS/recordr/issues)
@@ -70,5 +71,9 @@ record(rc, system.file("extdata/EmCoverage.R", package="recordr"), tag="First re
 listRuns(rc)
 viewRuns(rc)
 ```
+
+## Acknowledgements
+Work on this package was supported by NSF-ABI grant #1262458 to C. Gries, M. Jones, and S. Collins. Additional support
+was provided for working group collaboration by the National Center for Ecological Analysis and Synthesis, a Center funded by the University of California, Santa Barbara, and the State of California.
 
 [![nceas_footer](https://www.nceas.ucsb.edu/files/newLogo_0.png)](http://www.nceas.ucsb.edu)
