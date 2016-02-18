@@ -66,31 +66,63 @@ setClass("FileMetadata", slots = c(fileId = "character",
 #' @import uuid
 #' @import digest
 #' @seealso \code{\link[=FileMetadata-class]{FileMetadata}} { class description}
-setMethod("initialize", signature = "FileMetadata", definition = function(.Object, file=as.character(NA),
-                                                                          fileId=as.character(NA), 
-                                                                          executionId=as.character(NA), 
+setMethod("initialize", signature = "FileMetadata", definition = function(.Object, file,
+                                                                          fileId=as.character(NA),
+                                                                          sha256=as.character(NA),
+                                                                          size=as.integer(NA),
+                                                                          user=as.character(NA),
+                                                                          createTime=as.character(NA),
+                                                                          modifyTime=as.character(NA),
+                                                                          executionId,
                                                                           access=as.character(NA),
                                                                           format=as.character(NA),
                                                                           archivedFilePath=as.character(NA)) {
 
-  # Get info for this file. 
+  # Get info for this file, unless provided in argument list. 
   # file.info stores dates as POSIXct, so convert them to strings
   # so that they don't get written out as an integer timestamp, i.e. milliseconds since ref date
-  filePath <- normalizePath(file)
-  rawInfo <- base::file.info(filePath)    
+  # 'file' argument is required and can be a URL, so no file info available and should be provided on command 
+  # line, if possible
+  if(file.exists(file)) {
+    filePath <- normalizePath(file)
+    fpInfo <- file.info(filePath)
+  } else {
+    filePath <- file
+  }
   .Object@filePath <- filePath
-  .Object@sha256 <- as.character(digest::digest(object=filePath, algo="sha256", file=TRUE)[[1]])
-  .Object@size <- as.integer(rawInfo[["size"]])
-  .Object@user <- as.character(rawInfo[["uname"]])
-  .Object@createTime <- as.character(rawInfo[["ctime"]])
-  .Object@modifyTime <- as.character(rawInfo[["mtime"]])
+  
+  .Object@sha256 <- sha256
+  if(is.na(sha256)) {
+    if(file.exists(filePath)) .Object@sha256 <- as.character(digest::digest(object=filePath, algo="sha256", file=TRUE)[[1]])
+  }
+  
+  .Object@size <- size
+  if(is.na(size)) {
+    if(file.exists(filePath)) .Object@size <- as.integer(fpInfo[["size"]])
+  } 
+  
+  .Object@user <- user
+  if(is.na(user)) {
+    if(file.exists(filePath)) .Object@user <- as.character(fpInfo[["uname"]])
+  }
+  
+  .Object@createTime <- createTime
+  if(is.na(createTime)) {
+    if(file.exists(filePath)) .Object@createTime <- as.character(fpInfo[["ctime"]])
+  }
+  
+  .Object@modifyTime <- modifyTime
+  if(is.na(modifyTime)) {
+    if(file.exists(filePath)) .Object@modifyTime <- as.character(fpInfo[["mtime"]])
+  }
+  
+  # Required field, so it must have been specified as an argument
   .Object@executionId <- executionId
   
+  .Object@fileId <- fileId
   if(is.na(fileId)) {
     .Object@fileId <- sprintf("urn:uuid:%s", UUIDgenerate())
-  } else {
-    .Object@fileId <- fileId
-  }
+  } 
   .Object@access <- access
   .Object@format <- format
   .Object@archivedFilePath <- archivedFilePath
