@@ -29,14 +29,13 @@
 #' @slot dbConn A value of type \code{"SQLiteConnection"} that contains the connection of the recordr database
 #' @slot dbFile A valof of type \code{"character"} that contains the location of the recordr database file
 #' @rdname Recordr-class
-#' @import dataone
 #' @import datapackage
+#' @import methods
 #' @import uuid
 #' @import tools
 #' @import digest
-#' @import XML
-#' @import EML
 #' @import RSQLite
+#' @import XML
 #' @include Constants.R
 #' @section Methods:
 #' \itemize{
