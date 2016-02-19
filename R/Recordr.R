@@ -10,7 +10,7 @@
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
-#   Unless required by applicable law or agreed to in writing, software
+#   Unless required by  applicable law or agreed to in writing, software
 #   distributed under the License is distributed on an "AS IS" BASIS,
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
@@ -839,11 +839,8 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     seq                 <- thisRow@seq
     thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, executionId)
     
-    # Read the archived data package
-    #packageFile <- sprintf("%s/%s.pkg", thisRunDir, thisRow[["datapackageId"]])
-    # Deserialize saved data package
-    #pkg <- readRDS(file=packageFile)
-    #relations <- getRelationships(pkg)
+    # Read the RDF relationships that were saved to a file. For space considerations, the
+    # entire data package is not serialized to disk. 
     relations <- read.csv(sprintf("%s/%s.csv", thisRunDir, datapackageId), stringsAsFactors=FALSE)
     scriptURL <- relations[relations$predicate == "http://www.w3.org/ns/prov#hadPlan","object"]
     # Clear screen before showing results if we are paging the results
@@ -913,6 +910,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
       #     }
 
     }
+
     
     # Read the info file once, and prepare this dfs of read files and generated files
     if(is.element("used", sections) || is.element("generated", sections)) {
@@ -990,6 +988,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
                                                        seq=as.character(NA), 
                                                        assignDOI=FALSE, update=FALSE, quiet=TRUE) {
   
+# TODO: require EML, dataone, datapackage, XML
   if(is.na(id) && is.na(seq) ||
      !is.na(id) && !is.na(seq)) {
     stop("Please specify either \"seq\" or \"id\" parameter")
@@ -1108,7 +1107,6 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
       thisDatasetId <- emlObj@dataset@otherEntity[[iEntity]]@additionalInfo
       #thisDatasetId <- emlObj@dataset@otherEntity[[iEntity]]@alternateIdentifier
       if(fileId == thisDatasetId) {
-        #url <- sprintf("%s/object/%s", mn@endpoint, fileId)
         url <- sprintf("%s/%s", resolveURI, fileId)
         emlObj@dataset@otherEntity[[iEntity]]
         emlObj@dataset@otherEntity[[iEntity]]@physical@distribution@online@url <- url
@@ -1141,8 +1139,6 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     thisDataTypeURI <- thisRelationship[["dataTypeURI"]]
     insertRelationship(pkg, thisSubject, thisObject, thisPredicate, thisSubjectType,
                        thisObjectType, thisDataTypeURI)
-#     if(!quiet) cat(sprintf("subject: %s predicate: %s object: %s\n", thisSubject,
-#                    thisPredicate, thisObject))
   }
   
   if(!quiet) cat(sprintf("Uploading data package...\n"))
@@ -1651,3 +1647,4 @@ condenseStr <- function(filePath, newLength) {
   str2 <- substr(filePath, fnLen-(len2-1), fnLen)
   newStr <- sprintf("%s...%s", str1, str2)
   return(newStr)
+}
