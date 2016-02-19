@@ -1276,7 +1276,9 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
     # Save a backup copy first
     file.rename(metadataFile, metadataFileBackup)
     # Overwrite the existing metadata file
+    setProvCapture(FALSE)
     writeLines(metadata, metadataFile)
+    setProvCapture(TRUE)
   } else {
     if(!file.exists(metadata)) {
       stop(sprintf("Metadata file %s does not exists, unable to update run metadata\n", metadata))
