@@ -12,7 +12,7 @@ Description: Provide methods to record data provenance about R script executions
     provenance information along with any files created by the script can then
     be combined into a data package and published to a data repository such as
     DataONE <https://www.dataone.org>.
-Date: 2015
+Date: 2016-02-18
 Depends:
     R (>= 3.1.1),
     methods
@@ -21,13 +21,14 @@ Imports:
     datapackage,
     digest,
     XML,
+    RSQLite,
     EML,
     dataone,
-    RSQLite
+    ggplot2
 Suggests:
     knitr,
-    testthat,
-    ggplot2
+    png,
+    testthat
 License: Apache License 2.0
 URL: https://github.com/NCEAS/recordr
 BugReports: https://github.com/NCEAS/recordr/issues
