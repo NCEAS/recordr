@@ -1,5 +1,6 @@
-# Define constants from the Prov Ontology (http://www.w3.org/TR/prov-dm)
+RECORDR_DB_VERSION  <- "1.0.0"
 
+# Define constants from the Prov Ontology (http://www.w3.org/TR/prov-dm)
 RDF_NS                   <- "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 rdfType                  <- sprintf("%s%s", RDF_NS, "type")
 provNS                   <- "http://www.w3.org/ns/prov#"
