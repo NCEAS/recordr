@@ -229,6 +229,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
     foafName <- as.character(NA)
   } 
   
+  foafAccount <- recordrEnv$execMeta@user
   # Store the Prov relationship: association -> prov:agent -> user
   # Create the 'user' object as an RDF blank node, so that we can describe a user without a URI. All types of user id info will
   # be stored this way: orcid, foaf:name, local compuassociationId ter account
@@ -239,31 +240,33 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
   if(!is.na(orcidIdentifier)) {
     # TODO: properly type the orcid, i.e. the predicate in the following statement is not a type. It appears that there is
     # no ORCID ontology that defines the type for an ORCID
-    #insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = orcidURI, predicate = ORCID_NS, subjectType = "blank", objectType = "uri")
+    insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = orcidURI, predicate = ORCID_NS, subjectType = "blank", objectType = "uri")
     insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = orcidURI, predicate = ORCID_TYPE, subjectType = "blank", objectType = "uri")
     insertRelationship(recordrEnv$dataPkg, subjectID = orcidURI, objectID = ORCID_TYPE, predicate = rdfType)
   } else if (!is.na(foafName)) {
     insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = foafName, predicate = FOAF_NAME, subjectType = "blank", objectType = "uri")
     insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = FOAF_PERSON, predicate=rdfType, subjectType = "blank", objectType="uri")
+    insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = recordrEnv$execMeta@user, predicate=foafAccount, subjectType="blank", objectType="literal", dataTypeURI=xsdString)
   } else {
     # No other identification information available, so just use the username
     # Store the Prov relationship: association
-    userId <- recordrEnv$execMeta@user
-    insertRelationship(recordrEnv$dataPkg, subjectID = associationId , objectIDs=userId, predicate=provAgent, subjectType="blank", objectType="literal", dataTypeURI=xsdString)
+    insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs=recordrEnv$execMeta@user, predicate=FOAF_ACCOUNT, subjectType="blank", objectType="literal", dataTypeURI=xsdString)
   } 
   
   # Override R functions
-  recordrEnv$source <- recordr::recordr_source
+  #recordrEnv$source <- recordr::recordr_source
   
-  # override DataONE V1.1.0 methods
-  recordrEnv$get <- recordr::recordr_getD1Object
   #recordrEnv$createD1Object <- recordr::recordr_createD1Object
   # override DataONE v2.0 methods
-  recordrEnv$get <- recordr::recordr_D1MNodeGet
+  recordrEnv$getObject <- recordr::recordr_getObject
+  recordrEnv$create <- recordr::recordr_create
+  recordrEnv$updateObject <- recordr::recordr_updateObject
   # override R functions
   recordrEnv$read.csv <- recordr::recordr_read.csv
   recordrEnv$write.csv <- recordr::recordr_write.csv
   recordrEnv$ggsave <- recordr::recordr_ggsave
+  recordrEnv$readLines <- recordr::recordr_readLines
+  recordrEnv$writeLines <- recordr::recordr_writeLines
   
   # Create the run metadata directory for this record()
   dir.create(sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId), recursive = TRUE)
