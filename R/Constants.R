@@ -39,6 +39,7 @@ ORCID_Base_URL           <- "http://orcid.org"
 FOAF_NS                  <- "http://xmlns.com/foaf/0.1/"
 FOAF_NAME                <- sprintf("%sname", FOAF_NS)
 FOAF_PERSON              <- sprintf("%sPerson", FOAF_NS)
+FOAF_ACCOUNT             <- sprintf("%sAccount", FOAF_NS)
 
 DC_TERMS                  <- "http://purl.org/dc/terms/"
 DC_IDENTIFIER             <- sprintf("%s/identifier", DC_TERMS)
