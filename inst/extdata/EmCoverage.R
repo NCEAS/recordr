@@ -1,5 +1,4 @@
 library(dataone)
-library(ggplot2)
 # This test script can be used to test the 'record' method of the recordr package.
 # This script downloads a dataset from DataONE and creates a local CSV file from
 # this dataset.
@@ -14,6 +13,9 @@ myDir <- tempdir()
 csvOutFile <- sprintf("%s/Endocladia_muricata.csv", myDir)
 write.csv(endocladia_coverage, file = csvOutFile)
 plotFile <- sprintf("%s/emCoverage.png", myDir)
-qplot(endocladia_coverage$longitude.dd., endocladia_coverage$latitude.dd., xlab="longitude", ylab="latitude",
-       main="Endocladia muricata distribution")
-ggsave(plotFile, plot=last_plot())
+# If ggplot2 is available, create a plot
+if(suppressWarnings(require(ggplot2))) {
+  qplot(endocladia_coverage$longitude.dd., endocladia_coverage$latitude.dd., xlab="longitude", ylab="latitude",
+         main="Endocladia muricata distribution")
+  ggsave(plotFile, plot=last_plot())
+}
