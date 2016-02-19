@@ -1,57 +1,140 @@
 # 
 # This file contains recordr functions that override the corresponding functions from R and DataONE.
-# recordr overrides these functions so that provenance information can be recorded for the
-# operations that these fuctions perform.
-# calls the corresponding function in R or DataONE. For example, when the user's script calls
-# D1get, the rD1get call is called here, provenance tasks are performed, then the real D1get is
-# called.
-# See the 'record' method to see how the overriding of the methods is performed.
+# These functions are overriden so that provenance information can be recorded for the files that
+# are read and written.
 #
-#' @import dataone
 #' @include Constants.R
-
-#' Override the DataONE MNode::get function so that recordr can record when the user's script uses a DataONE dataset
 #' @export
-setGeneric("recordr_D1MNodeGet", function(node, pid) {
-  standardGeneric("recordr_D1MNodeGet")
-})
-
-setMethod("recordr_D1MNodeGet", signature("MNode", "character"), function(node, pid) {
-  
+recordr_getObject <- function(node, pid, ...) {
   # Call the masked function to retrieve the DataONE object
-  #cat(sprintf("In recordr_D1MNodeGet\n"))
-  d1o <- dataone::get(node, pid)
-  
+  if(suppressWarnings(require(dataone))) {
+    # Call the original function that we are overriding
+    d1o <- dataone::getObject(node, pid, ...)
+  } else {
+    warning("recordr package is tracing getObject(), but package \"dataone\" is not available.")
+    return(raw())
+  } 
   # Write provenance info for this object to the DataPackage object.
   if (getProvCapture()) {
-    recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
-    
+    recordrEnv <- as.environment(".recordr")
     # Record the DataONE resolve service endpoint + pid for the object of the RDF triple
-    # Decode the URL that will eventually be added to the resource map
-    D1_resolve_pid <- URLdecode(sprintf("%s/%s", D1_CN_Resolve_URL, pid))
+    # Decode the URL that will be added to the resource map
+    D1_URL <- URLdecode(sprintf("%s/object/%s", node@endpoint, pid))
     # Record prov:used relationship between the input dataset and the execution
-    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=D1_resolve_pid, predicate=provUsed)
+    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=D1_URL, predicate=provUsed)
     # Record relationship identifying this dataset as a provone:Data
-    insertRelationship(recordrEnv$dataPkg, subjectID=D1_resolve_pid, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
-    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, D1_resolve_pid)
+    insertRelationship(recordrEnv$dataPkg, subjectID=D1_URL, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, D1_URL)
+    # Write file metadata only, don't locally archive the file sent to DataONE, as this
+    # operation is 'reading' the file from DataONE. If the script did read this file
+    # locally by some other means (e.g. "readLines", "read.csv") then a separate prov entry
+    # will be captured for that read.
+    fId<- sprintf("urn:uuid:%s", UUIDgenerate())
+    filemeta <- new("FileMetadata", file=D1_URL, 
+                    fileId=fId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="read", format="application/octet-stream",
+                    archivedFilePath=as.character(NA))
+    writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
   return(d1o)
-  
-})
-    
+}
+
+# Override the DataONE 'create' method
+#' @export
+recordr_create <- function(mnode, pid, file, sysmeta, ...) {
+  if(suppressWarnings(require(dataone))) {
+    # Call the overridden function
+    result <- dataone::create(mnode, pid, file, sysmeta, ...)
+  } else {
+    warning("recordr package is tracing getObject(), but package \"dataone\" is not available.")
+    return(as.character(NA))
+  } 
+  # Record provenance if not disabled 
+  if (getProvCapture()) {
+    setProvCapture(FALSE)
+    recordrEnv <- as.environment(".recordr")
+    # Record the DataONE endpoint + pid for the object of the RDF triple
+    D1_URL <- URLdecode(sprintf("%s/object/%s", mnode@endpoint, pid))
+    # Record prov:wasGeneratedByrelationship between the created dataset and the execution
+    insertRelationship(recordrEnv$dataPkg, subjectID=D1_URL, objectIDs=recordrEnv$execMeta@executionId, predicate=provWasGeneratedBy)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=D1_URL, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, D1_URL)
+    # The DataONE URL is the subject of the 'wasGeneratedBy' relationship, i.e. D1 URL -> wasGeneratedBy -> script,
+    # so the URL is used instead of the filename. The file info will be collected from the local file however, i.e.
+    # the size, checksum, etc. Also, this local file will not be archived, as it is available from DataONE.
+    fId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    fpInfo <- file.info(file)
+    filemeta <- new("FileMetadata", file=D1_URL, 
+                    fileId=fId,
+                    sha256=digest(object=file, algo="sha256", file=TRUE)[[1]],
+                    size=as.integer(fpInfo[["size"]]),
+                    user=fpInfo[["uname"]],
+                    createTime=as.character(fpInfo[["ctime"]]),
+                    modifyTime=as.character(fpInfo[["mtime"]]),
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="write", format="application/octet-stream",
+                    archivedFilePath=as.character(NA))
+    writeFileMeta(recordrEnv$recordr, filemeta)
+    setProvCapture(TRUE)
+  }
+  # Return the value from the overridden function
+  return(result)
+}
+
+# Override the DataONE 'update' method
+#' @export
+recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
+  if(suppressWarnings(require(dataone))) {
+    # Call the overridden function
+    result <- dataone::updateObject(mnode, pid, file, newpid, sysmeta)
+  } else {
+    warning("recordr package is tracing dataone::update(), but package dataone is not available.")
+    return(as.character(NA))
+  } 
+  if (getProvCapture()) {
+    setProvCapture(FALSE)
+    recordrEnv <- as.environment(".recordr")
+    # Record the DataONE endpoint + pid for the object of the RDF triple
+    D1_URL <- URLdecode(sprintf("%s/object/%s", mnode@endpoint, pid))
+    # Record prov:wasGeneratedByrelationship between the input dataset and the execution
+    insertRelationship(recordrEnv$dataPkg, subjectID=D1_URL, objectIDs=recordrEnv$execMeta@executionId, predicate=provWasGeneratedBy)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=D1_URL, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    # Record the execution outputs that will be used to assert 'prov:wasDerivedFrom' relationships
+    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, D1_URL)
+    # The DataONE URL is the subject of the 'wasGeneratedBy' relationship, i.e. D1 URL -> wasGeneratedBy -> script,
+    # so the URL is used instead of the filename. The file info will be collected from the local file however, i.e.
+    # the size, checksum, etc. Also, this local file will not be archived, as it is available from DataONE.
+    fId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    fpInfo <- file.info(file)
+    filemeta <- new("FileMetadata", file=D1_URL, 
+                    fileId=fId,
+                    sha256=digest(object=file, algo="sha256", file=TRUE)[[1]],
+                    size=as.integer(fpInfo[["size"]]),
+                    user=fpInfo[["uname"]],
+                    createTime=as.character(fpInfo[["ctime"]]),
+                    modifyTime=as.character(fpInfo[["mtime"]]),
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="write", format="application/octet-stream",
+                    archivedFilePath=as.character(NA))
+    writeFileMeta(recordrEnv$recordr, filemeta)
+    setProvCapture(TRUE) 
+  }
+  # Return the value from the overridden function
+  return(result)
+}
+
 # Override the 'source' function so that recordr can detect when the user's script sources another script
 #' @export
-setGeneric("recordr_source", function(file, ...) {
-  standardGeneric("recordr_source")
-})
-
-setMethod("recordr_source", "character", function (file, local = FALSE, echo = verbose, print.eval = echo,
-                                                   verbose = getOption("verbose"), prompt.echo = getOption("prompt"),
-                                                   max.deparse.length = 150, chdir = FALSE, encoding = getOption("encoding"),
-                                                   continue.echo = getOption("continue"), skip.echo = 0,
-                                                   keep.source = getOption("keep.source")) {
+recordr_source <- function (file, local = FALSE, echo = verbose, print.eval = echo,
+                            verbose = getOption("verbose"), prompt.echo = getOption("prompt"),
+                            max.deparse.length = 150, chdir = FALSE, encoding = getOption("encoding"),
+                            continue.echo = getOption("continue"), skip.echo = 0,
+                            keep.source = getOption("keep.source")) {
   if(length(verbose) == 0)
     verbose = FALSE
   
@@ -70,112 +153,33 @@ setMethod("recordr_source", "character", function (file, local = FALSE, echo = v
   # Record the provenance relationship between the sourcing script and the sourced script
   # as 'sourced script <- wasInfluenceddBy <- sourcing script
   # i.e. insertRelationship
+}
 
-})
-
-# Override the DataONE 'MNODE:create' method
-#setMethod("recordr_create", signature("MNode", "character"), function(mnode, pid, filepath, sysmeta) {
-#  print("in method recordr_create")
-#}
-
-# Override the rdataone 'getD1Object' method
-# record the provenance relationship of script <- used <- D1Object
+#' Override the R 'write.csv' method
+#' @description Record the provenance relationship of local objecct <- wasGeneratedBy <- script
 #' @export
-setGeneric("recordr_getD1Object", function(x, identifier, ...) { 
-  standardGeneric("recordr_getD1Object")
-})
-
-setMethod("recordr_getD1Object", "D1Client", function(x, identifier) {
-  d1o <- dataone::get(x, identifier)
-  
-  # Record the provenance relationship between the downloaded D1 object and the executing script
-  # as 'script <- used <- D1Object
-  # i.e. insertRelationship
-  # Record the provenance relationship between the user's script and the derived data file
-  # Write provenance info for this object to the DataPackage object.
-  if (getProvCapture()) {
-    recordrEnv <- as.environment(".recordr")
-    setProvCapture(FALSE)
-    
-    # Record the DataONE resolve service endpoint + pid for the object of the RDF triple
-    D1_resolve_pid <- URLdecode(sprintf("%s/%s", D1_CN_Resolve_URL, identifier))
-    # Record prov:used relationship between the input dataset and the execution
-    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=D1_resolve_pid, predicate=provUsed)
-    # Record relationship identifying this dataset as a provone:Data
-    insertRelationship(recordrEnv$dataPkg, subjectID=D1_resolve_pid, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
-    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, D1_resolve_pid)
-    #archivedFilePath <- archiveFile(file=file)
-    filemeta <- new("FileMetadata", file=D1_resolve_pid, 
-                    fileId=datasetId, 
-                    executionId=recordrEnv$execMeta@executionId, 
-                    access="read", format="text/csv",
-                    archivedFilePath=as.character(NA))
-    writeFileMeta(recordrEnv$recordr, filemeta)
-    setProvCapture(TRUE)
-  }
-  
-  return(d1o)
-})
-
-# Override the rdataone 'createD1Object' method
-# record the provenance relationship of script <- used <- D1Object
-#
-## @export
-# setGeneric("recordr_createD1Object", function(x, d1Object, ...) { 
-#   standardGeneric("recordr_createD1Object")
-# })
-# 
-# setMethod("recordr_createD1Object", signature("D1Client", "D1Object"), function(x, d1Object, ...) {
-#   
-#   #cat(sprintf("recordr_createD1Object"))
-#   d1o <- dataone::getD1Object(x, identifier)
-#   
-#   # Record the provenance relationship between the downloaded D1 object and the executing script
-#   # as 'script <- used <- D1Object
-#   # i.e. insertRelationship
-#   
-#   return(d1o)
-#   
-# })
-
-# Register "textConnection" as an S4 class so that we use it in the
-# method signatures below.
-setOldClass("textConnection", "connection")
-
-# Override the R 'write.csv' method
-# record the provenance relationship of local objecct <- wasGeneratedBy <- script
-#' @export
-setGeneric("recordr_write.csv", function(x, file, ...) {
-  standardGeneric("recordr_write.csv")
-})
-
-setMethod("recordr_write.csv", signature("data.frame", "character"), function(x, file, ...) {
-  
-  #cat(sprintf("In recordr_write.csv\n"))
+recordr_write.csv <- function(x, file, ...) {
   # Call the original function that we are overriding
   obj <- utils::write.csv(x, file, ...)
-  
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture()) {
+    # Currently connections are not traced
+    if(is.element("connection", class(file))) {
+      #message(sprintf("Tracing write.csv from a connection is not supported."))
+      return(dataRead)
+    }
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
-    user <- recordrEnv$execMeta@user
-    #datasetId <- sprintf("%s_%s.%s", tools::file_path_sans_ext(basename(file)), UUIDgenerate(), tools::file_ext(file))
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
-    con <- textConnection("data", "w", local=TRUE)
-    utils::write.csv(x, file=con, ...)
-    close(con)
-    csvdata <- charToRaw(paste(data, collapse="\n"))
     # Create a data package object for the derived dataset
     dataFmt <- "text/csv"
-    dataObj <- new("DataObject", datasetId, csvdata, dataFmt, user, recordrEnv$mnNodeId)
-    # TODO: use file argument when file size is greater than a configuration value
-    #dataObj <- new("DataObject", id=datasetId, filename=normalizePath(file), format=dataFmt, user=user, mnNodeId=recordrEnv$mnNodeId)    
+    dataObj <- new("DataObject", id=datasetId, file=file, format=dataFmt)
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
     addData(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
     # Record relationship identifying this dataset as a provone:Data
-    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    # Record the execution outputs that will be used to assert 'prov:wasDerivedFrom' relationships
     recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, datasetId)
     # Save a copy of this generated file to the recordr archiv
     archivedFilePath <- archiveFile(file=file)
@@ -188,21 +192,11 @@ setMethod("recordr_write.csv", signature("data.frame", "character"), function(x,
     setProvCapture(TRUE)
   }
   return(obj)
-})
+}
 
-setMethod("recordr_write.csv", signature("data.frame", "textConnection"), function(x, file, ...) {
-  #cat(sprintf("recordr_write.csv for textConnection\n"))
-  obj <- utils::write.csv(x, file, ...)
-})
-
-#' Override the R 'read.csv' method 
-#' @description record the provenance relationship of local objecct <- wasGeneratedBy <- script
+#' Override read.csv
 #' @export
-setGeneric("recordr_read.csv", function(...) { 
-  standardGeneric("recordr_read.csv")
-})
-
-setMethod("recordr_read.csv", signature(), function(...) {
+recordr_read.csv <- function(...) {
   dataRead <- utils::read.csv(...)
   # Record the provenance relationship between the user's script and an input data file.
   # If the user didn't specify a data file, i.e. they are reading from a text connection,
@@ -227,6 +221,12 @@ setMethod("recordr_read.csv", signature(), function(...) {
     cat(paste0("Error: unknown arguments passed to record_read.csv: ", argList))
   }
   
+  # Currently connections are not traced
+  if(is.element("connection", class(fileArg))) {
+    #message(sprintf("Tracing read.csv from a connection is not supported."))
+    return(dataRead)
+  }
+  
   if (getProvCapture()) {
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
@@ -244,7 +244,8 @@ setMethod("recordr_read.csv", signature(), function(...) {
     # Record prov:wasUsedBy relationship between the input dataset and the execution
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
     # Record relationship identifying this dataset as a provone:Data
-    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectType="uri")
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    # Record the execution inputs that will be used to assert 'prov:wasDerivedFrom' relationships
     recordrEnv$execInputIds <- c(recordrEnv$execInputIds, datasetId)
     # Save a copy of this input file into the recordr archive
     archivedFilePath <- archiveFile(file=fileArg)
@@ -258,25 +259,17 @@ setMethod("recordr_read.csv", signature(), function(...) {
     setProvCapture(TRUE)
   }
   return(dataRead)
-})
+}
 
-setMethod("recordr_read.csv", signature("textConnection"), function(file, ...) {
-  #print("recordr_read.csv for textConnection\n")
-  obj <- utils::read.csv(file, ...)
-})
-
-# Override ggplot2::ggsave function
+#' Override ggplot2::ggsave()
 #' @export
-setGeneric("recordr_ggsave", function(filename, ...) {
-  standardGeneric("recordr_ggsave")
-})
-
-setMethod("recordr_ggsave", signature("character"), function(filename, ...) {
-  
-  #cat(sprintf("In recordr_ggsave\n"))
-  # Call the original function that we are overriding
-  obj <- ggplot2::ggsave(filename, ...)
-  #cat(sprintf("Done calling ggsave.\n"))
+recordr_ggsave <- function(filename, ...) {
+  if(suppressWarnings(require(ggplot2))) {
+    # Call the original function that we are overriding
+    obj <- ggplot2::ggsave(filename, ...)
+  } else {
+    warning("recordr package is tracing ggplot2::ggsave(), but package ggplot2 is not available.")
+  }
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture()) {
@@ -453,11 +446,7 @@ recordr_scan <- function(file, ...) {
 #' @return enabled a logical indicating the state of provenance capture: TRUE=enabled, FALSE=disabled
 #' @author slaughter
 #' @export
-setGeneric("setProvCapture", function(enable) {
-  standardGeneric("setProvCapture")
-})
-
-setMethod("setProvCapture", signature("logical"), function(enable) {
+setProvCapture <- function(enable) {
   # If the '.recordr' environment hasn't been created, then we are calling this
   # function outside the context of record(), so don't attempt to update the environment'
   if (is.element(".recordr", base::search())) {
@@ -468,16 +457,12 @@ setMethod("setProvCapture", signature("logical"), function(enable) {
     # didn't exist, then provenance capture is certainly not enabled.    
     return(FALSE)
   }
-})
+}
 
 #' Return current state of provenance capture
 #' @return enabled a logical indicating the state of provenance capture: TRUE=enabled, FALSE=disabled
 #' @export
-setGeneric("getProvCapture", function(x) {
-  standardGeneric("getProvCapture")
-})
-
-setMethod("getProvCapture", signature(), function(x) {
+getProvCapture <-  function(x) {
   # The default state for provenance capture is enabled = FALSE. Currently in this package,
   # provenance capture is only enabled when the record() function is running.
   #
@@ -493,7 +478,7 @@ setMethod("getProvCapture", signature(), function(x) {
     enabled <- FALSE
   }
   return(enabled)
-})
+}
 
 #' Archive a file into the recordr archive directory
 #' @param file The file to save in the archive
@@ -510,7 +495,7 @@ archiveFile <- function(file) {
   recordrEnv <- as.environment(".recordr") 
   # First check if a file with the same sha256 has been accessed before.
   # If it has, then don't archive this file again, and return the
-  # archived location of the previously archived fileo
+  # archived location of the previously archived file.
   fm <- readFileMeta(recordrEnv$recordr, sha256=digest::digest(object=file, algo="sha256", file=TRUE))
   if(nrow(fm) > 0) {
     archivedRelFilePath <- fm[1, "archivedFilePath"]
@@ -542,4 +527,3 @@ archiveFile <- function(file) {
   # TODO: Check if the file was actually copied
   return(archivedRelFilePath)
 }
-
