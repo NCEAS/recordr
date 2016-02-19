@@ -239,7 +239,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
   if(!is.na(orcidIdentifier)) {
     # TODO: properly type the orcid, i.e. the predicate in the following statement is not a type. It appears that there is
     # no ORCID ontology that defines the type for an ORCID
-    insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = orcidURI, predicate = ORCID_NS, subjectType = "blank", objectType = "uri")
+    #insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = orcidURI, predicate = ORCID_NS, subjectType = "blank", objectType = "uri")
     insertRelationship(recordrEnv$dataPkg, subjectID = userBlankNodeId, objectIDs = orcidURI, predicate = ORCID_TYPE, subjectType = "blank", objectType = "uri")
     insertRelationship(recordrEnv$dataPkg, subjectID = orcidURI, objectID = ORCID_TYPE, predicate = rdfType)
   } else if (!is.na(foafName)) {
