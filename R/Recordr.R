@@ -1129,16 +1129,17 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # Add the saved relationships back in the data package
   relationshipFile <- sprintf("%s/%s.csv", runDir, packageId)
   relationships <- read.csv(relationshipFile, stringsAsFactors=FALSE)
+  str(relationships)
   for(i in 1:nrow(relationships)) {
     thisRelationship <- relationships[i,]
     thisSubject <- thisRelationship[["subject"]]
     thisPredicate <- thisRelationship[["predicate"]]
     thisObject <- thisRelationship[["object"]]
     thisSubjectType <- thisRelationship[["subjectType"]]
-    thisObjectType <- thisRelationship[["objectType"]]
-    thisDataTypeURI <- thisRelationship[["dataTypeURI"]]
-    insertRelationship(pkg, thisSubject, thisObject, thisPredicate, thisSubjectType,
-                       thisObjectType, thisDataTypeURI)
+    thisObjectType <- thisRelationship[["objectTypes"]]
+    thisDataTypeURI <- thisRelationship[["dataTypeURIs"]]
+    insertRelationship(pkg, subjectID=thisSubject, objectIDs=thisObject, predicate=thisPredicate, 
+                       subjectType=thisSubjectType, objectTypes=thisObjectType, dataTypeURIs=thisDataTypeURI)
   }
   
   if(!quiet) cat(sprintf("Uploading data package...\n"))
