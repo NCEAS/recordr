@@ -1625,3 +1625,25 @@ execMetaTodata.frame <- function(execMetaList) {
   }
   return(rundf)
 }
+
+# Return a shortened version of a filename to the specified length. The
+# beginning and end of the filename is returned, with ellipses inbetween
+# to denote the removed portion, e.g. 
+#    filename <- "/Users/smith/data/urn:uuid:a84c2234-d07f-41d6-8c53-61b570afc79f.csv", 30)
+# filename set to "/Users/smith...1b570afc79f.csv"
+condenseStr <- function(filePath, newLength) {
+  fnLen <- nchar(filePath)[[1]]
+  if(newLength >= fnLen) return(filePath)
+  # Requested length too short, so return first part of string
+  if(newLength < 5) return(substr(filePath, 1, newLength))
+  # Substract space for ellipses
+  charLen <- as.integer(newLength - 3)
+  # Get str before ellipses
+  len1 <- as.integer(charLen / 2)
+  # Add additional char at end if desired length is odd
+  len2 <- as.integer(charLen / 2) + charLen %% 2
+  # Get str after ellipses
+  str1 <- substr(filePath, 1, len1)
+  str2 <- substr(filePath, fnLen-(len2-1), fnLen)
+  newStr <- sprintf("%s...%s", str1, str2)
+  return(newStr)
