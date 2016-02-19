@@ -298,7 +298,6 @@ recordr_ggsave <- function(filename, ...) {
                     archivedFilePath=archivedFilePath)
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
-    cat(sprintf("record_ggsave done\n"))
   }
   return(obj)
 }
