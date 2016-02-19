@@ -1085,10 +1085,11 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     format <- thisFile[['format']]
     fileId <- thisFile[['fileId']]
     access <- thisFile[['access']]
+    origFilename <- thisFile[['filePath']]
     filePath <- sprintf("%s/%s", recordr@recordrDir, thisFile[['archivedFilePath']])
     # Create DataObject for the science dataone
     # sysmeta@sumitter and rightsholder will be set to subject from auth token or X.509 certificate
-    sciObj <- new("DataObject", id=fileId, format=format, mnNodeId=mnId, filename=filePath)
+    sciObj <- new("DataObject", id=fileId, format=format, mnNodeId=mnId, filename=filePath, suggestedFilename=basename(origFilename))
     if (public) sciObj <- setPublicAccess(sciObj)
     # During endRecord(), each science object was associated with the metadata object
     # via insertRelationship() with the 'documetns' relationship. These relationships
