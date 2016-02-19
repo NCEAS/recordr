@@ -593,14 +593,16 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   
   if(!is.null(whereClause)) {
     deleteWhereClause <- whereClause
+    if(!is.null(subSelect)) {
+      deleteWhereClause <- paste(deleteWhereClause, " and", subSelect, sep=" ")
+    } 
   } else {
     deleteWhereClause <- " where"
+    if(!is.null(subSelect)) {
+      deleteWhereClause <- paste(deleteWhereClause, subSelect, sep=" ")
+    } 
   }
    
-  if(!is.null(subSelect)) {
-    deleteWhereClause <- paste(deleteWhereClause, " and", subSelect, sep=" ")
-  } 
-  
   # Remove table name abbreviations, i.e. 'e.executionId, t.tags' because SQLite doesn't allow them in DELETE statements
   deleteWhereClause <- gsub("e\\.", "", deleteWhereClause, perl=TRUE)
   deleteWhereClause <- gsub("t\\.", "", deleteWhereClause, perl=TRUE)
