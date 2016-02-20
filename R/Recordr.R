@@ -622,7 +622,7 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
       if (noop) {
         message(sprintf("The following %d runs would have been deleted:\n", length(runs)))
       } else {
-        message(sprintf("The following %d runs have been deleted:\n", length(runs)))
+        message(sprintf("The following %d runs will be deleted:\n", length(runs)))
       }
     }
   }
@@ -634,14 +634,26 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
   # Loop through selected runs
   for(i in 1:length(runs)) {
     row <- runs[[i]]
-    thisrunId <- row@executionId
-    thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, thisrunId)
+    thisRunId <- row@executionId
+    thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, thisRunId)
     if (!noop) {
       if(thisRunDir == sprintf("%s/runs", recordr@recordrDir) || thisRunDir == "") {
         stop(sprintf("Error determining directory to remove, directory: %s", thisRunDir))
       }
       unlink(thisRunDir, recursive = TRUE)
-      # TODO: delete all files associated with this run from the file archive
+      # Delete all file access entries for this execution, for any type of access,
+      # i.e. "read", "write", "execute"
+      # The file info for the deleted entries is returned
+      fstatsAll <- readFileMeta(recordr, executionId=thisRunId)
+      # Loop through the deleted file entries and unarchive any file associated with
+      # this run, i.e. files read, wriiten, executed, ect.
+      for (ifile in 1:nrow(fstatsAll)) {
+        thisFileId <- fstatsAll[ifile, 'fileId']
+        # First delete the file in the archive, if no other executions are refering to it.
+        unArchiveFile(recordr, thisFileId)
+        # Then delete the database entry for it.
+        fdel <- readFileMeta(recordr, fileId=thisFileId, delete=TRUE)
+      }
     }
     if (! quiet) {
       printRun(row)
@@ -1652,4 +1664,31 @@ condenseStr <- function(filePath, newLength) {
   str2 <- substr(filePath, fnLen-(len2-1), fnLen)
   newStr <- sprintf("%s...%s", str1, str2)
   return(newStr)
+}
+
+#' Remove a file from the recordr archive directory
+#' @param fileId The fileId to remove from the archive
+#' @return A logical value - TRUE if the file is remove, FALSE if not
+#' @import uuid
+#' @note This function is intended to run only during a record() session, i.e. the
+#' recordr environment needs to be available.
+unArchiveFile <- function(recordr, fileId) {
+  # Delete a file from the file archive if no other execution is still 
+  # referencing it. Note that when executions archive files that they use, 
+  # if the file already is in the archive, it will just be referenced by the 
+  # new execution, and not re-archived.
+  archivedFilePath <- as.character(NA)
+  fm <- readFileMeta(recordr, fileId=fileId)
+  if(nrow(fm) == 0) {
+    warning("File not found in database, unable to delete file from archive with fileId: %s", fileId)
+  } else {
+    # Are more that the current execution referencing the file? If yes, then don't delete it.
+    checksum <- fm[1,'sha256']
+    frefs <- readFileMeta(recordr, sha256=checksum)
+    if(nrow(frefs) == 1) {
+      archivedFilePath <- sprintf("%s/%s", recordr@recordrDir, fm[1,'archivedFilePath'])
+      unlink(archivedFilePath, force=TRUE)
+    }
+  }
+  invisible(archivedFilePath)
 }
