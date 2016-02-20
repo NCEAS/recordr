@@ -11,8 +11,7 @@ recordr_getObject <- function(node, pid, ...) {
     # Call the original function that we are overriding
     d1o <- dataone::getObject(node, pid, ...)
   } else {
-    warning("recordr package is tracing getObject(), but package \"dataone\" is not available.")
-    return(raw())
+    stop("recordr package is tracing getObject(), but package \"dataone\" is not available.")
   } 
   # Write provenance info for this object to the DataPackage object.
   if (getProvCapture()) {
@@ -49,8 +48,7 @@ recordr_create <- function(mnode, pid, file, sysmeta, ...) {
     # Call the overridden function
     result <- dataone::create(mnode, pid, file, sysmeta, ...)
   } else {
-    warning("recordr package is tracing getObject(), but package \"dataone\" is not available.")
-    return(as.character(NA))
+    stop("recordr package is tracing getObject(), but package \"dataone\" is not available.")
   } 
   # Record provenance if not disabled 
   if (getProvCapture()) {
@@ -92,8 +90,7 @@ recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
     # Call the overridden function
     result <- dataone::updateObject(mnode, pid, file, newpid, sysmeta)
   } else {
-    warning("recordr package is tracing dataone::update(), but package dataone is not available.")
-    return(as.character(NA))
+    stop("recordr package is tracing dataone::update(), but package dataone is not available.")
   } 
   if (getProvCapture()) {
     setProvCapture(FALSE)
@@ -264,15 +261,16 @@ recordr_read.csv <- function(...) {
 #' Override ggplot2::ggsave()
 #' @export
 recordr_ggsave <- function(filename, ...) {
-  if(suppressWarnings(require(ggplot2))) {
+  if (suppressWarnings(require("ggplot2"))) {
     # Call the original function that we are overriding
     obj <- ggplot2::ggsave(filename, ...)
   } else {
-    warning("recordr package is tracing ggplot2::ggsave(), but package ggplot2 is not available.")
+    stop("recordr package is tracing ggplot2::ggsave(), but package ggplot2 is not available.")
   }
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture()) {
+    message("tracing recordr_ggssave")
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
     user <- recordrEnv$execMeta@user
