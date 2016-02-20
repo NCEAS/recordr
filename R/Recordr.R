@@ -746,11 +746,9 @@ printRun <- function(run=NA, headerOnly = FALSE)  {
     if(console) {
       thisScript <- "Console log"
     } else {
-      thisScript       <- run@softwareApplication
+      thisScript <- run@softwareApplication
       # Print shortened form of script name, e.g. "/home/slaugh...ocalReadWrite.R"
-      if(nchar(thisScript) > scriptNameLength-nchar("...")) {
-        thisScript       <- sprintf("%s...%s", substring(thisScript, 1, 12), substring(thisScript, nchar(thisScript)-14, nchar(thisScript)))
-      } 
+      thisScript <- condenseStr(run@softwareApplication, 30)
     }
     thisStartTime    <- run@startTime
     thisEndTime      <- run@endTime
@@ -770,7 +768,7 @@ printRun <- function(run=NA, headerOnly = FALSE)  {
       for(iTag in 2:length(run@tag)) {
         thisTag <- run@tag[[iTag]]
         cat(sprintf(fmtSecondary, padding, strtrim(thisTag, tagLength)))
-    }
+      }
     }
   }
 }
@@ -858,10 +856,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
       if(console) {
         cat(sprintf("Started recording console input at %s\n", startTime))
       } else {      
-        if(nchar(thisScript) > scriptNameLength-nchar("...")) {
-          thisScript <- sprintf("%s...%s", substring(thisScript, 1, 15), substring(thisScript, nchar(thisScript)-3, nchar(thisScript)))
-        } 
-        cat(sprintf("%s was executed on %s\n", dQuote(thisScript), startTime))
+        cat(sprintf("%s was executed on %s\n", dQuote(condenseStr(thisScript, 30)), startTime))
       }
       cat(sprintf("Tag: %s\n", dQuote(paste(tag, collapse=","))))
       cat(sprintf("Run sequence #: %d\n", seq))
