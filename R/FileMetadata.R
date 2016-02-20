@@ -46,7 +46,7 @@ setClass("FileMetadata", slots = c(fileId = "character",
                                    executionId = "character",
                                    filePath    = "character",
                                    sha256      = "character",
-                                   size        = "integer",
+                                   size        = "numeric",
                                    user        = "character",
                                    createTime  = "character",
                                    modifyTime  = "character",
@@ -69,7 +69,7 @@ setClass("FileMetadata", slots = c(fileId = "character",
 setMethod("initialize", signature = "FileMetadata", definition = function(.Object, file,
                                                                           fileId=as.character(NA),
                                                                           sha256=as.character(NA),
-                                                                          size=as.integer(NA),
+                                                                          size=as.numeric(0),
                                                                           user=as.character(NA),
                                                                           createTime=as.character(NA),
                                                                           modifyTime=as.character(NA),
@@ -97,8 +97,8 @@ setMethod("initialize", signature = "FileMetadata", definition = function(.Objec
   }
   
   .Object@size <- size
-  if(is.na(size)) {
-    if(file.exists(filePath)) .Object@size <- as.integer(fpInfo[["size"]])
+  if(size == 0) {
+    if(file.exists(filePath)) .Object@size <- as.numeric(fpInfo[["size"]])
   } 
   
   .Object@user <- user
@@ -199,6 +199,10 @@ setMethod("writeFileMeta", signature("Recordr", "FileMetadata"), function(record
       slotValuesStr <- ifelse(is.null(slotValuesStr),  
                               slotValuesStr <- sQuote(slotValues[i]), 
                               slotValuesStr <- paste(slotValuesStr, sQuote(slotValues[i]), sep=","))
+    } else if (slotName == "size") {
+      # Size is a number, so shouldn't need quotes.
+      # However, make sure the size isn't inserted into the db in scientific notation format
+      slotValuesStr <- paste(slotValuesStr, format(as.numeric(slotValues[i]), scientific=FALSE), sep=",")
     } else {
       # All other datatypes don't get quotes
       slotValuesStr <- ifelse(is.null(slotValuesStr),  
