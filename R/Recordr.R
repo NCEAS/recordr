@@ -124,9 +124,7 @@ setMethod("initialize", signature = "Recordr",
 #' @param tag a string that is associated with this run
 #' @param .file the filename for the script to run (only used internally when startRecord() is called from record())
 #' @param .console a logical argument that is used internally by the recordr package
-#' @import dataone
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
-#' @import ggplot2
 #' @export
 setGeneric("startRecord", function(recordr, ...) {
   standardGeneric("startRecord")
@@ -982,8 +980,6 @@ setGeneric("publishRun", function(recordr, ...) {
 })
 
 #' @rdname publishRun
-#' @import EML
-#' @import dataone
 #' @param id the run identifier for the execution to upload to DataONE
 #' @param seq The sequence number for the execution to upload to DataONE
 #' @param assignDOI a boolean value: if TRUE, assign DOI values for system metadata, otherwise assign uuid values
@@ -994,7 +990,14 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
                                                        seq=as.character(NA), 
                                                        assignDOI=FALSE, update=FALSE, quiet=TRUE) {
   
-# TODO: require EML, dataone, datapackage, XML
+  if (!requireNamespace("dataone", quietly = TRUE)) {
+    stop("Package \"dataone\" needed for function \"publishRun\" to work. Please install it.",
+         call. = FALSE)
+  }
+  if (!requireNamespace("EML", quietly = TRUE)) {
+    stop("Package EML needed for function \"publishRun\" to work. Please install it.",
+         call. = FALSE)
+  }
   if(is.na(id) && is.na(seq) ||
      !is.na(id) && !is.na(seq)) {
     stop("Please specify either \"seq\" or \"id\" parameter")
