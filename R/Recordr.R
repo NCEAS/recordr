@@ -385,8 +385,14 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # were recording console commands. The script can be retrieved
   # by searching for access="execute"
   archivedFilePath <- archiveFile(file=recordrEnv$scriptPath)
+  fpInfo <- file.info(recordrEnv$scriptPath)
   filemeta <- new("FileMetadata", file=recordrEnv$scriptPath, 
                fileId=recordrEnv$programId, 
+               sha256=digest(object=recordrEnv$scriptPath, algo="sha256", file=TRUE)[[1]],
+               size=as.numeric(fpInfo[["size"]]),
+               user=fpInfo[["uname"]],
+               createTime=as.character(fpInfo[["ctime"]]),
+               modifyTime=as.character(fpInfo[["mtime"]]),
                executionId=recordrEnv$execMeta@executionId,
                access="execute", format="text/plain",
                archivedFilePath=archivedFilePath)
