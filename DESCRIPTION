@@ -22,10 +22,10 @@ Imports:
     digest,
     XML,
     RSQLite,
-    EML,
-    dataone,
-    ggplot2
 Suggests:
+    dataone,
+    EML,
+    ggplot2,
     knitr,
     png,
     testthat
