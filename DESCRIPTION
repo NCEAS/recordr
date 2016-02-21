@@ -37,7 +37,7 @@ Collate:
     'Recordr.R'
     'ExecMetadata.R'
     'FileMetadata.R'
-    'maskedFunctions.R'
     'onLoad.R'
     'recordr-package.R'
+    'tracedFunctions.R'
 RoxygenNote: 5.0.1
