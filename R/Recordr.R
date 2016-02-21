@@ -1269,7 +1269,7 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
   
   # Is this a vaiid id or seq?
   if(length(execMeta) == 0) {
-      stop(sprintf("No exeuction found for the specified execution or sequence number\n"))
+      stop(sprintf("No execution found for the specified execution or sequence number\n"))
   } else {
     execMeta <- execMeta[[1]]
   }
@@ -1288,6 +1288,17 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
   
   # Either writeout the metadata to the run directory, or copy the user file to that location
   if(asText) {
+    # Validate the EML
+    result = tryCatch({
+      xmlDoc <- xmlParse(metadata)
+      checkEML <- eml_read(xmlDoc)
+    }, warning = function(w) {
+      stop(sprintf("Error re-inserting EML into execution %s", id))
+    }, error = function(e) {
+      stop(sprintf("Error re-inserting EML into execution %s", id))
+    }, finally = {
+    })
+    
     # Save a backup copy first
     file.rename(metadataFile, metadataFileBackup)
     # Overwrite the existing metadata file
@@ -1298,6 +1309,15 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
     if(!file.exists(metadata)) {
       stop(sprintf("Metadata file %s does not exists, unable to update run metadata\n", metadata))
     } else {
+      result = tryCatch({
+        checkEML <- eml_read(metadata)
+      }, warning = function(w) {
+        stop(sprintf("Error re-inserting EML into execution %s", id))
+      }, error = function(e) {
+        stop(sprintf("Error re-inserting EML into execution %s", id))
+      }, finally = {
+      })
+      
       file.rename(metadataFile, metadataFileBackup)
       file.copy(metadata, metadataFile)
     }
