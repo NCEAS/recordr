@@ -34,6 +34,7 @@
 #' @import uuid
 #' @import tools
 #' @import digest
+#' @import EML
 #' @import RSQLite
 #' @import XML
 #' @include Constants.R
