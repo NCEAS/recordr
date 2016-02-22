@@ -944,7 +944,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
         fmt <- paste("%-", sprintf("%2d", filePathLength), "s",  " %-12s %-19s\n", sep="")
         cat(sprintf(fmt, "Location", "Size (kb)", "Modified time"), sep = " ")
         for (i in 1:nrow(fstatsRead)) {
-          cat(sprintf(fmt, condenseStr(fstatsRead[i, "filePath"], fileNameLength), fstatsRead[i, "size"], fstatsRead[i, "modifyTime"]), sep = "")
+          cat(sprintf(fmt, condenseStr(fstatsRead[i, "filePath"], filePathLength), fstatsRead[i, "size"], fstatsRead[i, "modifyTime"]), sep = "")
         }
       }
     }
