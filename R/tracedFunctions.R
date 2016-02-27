@@ -7,6 +7,10 @@
 #' @export
 recordr_getObject <- function(node, pid, ...) {
   # Call the masked function to retrieve the DataONE object
+  # This function has been entered because the user called "getObject", which redirects to
+  # "recordr_getObject". It is possible for the user to enter this function then, if they
+  # didn't actually load the dataone package (i.e. library(dataone)), so check if dataone
+  # package is available, and print the appropriate message if not.
   if(suppressWarnings(require(dataone))) {
     # Call the original function that we are overriding
     d1o <- dataone::getObject(node, pid, ...)
