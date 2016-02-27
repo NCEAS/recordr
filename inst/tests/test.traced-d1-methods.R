@@ -1,4 +1,4 @@
-testthat::context("Test tracing DataONE methods")
+testthat::context("Test tracing R functions")
 
 test_that("Recordr library loads", {
   library(recordr)
