@@ -4,8 +4,7 @@ title <- meta$Title
 authors <-  c( 
     person("Matthew B.", "Jones", role = c("aut", "cre"), email = "jones@nceas.ucsb.edu"), 
     person("Peter", "Slaughter", role = "aut", email = "slaughter@nceas.ucsb.edu"),
-    person("Chris", "Jones", role = "ctb", email = "cjones@nceas.ucsb.edu"), 
-    person("Lauren", "Walker", role = "ctb", email = "walker@nceas.ucsb.edu")) 
+    person("Chris", "Jones", role = "ctb", email = "cjones@nceas.ucsb.edu")) 
 bibentry(bibtype = "Manual",
          title = paste0("{redland}: ", title),
          author = authors,
