@@ -265,6 +265,8 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
   recordrEnv$ggsave <- recordr::recordr_ggsave
   recordrEnv$readLines <- recordr::recordr_readLines
   recordrEnv$writeLines <- recordr::recordr_writeLines
+  recordrEnv$readPNG <- recordr::recordr_readPNG
+  recordrEnv$writePNG <- recordr::recordr_writePNG
   
   # Create the run metadata directory for this record()
   dir.create(sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId), recursive = TRUE)

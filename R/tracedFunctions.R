@@ -432,6 +432,103 @@ recordr_scan <- function(file, ...) {
   invisible(obj)
 }
 
+# Override the 'readPNG' function
+# record the provenance relationship of script -> used -> file 
+#' @export
+recordr_readPNG <- function (source, ...) {
+  
+  # Call the original function that we are overriding
+  # Call the masked function to retrieve the DataONE object
+  # This function has been entered because the user called "getObject", which redirects to
+  # "recordr_getObject". It is possible for the user to enter this function then, if they
+  # didn't actually load the dataone package (i.e. library(dataone)), so check if dataone
+  # package is available, and print the appropriate message if not.
+  if(suppressWarnings(require(png))) {
+    # Call the original function that we are overriding
+    obj <- png::readPNG(source, ...)
+  } else {
+    stop("recordr package is tracing readPNG(), but package \"png\" is not available.\nPlease install package \"png\"")
+  } 
+  # Record the provenance relationship between the user's script and the derived data file
+  if (getProvCapture()) {
+    if(is.element("raw", class(source))) {
+      filePath <- summary(con)$description
+      message(sprintf("Tracing readPNG with source as a raw vector is not supported."))
+      return(obj)
+    } else {
+      filePath <- source
+    }
+    recordrEnv <- as.environment(".recordr")
+    setProvCapture(FALSE)
+    datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    # Create a data package object for the derived dataset
+    dataFmt <- "application/octet-stream"
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
+    # TODO: use file argument when file size is greater than a configuration value
+    # Record prov:used relationship between the execution and the input dataset
+    addData(recordrEnv$dataPkg, dataObj)
+    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    # Record the execution inputs that will be used to assert 'prov:wasDerivedFrom' relationships
+    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, datasetId)
+    # Save a copy of this generated file to the recordr archiv
+    archivedFilePath <- archiveFile(file=filePath)
+    filemeta <- new("FileMetadata", file=filePath, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="read", format="application/octet-stream",
+                    archivedFilePath=archivedFilePath)
+    writeFileMeta(recordrEnv$recordr, filemeta)
+    setProvCapture(TRUE)
+  }
+  invisible(obj)
+}
+
+# Override the 'writePNG' function
+# record the provenance relationship of script <- used <- used
+#' @export
+recordr_writePNG <- function(image, target, ...) {
+  # Call the original function that we are overriding
+  outImage <- png::writePNG(image, target, ...)
+  # Record the provenance relationship between the user's script and the derived data file
+  if (getProvCapture()) {
+    # The argument 'target' can be a filename, a connection or a raw vector to which the
+    # image will be written to.
+    if(is.element("connection", class(target))) {
+      filePath <- summary(target)$description
+      message(sprintf("Tracing writePNG from a connection is not supported."))
+      return()
+    } else {
+      filePath <- target
+    }
+    recordrEnv <- as.environment(".recordr")
+    setProvCapture(FALSE)
+    datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    # Create a data package object for the derived dataset
+    dataFmt <- "application/octet-stream"
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
+    # TODO: use file argument when file size is greater than a configuration value
+    # Record prov:wasGeneratedBy relationship between the execution and the output dataset
+    addData(recordrEnv$dataPkg, dataObj)
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    # Record the execution outputs that will be used to assert 'prov:wasDerivedFrom' relationships
+    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, datasetId)
+    # Save a copy of this generated file to the recordr archiv
+    archivedFilePath <- archiveFile(file=filePath)
+    filemeta <- new("FileMetadata", file=filePath, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="write", format="application/octet-stream",
+                    archivedFilePath=archivedFilePath)
+    writeFileMeta(recordrEnv$recordr, filemeta)
+    setProvCapture(TRUE)
+  }
+  return(outImage)
+}
+
 #' Disable or enable provenance capture temporarily
 #' It may be necessary to disable provenance capture temporarily, for example when
 #' record() is writting out a housekeeping file.
