@@ -426,11 +426,9 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   system <- "uuid"
   eml <- makeEML(recordr, id=recordrEnv$execMeta@executionId, system, title, creators, abstract, 
                  methodDescription, geo_coverage, temp_coverage)
-  eml_xml <- as(eml, "XMLInternalElementNode")
-  #print(eml_xml)
   # Write the eml file to the execution directory
   eml_file <- sprintf("%s/%s.xml", runDir, recordrEnv$execMeta@metadataId)
-  saveXML(eml_xml, file = eml_file)
+  write_eml(eml, file = eml_file)
   #message(sprintf("Saved EML to file: %s\n", eml_file))
   metaObj <- new("DataObject", id=recordrEnv$execMeta@metadataId, format="eml://ecoinformatics.org/eml-2.1.1", 
                  filename=eml_file)
@@ -1098,11 +1096,11 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # TODO: use the in-memory object when datapackage can upload it
   #metadata <- getMetadata(recordr, id=id)
   metadataId <- thisExecMeta@metadataId
-  # TODO: use getMetadata() output when eml_read accepts
+  # TODO: use getMetadata() output when read_eml accepts
   # XMLInternalDocument, as the documentation says it should
   #metadata <- getMetadata(recordr, id=id, as="parsed")
   metadataFile <- sprintf("%s/%s.xml", runDir, metadataId)
-  emlObj <- eml_read(metadataFile)
+  emlObj <- read_eml(metadataFile)
   
   # Upload each data object that was used or geneated by the datapackage
   if(!quiet) cat(sprintf("Getting file info for execution %s\n", id))
@@ -1130,24 +1128,29 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     # The 'additionalInfo' value was stored during endRecord() so that we could match up the
     # file and the eml element after the run was finished.
     for(iEntity in 1:length(emlObj@dataset@otherEntity)) {
-      thisDatasetId <- emlObj@dataset@otherEntity[[iEntity]]@additionalInfo
-      #thisDatasetId <- emlObj@dataset@otherEntity[[iEntity]]@alternateIdentifier
+      thisDatasetId <- emlObj@dataset@otherEntity[[iEntity]]@EntityGroup@alternateIdentifier[[1]]@character
+      cat(sprintf("thisId: %s\n", thisDatasetId))
       if(fileId == thisDatasetId) {
         url <- sprintf("%s/%s", resolveURI, fileId)
-        emlObj@dataset@otherEntity[[iEntity]]
-        emlObj@dataset@otherEntity[[iEntity]]@physical@distribution@online@url <- url
+        distrib <- new("distribution", online = new("online", url=url))
+        emlObj@dataset@otherEntity[[iEntity]]@EntityGroup@physical[[1]]@distribution <- as(list(distrib), "ListOfdistribution")
       }
     }
   }
   
-  emlObj@dataset@pubDate <- publishDay
+  # Now that we have used the alternate identifier, blank it out so that the uploaded EML won't have it. Currently
+  # the EML parser in Metacat doesn't allow alternate identifiers.
+  for(iEntity in 1:length(emlObj@dataset@otherEntity)) {
+      emlObj@dataset@otherEntity[[iEntity]]@EntityGroup@alternateIdentifier <- new("ListOfalternateIdentifier")
+  }
+  emlObj@dataset@ResourceGroup@pubDate <- as(publishDay, "pubDate")
   # Update the metadata stored for this run. The putMetadata() function
   # can't read eml objects yet, so have to write it to a file.
   tempMetadataFile <- tempfile()
-  eml_write(emlObj, tempMetadataFile)
+  write_eml(emlObj, tempMetadataFile)
   putMetadata(recordr, id=id, metadata=tempMetadataFile, asText=FALSE)
   # Use windows friendly filenames, i.e. no ":"
-  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=metadataFile,
+  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=tempMetadataFile,
                  suggestedFilename=gsub(":", "_", basename(metadataFile)))
   addData(pkg, metaObj)
   
@@ -1162,8 +1165,8 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     thisPredicate <- thisRelationship[["predicate"]]
     thisObject <- thisRelationship[["object"]]
     thisSubjectType <- thisRelationship[["subjectType"]]
-    thisObjectType <- thisRelationship[["objectTypes"]]
-    thisDataTypeURI <- thisRelationship[["dataTypeURIs"]]
+    thisObjectType <- thisRelationship[["objectType"]]
+    thisDataTypeURI <- thisRelationship[["dataTypeURI"]]
     insertRelationship(pkg, subjectID=thisSubject, objectIDs=thisObject, predicate=thisPredicate, 
                        subjectType=thisSubjectType, objectTypes=thisObjectType, dataTypeURIs=thisDataTypeURI)
   }
@@ -1346,7 +1349,7 @@ recordrShutdown <- function() {
 #' Creating EML should be more complete, but this minimal example will suffice to create a valid document.
 makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDescription=NA, geo_coverage=NA, temp_coverage=NA, endpoint=NA) {
   #dt <- eml_dataTable(dat, description=description)
-  oe_list <- as(list(), "ListOfotherEntity")
+  oeList <- as(list(), "ListOfotherEntity")
   # readExecMeta returns a list of execMeta objects, so get the first result, which should be the only result
   # when an executionId is specified.
   execMeta <- readExecMeta(recordr, executionId=id)[[1]]
@@ -1366,46 +1369,65 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
     filePath <- thisFile[["filePath"]]
     format <- thisFile[["format"]]
     fileSize <- thisFile[["size"]]
-    oe <- new("otherEntity", entityName=basename(filePath), entityType=format)
-    oe@physical@objectName <- basename(filePath)
-    oe@physical@size <- fileSize
-    oe@entityName <- basename(filePath)
-    # Store the unique identifier for this entity, so that we can find it and
-    # update it later if necessary. Turns out that DataONE doesn't recognize
-    # <otherEntity><alternateIdentifier as a valid element, so use 'additionalInfo
-    # instead.
-    #oe@alternateIdentifier <- fileId
-    oe@additionalInfo <- fileId
+    
+    distList <- new("ListOfdistribution")
     if (!is.na(endpoint)) {
-      oe@physical@distribution@online@url <- paste(endpoint, id, sep="/")
+      dist <- new("distribution", online="online", url = paste(endpoint, id, sep="/"))
+      distList <- c(distList, dist)
+    } else {
+      dist <- new("distribution")
+      distList <- c(distList, dist)
     }
+    
     if(!is.na(format)) {
-      formatCitation <- new("Citation")
+      formatCitation <- new("citation")
       f <- new("externallyDefinedFormat", formatName=format, citation=formatCitation)
       df <- new("dataFormat", externallyDefinedFormat=f)
-      oe@physical@dataFormat <- df
+      dataFormat <- df
+    } else {
+      df <- new("dataFormat")
     }
-    oe_list <- c(oe_list, oe)
+    
+    phys <- new("physical", objectName = basename(filePath), size = new("size", as.character(fileSize), unit="bytes"),
+                distribution = distList, dataFormat = dataFormat)
+    # Store the unique identifier for this entity, so that we can find it and update it later during the publish step. 
+    # Turns out that DataONE doesn't recognize<otherEntity><alternateIdentifier as a valid element, so it will be
+    # removed during the publishing process.
+    altId <- new("alternateIdentifier", character = fileId, system = "UUID")
+    eg <- new("EntityGroup", entityName=basename(filePath), physical = phys, alternateIdentifier = as(list(altId), "ListOfalternateIdentifier"))
+    oe <- new("otherEntity", EntityGroup=eg, entityType=format)
+    
+    oeList[[length(oeList) + 1]] <- oe
   }
-  creator <- new("ListOfcreator", lapply(as.list(with(creators, paste(given, " ", surname, " ", "<", email, ">", sep=""))), as, "creator"))
-  ds <- new("dataset",
-            title = title,
-            abstract = abstract,
-            creator = creator,
-            contact = as(creator[[1]], "contact"),
-            #coverage = new("coverage"),
-            pubDate = as.character(Sys.Date()),
-            #dataTable = c(dt),
-            otherEntity = as(oe_list, "ListOfotherEntity")
-            #methods = new("methods"))
-  )
+  creatorList <- list()
+  for (irow in 1:nrow(creators)) {
+    individual <- new("individualName", givenName=creators[irow, 'given'], surName=creators[irow,'surname'])
+    individualList <- as(list(individual), "ListOfindividualName")
+    creator <- new("creator", individual = individualList, electronicMailAddress = creators[irow, 'email'])
+    creatorList[[length(creatorList)+1]] <- creator
+  }
+  
+  titleObj <- new("title", value=title)
+  titleList <- as(list(titleObj), "ListOftitle")
+  coverage <- coverageElement(geo_coverage, temp_coverage)
+  rg <- new("ResourceGroup", title = titleList, creator = as(creatorList, "ListOfcreator"), pubDate = as.character(Sys.Date()), abstract = abstract, coverage = coverage)
+  contactList <- new("ListOfcontact")
+  contactList <- c(contactList, as.character(creators[[1]]))
   
   if (!is.na(methodDescription)) {
-    ms <- new("methodStep", description=methodDescription)
-    listms <- new("ListOfmethodStep", list(ms))
-    ds@methods <- new("methods", methodStep=listms)
+    ps <- new("proceduralStep", description=methodDescription)
+    ms <- new("methodStep", ProcedureStepType = ps)
+    loMethodStep <- new("ListOfmethodStep", list(ms))
+    methods <- new("methods", methodStep=loMethodStep)
   }
-  ds@coverage <- coverageElement(geo_coverage, temp_coverage)
+  
+  ds <- new("dataset",
+            ResourceGroup = rg,
+            contact = contactList,
+            methods = methods,
+            otherEntity = as(oeList, "ListOfotherEntity")
+  )
+
   eml <- new("eml",
              packageId = metadataId,
              system = system,
@@ -1414,18 +1436,20 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
 
 #' Create a geographic coverage element from a description and bounding coordinates
 geoCoverage <- function(geoDescription, west, east, north, south) {
-  bc <- new("boundingCoordinates", westBoundingCoordinate=west, eastBoundingCoordinate=east, northBoundingCoordinate=north, southBoundingCoordinate=south)
-  geoDescription="Southeast Alaska"
+  bc <- new("boundingCoordinates", westBoundingCoordinate=as.character(west), 
+            eastBoundingCoordinate=as.character(east), 
+            northBoundingCoordinate=as.character(north), 
+            southBoundingCoordinate=as.character(south))
   gc <- new("geographicCoverage", geographicDescription=geoDescription, boundingCoordinates=bc)
   return(gc)
 }
 
 ## Create a temporal coverage object
 temporalCoverage <- function(begin, end) {
-  bsd <- new("singleDateTime", calendarDate=begin)
-  b <- new("beginDate", bsd)
-  esd <- new("singleDateTime", calendarDate=end)
-  e <- new("endDate", esd)
+  #bsd <- new("singleDateTime", calendarDate=begin)
+  b <- new("beginDate", calendarDate=begin)
+  #esd <- new("singleDateTime", calendarDate=end)
+  e <- new("endDate", calendarDate=end)
   rod <- new("rangeOfDates", beginDate=b, endDate=e)
   temp_coverage <- new("temporalCoverage", rangeOfDates=rod)
   return(temp_coverage)
@@ -1433,7 +1457,11 @@ temporalCoverage <- function(begin, end) {
 
 #' Create a coverage element
 coverageElement <- function(gc, tempc) {
-  coverage <- new("coverage", geographicCoverage=gc, temporalCoverage=tempc)
+  gcList <- as(list(), "ListOfgeographicCoverage")
+  gcList[[1]] <- gc
+  tcList <- as(list(), "ListOftemporalCoverage")
+  tcList[[1]] <- tempc
+  coverage <- new("Coverage", geographicCoverage=gcList, temporalCoverage=tcList)
   return(coverage)
 }
 
