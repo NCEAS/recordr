@@ -1040,13 +1040,19 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     stop(msg)
   }
   
-  # Get configuration parameters
+  # Get configuration parameters, use defaults if a value not set
   public <- getOption("public_read_allowed")
+  if(is.null(public)) public <- TRUE
   replicationAllowed <- getOption("replication_allowed") 
+  if(is.null(replicationAllowed)) replicationAllowed <- TRUE
   numberOfReplicas <- getOption("number_of_replicas")
+  if(is.null(numberOfReplicas)) numberOfReplicas <- 3
   preferredNodes <- getOption("preferred_replica_node_list")
+  if(is.null(preferredNodes)) preferredNodes <- as.character(NA)
   mnId <- getOption("target_member_node_id")
+  if(is.null(mnId)) mnId <- "urn:node:mnStageUCSB2"
   d1Env <- getOption("dataone_env")
+  if(is.null(d1Env)) d1Env <- "STAGING"
   # PublishTime for EML 
   publishDay <- format(Sys.time(), format="%Y-%m-%d")
   publishTime <- Sys.time()
