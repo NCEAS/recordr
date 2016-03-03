@@ -1304,7 +1304,7 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
     # Validate the EML
     result = tryCatch({
       xmlDoc <- xmlParse(metadata)
-      checkEML <- eml_read(xmlDoc)
+      checkEML <- read_eml(xmlDoc)
     }, warning = function(w) {
       stop(sprintf("Error re-inserting EML into execution %s", id))
     }, error = function(e) {
@@ -1323,7 +1323,7 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
       stop(sprintf("Metadata file %s does not exists, unable to update run metadata\n", metadata))
     } else {
       result = tryCatch({
-        checkEML <- eml_read(metadata)
+        checkEML <- read_eml(metadata)
       }, warning = function(w) {
         stop(sprintf("Error re-inserting EML into execution %s", id))
       }, error = function(e) {
