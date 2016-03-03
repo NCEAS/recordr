@@ -46,7 +46,7 @@ From the R console, enter the following commands:
 ```r
 library(devtools)
 install_github("ropensci/EML", build=FALSE, dependencies=c("DEPENDS", "IMPORTS"))
-install.packages(drat)
+install.packages("drat")
 library(drat)
 addRepo("NCEAS")
 install.packages("recordr")
