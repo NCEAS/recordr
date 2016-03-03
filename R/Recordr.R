@@ -1059,7 +1059,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # e.g. "PROD" for production, "STAGING", "SANDBOX", "DEV"
   if(!quiet) cat(sprintf("Contacting coordinating node for environment %s...\n", d1Env))
   if(!quiet) cat(sprintf("Getting member node url for memober node id: %s...\n", mnId))
-  d1c <- D1Client(env = d1Env, mNodeid = mnId)
+  d1c <- D1Client(d1Env, mnId)
   if (is.null(d1c@mn)) {
     stop(sprintf("Unable to contact member node \"%s\".\nUnable to publish run.\n", mnId))
   }
