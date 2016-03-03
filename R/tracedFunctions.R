@@ -274,7 +274,7 @@ recordr_ggsave <- function(filename, ...) {
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture()) {
-    message("tracing recordr_ggssave")
+    #message("tracing recordr_ggssave")
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
     user <- recordrEnv$execMeta@user
