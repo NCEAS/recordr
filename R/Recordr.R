@@ -1426,8 +1426,12 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
   titleList <- as(list(titleObj), "ListOftitle")
   coverage <- coverageElement(geo_coverage, temp_coverage)
   rg <- new("ResourceGroup", title = titleList, creator = as(creatorList, "ListOfcreator"), pubDate = as.character(Sys.Date()), abstract = abstract, coverage = coverage)
-  contactList <- new("ListOfcontact")
-  contactList <- c(contactList, as.character(creators[[1]]))
+  
+  # Create a contact for the dataset, use the first contact in the passed in data.frame
+  individual <- new("individualName", givenName=creators[1, 'given'], surName=creators[1, 'surname'])
+  individualList <- as(list(individual), "ListOfindividualName")
+  contact <- new("contact", individual = individualList, electronicMailAddress = creators[1, 'email'])
+  contactList <- as(list(contact), "ListOfcontact")
   
   if (!is.na(methodDescription)) {
     ps <- new("proceduralStep", description=methodDescription)
