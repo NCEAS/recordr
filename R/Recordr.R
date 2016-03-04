@@ -413,10 +413,14 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # to the user's .recordr directory.
   metadataTemplateFile <- getOption("package_metadata_template_path")
   if(is.null(metadataTemplateFile) || !file.exists(metadataTemplateFile)) {
-      file.copy(system.file("extdata/package_metadata_template.R", package="recordr"), metadataTemplateFile)
-      message(sprintf("An initial package metadata template file has been copied to \"%s\"", metadataTemplateFile))
-      message("Please review the \"recordr\" package documentation section 'Configuring recordr'")
-      message("and then set the options parameters with values appropriate for your installation.")
+      metadataTemplateFile <- "~/.recordr/package_metadata_template.R"
+      # It is possible that the option wasn't set, but the default file already exists
+      if(!file.exists(metadataTemplateFile)) {
+        file.copy(system.file("extdata/package_metadata_template.R", package="recordr"), metadataTemplateFile)
+        message(sprintf("An initial package metadata template file has been copied to \"%s\"", metadataTemplateFile))
+        message("Please review the \"recordr\" package documentation section 'Configuring recordr'")
+        message("and then set the options parameters with values appropriate for your installation.")
+      }
   }
     
   #mdfile <- sprintf("%s/metadata.R", path.expand("~"), recordr@recordrDir)
