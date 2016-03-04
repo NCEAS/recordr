@@ -4,6 +4,7 @@
 # are read and written.
 #
 #' @include Constants.R
+#' @import tools
 #' @export
 recordr_getObject <- function(node, pid, ...) {
   # Call the masked function to retrieve the DataONE object
@@ -322,7 +323,26 @@ recordr_ggsave <- function(filename, ...) {
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
     #TODO: determine format type for other image types, based on file extention
-    dataFmt <- "image/png"
+    if(file_ext(filename)[[1]] == "png") {
+      dataFmt <- "image/png"
+    } else if (file_ext(filename)[[1]] == "pdf") {
+      dataFmt <- "application/pdf"
+    } else if (file_ext(filename)[[1]] == "jpeg") {
+      dataFmt <- "image/jpeg"
+    } else if (file_ext(filename)[[1]] == "tiff") {
+      dataFmt <- "image/tiff"
+    } else if (file_ext(filename)[[1]] == "bmp") {
+      dataFmt <- "image/bmp"
+    } else if (file_ext(filename)[[1]] == "svg") {
+      dataFmt <- "image/svg+xml"
+    } else if (file_ext(filename)[[1]] == "wmf") {
+      dataFmt <- "windows/metafile"
+    } else if (file_ext(filename)[[1]] == "ps" || file_ext(filename)[[1]] == "eps") {
+      dataFmt <- "application/postscript"
+    } else {
+      dataFmt <- "application/octet-stream"
+    }
+    
     dataObj <- new("DataObject", id=datasetId, format=dataFmt, filename=filename)
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
     addData(recordrEnv$dataPkg, dataObj)
