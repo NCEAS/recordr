@@ -1106,6 +1106,13 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   metadataFile <- sprintf("%s/%s.xml", runDir, metadataId)
   emlObj <- read_eml(metadataFile)
   
+  # Check options to see if the default DataONE submitter and rightsholder
+  # should be overriden by user supplied values.
+  rightsHolder <- getOption("rights_holder")
+  submitter <- getOption("submitter")
+  if(is.null(rightsHolder)) rightsHolder <- as.character(NA)
+  if(is.null(submitter)) submitter <- as.character(NA)
+  
   # Upload each data object that was used or geneated by the datapackage
   if(!quiet) cat(sprintf("Getting file info for execution %s\n", id))
   files <- readFileMeta(recordr, executionId=id)
@@ -1119,6 +1126,8 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     # Create DataObject for the science dataone
     # sysmeta@sumitter and rightsholder will be set to subject from auth token or X.509 certificate
     sciObj <- new("DataObject", id=fileId, format=format, mnNodeId=mnId, filename=filePath, suggestedFilename=basename(origFilename))
+    if(!is.na(submitter)) sciObj@sysmeta@submitter <- submitter
+    if(!is.na(rightsHolder)) sciObj@sysmeta@rightsHolder <- rightsHolder
     if (public) sciObj <- setPublicAccess(sciObj)
     # During endRecord(), each science object was associated with the metadata object
     # via insertRelationship() with the 'documetns' relationship. These relationships
@@ -1156,6 +1165,8 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # Use windows friendly filenames, i.e. no ":"
   metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=tempMetadataFile,
                  suggestedFilename=gsub(":", "_", basename(metadataFile)))
+  if(!is.na(submitter)) metaObj@sysmeta@submitter <- submitter
+  if(!is.na(rightsHolder)) metaObj@sysmeta@rightsHolder <- rightsHolder
   addData(pkg, metaObj)
   
   #
