@@ -17,8 +17,15 @@ recordr_getObject <- function(node, pid, ...) {
   } else {
     stop("recordr package is tracing getObject(), but package \"dataone\" is not available.")
   } 
+  
+  # Get the option that controls whether or not DataONE read operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture reads.
+  capture_d1_reads <- getOption("capture_dataone_reads")
+  if(is.null(capture_d1_reads)) capture_d1_reads <- TRUE
+  
   # Write provenance info for this object to the DataPackage object.
-  if (getProvCapture()) {
+  if (getProvCapture() && capture_d1_reads) {
     setProvCapture(FALSE)
     recordrEnv <- as.environment(".recordr")
     # Record the DataONE resolve service endpoint + pid for the object of the RDF triple
@@ -54,8 +61,15 @@ recordr_create <- function(mnode, pid, file, sysmeta, ...) {
   } else {
     stop("recordr package is tracing getObject(), but package \"dataone\" is not available.")
   } 
+  
+  # Get the option that controls whether or not DataONE write operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture writes.
+  capture_d1_writes <- getOption("capture_dataone_writes")
+  if(is.null(capture_d1_writes)) capture_d1_writes <- TRUE
+  
   # Record provenance if not disabled 
-  if (getProvCapture()) {
+  if (getProvCapture() && capture_d1_writes) {
     setProvCapture(FALSE)
     recordrEnv <- as.environment(".recordr")
     # Record the DataONE endpoint + pid for the object of the RDF triple
@@ -96,7 +110,14 @@ recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
   } else {
     stop("recordr package is tracing dataone::update(), but package dataone is not available.")
   } 
-  if (getProvCapture()) {
+  
+  # Get the option that controls whether or not DataONE write operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture writes.
+  capture_d1_writes <- getOption("capture_dataone_writes")
+  if(is.null(capture_d1_writes)) capture_d1_writes <- TRUE
+  
+  if (getProvCapture() && capture_d1_writes) {
     setProvCapture(FALSE)
     recordrEnv <- as.environment(".recordr")
     # Record the DataONE endpoint + pid for the object of the RDF triple
@@ -162,8 +183,15 @@ recordr_source <- function (file, local = FALSE, echo = verbose, print.eval = ec
 recordr_write.csv <- function(x, file, ...) {
   # Call the original function that we are overriding
   obj <- utils::write.csv(x, file, ...)
+  
+  # Get the option that controls whether or not file write operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file writes.
+  capture_file_writes <- getOption("capture_file_writes")
+  if(is.null(capture_file_writes)) capture_file_writes <- TRUE
+  
   # Record the provenance relationship between the user's script and the derived data file
-  if (getProvCapture()) {
+  if (getProvCapture() && capture_file_writes) {
     # Currently connections are not traced
     if(is.element("connection", class(file))) {
       #message(sprintf("Tracing write.csv from a connection is not supported."))
@@ -228,7 +256,13 @@ recordr_read.csv <- function(...) {
     return(dataRead)
   }
   
-  if (getProvCapture()) {
+  # Get the option that controls whether or not file read operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file reads.
+  capture_file_reads <- getOption("capture_file_reads")
+  if(is.null(capture_file_reads)) capture_file_reads <- TRUE
+  
+  if (getProvCapture() && capture_file_reads) {
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
     user <- recordrEnv$execMeta@user
@@ -272,9 +306,15 @@ recordr_ggsave <- function(filename, ...) {
     stop("recordr package is tracing ggplot2::ggsave(), but package ggplot2 is not available.")
   }
   
+  # Get the option that controls whether or not file write operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file writes.
+  capture_file_writes <- getOption("capture_file_writes")
+  if(is.null(capture_file_writes)) capture_file_writes <- TRUE
+  
   # Record the provenance relationship between the user's script and the derived data file
-  if (getProvCapture()) {
     #message("tracing recordr_ggssave")
+  if (getProvCapture() && capture_file_writes) {
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
     user <- recordrEnv$execMeta@user
@@ -310,10 +350,18 @@ recordr_ggsave <- function(filename, ...) {
 recordr_readLines <- function(con, ...) {
   # Call the original function that we are overriding
   obj <- base::readLines(con, ...)
+  
+  # Get the option that controls whether or not file read operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file reads.
+  capture_file_reads <- getOption("capture_file_reads")
+  if(is.null(capture_file_reads)) capture_file_reads <- TRUE
+  
   # TODO: if this is a connection, and not a string containing a filename, then check and
   # see if we have already recorded reading from the connection
   # Record the provenance relationship between the user's script and the derived data file
-  if (getProvCapture()) {
+  
+  if (getProvCapture() && capture_file_reads) {
     if(is.element("connection", class(con))) {
       filePath <- summary(con)$description
       #message(sprintf("Tracing readLines from a connection is not supported."))
@@ -354,8 +402,15 @@ recordr_readLines <- function(con, ...) {
 recordr_writeLines <- function(text, con, ...) {
   # Call the original function that we are overriding
   base::writeLines(text, con, ...)
+  
+  # Get the option that controls whether or not file write operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file writes.
+  capture_file_writes <- getOption("capture_file_writes")
+  if(is.null(capture_file_writes)) capture_file_writes <- TRUE
+  
   # Record the provenance relationship between the user's script and the derived data file
-  if (getProvCapture()) {
+  if (getProvCapture() && capture_file_writes) {
     if(is.element("connection", class(con))) {
       filePath <- summary(con)$description
       #message(sprintf("Tracing writeLines from a connection is not supported."))
@@ -397,10 +452,17 @@ recordr_writeLines <- function(text, con, ...) {
 recordr_scan <- function(file, ...) {
   # Call the original function that we are overriding
   obj <- base::scan(file, ...)
+  
+  # Get the option that controls whether or not file read operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file reads.
+  capture_file_reads <- getOption("capture_file_reads")
+  if(is.null(capture_file_reads)) capture_file_reads <- TRUE
+  
   # TODO: if this is a connection, and not a string containing a filename, then check and
   # see if we have already recorded reading from the connection
   # Record the provenance relationship between the user's script and the derived data file
-  if (getProvCapture()) {
+  if (getProvCapture() && capture_file_reads) {
     if(is.element("connection", class(file))) {
       #filePath <- summary(file)$description
       #message(sprintf("Tracing scan from a connection is not supported."))
@@ -453,8 +515,15 @@ recordr_readPNG <- function (source, ...) {
   } else {
     stop("recordr package is tracing readPNG(), but package \"png\" is not available.\nPlease install package \"png\"")
   } 
+  
+  # Get the option that controls whether or not file read operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file reads.
+  capture_file_reads <- getOption("capture_file_reads")
+  if(is.null(capture_file_reads)) capture_file_reads <- TRUE
+  
   # Record the provenance relationship between the user's script and the derived data file
-  if (getProvCapture()) {
+  if (getProvCapture() && capture_file_reads) {
     if(is.element("raw", class(source))) {
       filePath <- summary(con)$description
       message(sprintf("Tracing readPNG with source as a raw vector is not supported."))
@@ -495,8 +564,15 @@ recordr_readPNG <- function (source, ...) {
 recordr_writePNG <- function(image, target, ...) {
   # Call the original function that we are overriding
   outImage <- png::writePNG(image, target, ...)
+  
+  # Get the option that controls whether or not file write operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file writes.
+  capture_file_writes <- getOption("capture_file_writes")
+  if(is.null(capture_file_writes)) capture_file_writes <- TRUE
+  
   # Record the provenance relationship between the user's script and the derived data file
-  if (getProvCapture()) {
+  if (getProvCapture() && capture_file_writes) {
     # The argument 'target' can be a filename, a connection or a raw vector to which the
     # image will be written to.
     if(is.element("connection", class(target))) {
