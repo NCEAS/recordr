@@ -653,12 +653,14 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
       fstatsAll <- readFileMeta(recordr, executionId=thisRunId)
       # Loop through the deleted file entries and unarchive any file associated with
       # this run, i.e. files read, wriiten, executed, ect.
-      for (ifile in 1:nrow(fstatsAll)) {
-        thisFileId <- fstatsAll[ifile, 'fileId']
-        # First delete the file in the archive, if no other executions are refering to it.
-        unArchiveFile(recordr, thisFileId)
-        # Then delete the database entry for it.
-        fdel <- readFileMeta(recordr, fileId=thisFileId, delete=TRUE)
+      if(nrow(fstatsAll) > 0) {
+        for (ifile in 1:nrow(fstatsAll)) {
+          thisFileId <- fstatsAll[ifile, 'fileId']
+          # First delete the file in the archive, if no other executions are refering to it.
+          unArchiveFile(recordr, thisFileId)
+          # Then delete the database entry for it.
+          fdel <- readFileMeta(recordr, fileId=thisFileId, delete=TRUE)
+        }
       }
     }
     if (! quiet) {
@@ -1129,45 +1131,48 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # Upload each data object that was used or geneated by the datapackage
   if(!quiet) cat(sprintf("Getting file info for execution %s\n", id))
   files <- readFileMeta(recordr, executionId=id)
-  for (iRow in 1:nrow(files)) {
-    thisFile <- files[iRow,]
-    format <- thisFile[['format']]
-    fileId <- thisFile[['fileId']]
-    access <- thisFile[['access']]
-    origFilename <- thisFile[['filePath']]
-    filePath <- sprintf("%s/%s", recordr@recordrDir, thisFile[['archivedFilePath']])
-    # Create DataObject for the science dataone
-    # sysmeta@sumitter and rightsholder will be set to subject from auth token or X.509 certificate
-    sciObj <- new("DataObject", id=fileId, format=format, mnNodeId=mnId, filename=filePath, suggestedFilename=basename(origFilename))
-    if(!is.na(submitter)) sciObj@sysmeta@submitter <- submitter
-    if(!is.na(rightsHolder)) sciObj@sysmeta@rightsHolder <- rightsHolder
-    if (public) sciObj <- setPublicAccess(sciObj)
-    # During endRecord(), each science object was associated with the metadata object
-    # via insertRelationship() with the 'documetns' relationship. These relationships
-    # were stored with the rest of the package relationships, so we don't have to add them
-    # in again.
-    if(!quiet) cat(sprintf("Adding science object with id: %s, file: %s\n", 
-                            getIdentifier(sciObj), basename(thisFile[['filePath']])))
-    addData(pkg, sciObj)
-    # Now update the metadata object corresponding to this dataset in order to set the
-    # Online distribution value so that MetacatUI can properly identify and display this item.
-    # The 'additionalInfo' value was stored during endRecord() so that we could match up the
-    # file and the eml element after the run was finished.
-    for(iEntity in 1:length(emlObj@dataset@otherEntity)) {
-      thisDatasetId <- emlObj@dataset@otherEntity[[iEntity]]@EntityGroup@alternateIdentifier[[1]]@character
-      cat(sprintf("thisId: %s\n", thisDatasetId))
-      if(fileId == thisDatasetId) {
-        url <- sprintf("%s/%s", resolveURI, fileId)
-        distrib <- new("distribution", online = new("online", url=url))
-        emlObj@dataset@otherEntity[[iEntity]]@EntityGroup@physical[[1]]@distribution <- as(list(distrib), "ListOfdistribution")
+  if(nrow(files) > 0) {
+    for (iRow in 1:nrow(files)) {
+      thisFile <- files[iRow,]
+      format <- thisFile[['format']]
+      fileId <- thisFile[['fileId']]
+      access <- thisFile[['access']]
+      origFilename <- thisFile[['filePath']]
+      filePath <- sprintf("%s/%s", recordr@recordrDir, thisFile[['archivedFilePath']])
+      # Create DataObject for the science dataone
+      # sysmeta@sumitter and rightsholder will be set to subject from auth token or X.509 certificate
+      sciObj <- new("DataObject", id=fileId, format=format, mnNodeId=mnId, filename=filePath, suggestedFilename=basename(origFilename))
+      if(!is.na(submitter)) sciObj@sysmeta@submitter <- submitter
+      if(!is.na(rightsHolder)) sciObj@sysmeta@rightsHolder <- rightsHolder
+      if (public) sciObj <- setPublicAccess(sciObj)
+      # During endRecord(), each science object was associated with the metadata object
+      # via insertRelationship() with the 'documetns' relationship. These relationships
+      # were stored with the rest of the package relationships, so we don't have to add them
+      # in again.
+      if(!quiet) cat(sprintf("Adding science object with id: %s, file: %s\n", 
+                             getIdentifier(sciObj), basename(thisFile[['filePath']])))
+      addData(pkg, sciObj)
+      # Now update the metadata object corresponding to this dataset in order to set the
+      # Online distribution value so that MetacatUI can properly identify and display this item.
+      # The 'additionalInfo' value was stored during endRecord() so that we could match up the
+      # file and the eml element after the run was finished.
+      for(iEntity in 1:length(emlObj@dataset@otherEntity)) {
+        thisDatasetId <- emlObj@dataset@otherEntity[[iEntity]]@EntityGroup@alternateIdentifier[[1]]@character
+        if(fileId == thisDatasetId) {
+          url <- sprintf("%s/%s", resolveURI, fileId)
+          distrib <- new("distribution", online = new("online", url=url))
+          emlObj@dataset@otherEntity[[iEntity]]@EntityGroup@physical[[1]]@distribution <- as(list(distrib), "ListOfdistribution")
+        }
       }
     }
   }
   
   # Now that we have used the alternate identifier, blank it out so that the uploaded EML won't have it. Currently
   # the EML parser in Metacat doesn't allow alternate identifiers.
-  for(iEntity in 1:length(emlObj@dataset@otherEntity)) {
+  if(length(emlObj@dataset@otherEntity) > 0) {
+    for(iEntity in 1:length(emlObj@dataset@otherEntity)) {
       emlObj@dataset@otherEntity[[iEntity]]@EntityGroup@alternateIdentifier <- new("ListOfalternateIdentifier")
+    }
   }
   emlObj@dataset@ResourceGroup@pubDate <- as(publishDay, "pubDate")
   # Update the metadata stored for this run. The putMetadata() function
@@ -1186,17 +1191,18 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # Add the saved relationships back in the data package
   relationshipFile <- sprintf("%s/%s.csv", runDir, packageId)
   relationships <- read.csv(relationshipFile, stringsAsFactors=FALSE)
-  str(relationships)
-  for(i in 1:nrow(relationships)) {
-    thisRelationship <- relationships[i,]
-    thisSubject <- thisRelationship[["subject"]]
-    thisPredicate <- thisRelationship[["predicate"]]
-    thisObject <- thisRelationship[["object"]]
-    thisSubjectType <- thisRelationship[["subjectType"]]
-    thisObjectType <- thisRelationship[["objectType"]]
-    thisDataTypeURI <- thisRelationship[["dataTypeURI"]]
-    insertRelationship(pkg, subjectID=thisSubject, objectIDs=thisObject, predicate=thisPredicate, 
-                       subjectType=thisSubjectType, objectTypes=thisObjectType, dataTypeURIs=thisDataTypeURI)
+  if (nrow(relationships) > 0) {
+    for(i in 1:nrow(relationships)) {
+      thisRelationship <- relationships[i,]
+      thisSubject <- thisRelationship[["subject"]]
+      thisPredicate <- thisRelationship[["predicate"]]
+      thisObject <- thisRelationship[["object"]]
+      thisSubjectType <- thisRelationship[["subjectType"]]
+      thisObjectType <- thisRelationship[["objectType"]]
+      thisDataTypeURI <- thisRelationship[["dataTypeURI"]]
+      insertRelationship(pkg, subjectID=thisSubject, objectIDs=thisObject, predicate=thisPredicate, 
+                         subjectType=thisSubjectType, objectTypes=thisObjectType, dataTypeURIs=thisDataTypeURI)
+    }
   }
   
   if(!quiet) cat(sprintf("Uploading data package...\n"))
@@ -1386,53 +1392,57 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
   
   # Loop through each file for this run and add an EML "otherEntity"
   # entry for each output file and script that was run.
-  for (fileNum in 1:nrow(fileMeta)) {
-    thisFile <- fileMeta[fileNum,]
-    fileId <- thisFile[["fileId"]]
-    access <- thisFile[["access"]]
-    # Skip this file if it was not run or generated by this execution. Recordr
-    # also tracks input files, but those should not be included in the metadata
-    # object as this execution did not create them.
-    if(!is.element(access, c("read", "write", "execute"))) next
-    filePath <- thisFile[["filePath"]]
-    format <- thisFile[["format"]]
-    fileSize <- thisFile[["size"]]
-    
-    distList <- new("ListOfdistribution")
-    if (!is.na(endpoint)) {
-      dist <- new("distribution", online="online", url = paste(endpoint, id, sep="/"))
-      distList <- c(distList, dist)
-    } else {
-      dist <- new("distribution")
-      distList <- c(distList, dist)
+  if (nrow(fileMeta) > 0) {
+    for (fileNum in 1:nrow(fileMeta)) {
+      thisFile <- fileMeta[fileNum,]
+      fileId <- thisFile[["fileId"]]
+      access <- thisFile[["access"]]
+      # Skip this file if it was not run or generated by this execution. Recordr
+      # also tracks input files, but those should not be included in the metadata
+      # object as this execution did not create them.
+      if(!is.element(access, c("read", "write", "execute"))) next
+      filePath <- thisFile[["filePath"]]
+      format <- thisFile[["format"]]
+      fileSize <- thisFile[["size"]]
+      
+      distList <- new("ListOfdistribution")
+      if (!is.na(endpoint)) {
+        dist <- new("distribution", online="online", url = paste(endpoint, id, sep="/"))
+        distList <- c(distList, dist)
+      } else {
+        dist <- new("distribution")
+        distList <- c(distList, dist)
+      }
+      
+      if(!is.na(format)) {
+        formatCitation <- new("citation")
+        f <- new("externallyDefinedFormat", formatName=format, citation=formatCitation)
+        df <- new("dataFormat", externallyDefinedFormat=f)
+        dataFormat <- df
+      } else {
+        df <- new("dataFormat")
+      }
+      
+      phys <- new("physical", objectName = basename(filePath), size = new("size", as.character(fileSize), unit="bytes"),
+                  distribution = distList, dataFormat = dataFormat)
+      # Store the unique identifier for this entity, so that we can find it and update it later during the publish step. 
+      # Turns out that DataONE doesn't recognize<otherEntity><alternateIdentifier as a valid element, so it will be
+      # removed during the publishing process.
+      altId <- new("alternateIdentifier", character = fileId, system = "UUID")
+      eg <- new("EntityGroup", entityName=basename(filePath), physical = phys, alternateIdentifier = as(list(altId), "ListOfalternateIdentifier"))
+      oe <- new("otherEntity", EntityGroup=eg, entityType=format)
+      
+      oeList[[length(oeList) + 1]] <- oe
     }
-    
-    if(!is.na(format)) {
-      formatCitation <- new("citation")
-      f <- new("externallyDefinedFormat", formatName=format, citation=formatCitation)
-      df <- new("dataFormat", externallyDefinedFormat=f)
-      dataFormat <- df
-    } else {
-      df <- new("dataFormat")
-    }
-    
-    phys <- new("physical", objectName = basename(filePath), size = new("size", as.character(fileSize), unit="bytes"),
-                distribution = distList, dataFormat = dataFormat)
-    # Store the unique identifier for this entity, so that we can find it and update it later during the publish step. 
-    # Turns out that DataONE doesn't recognize<otherEntity><alternateIdentifier as a valid element, so it will be
-    # removed during the publishing process.
-    altId <- new("alternateIdentifier", character = fileId, system = "UUID")
-    eg <- new("EntityGroup", entityName=basename(filePath), physical = phys, alternateIdentifier = as(list(altId), "ListOfalternateIdentifier"))
-    oe <- new("otherEntity", EntityGroup=eg, entityType=format)
-    
-    oeList[[length(oeList) + 1]] <- oe
   }
   creatorList <- list()
-  for (irow in 1:nrow(creators)) {
-    individual <- new("individualName", givenName=creators[irow, 'given'], surName=creators[irow,'surname'])
-    individualList <- as(list(individual), "ListOfindividualName")
-    creator <- new("creator", individual = individualList, electronicMailAddress = creators[irow, 'email'])
-    creatorList[[length(creatorList)+1]] <- creator
+  if(nrow(creators) > 0) {
+    for (irow in 1:nrow(creators)) {
+      individual <- new("individualName", givenName=creators[irow, 'given'], surName=creators[irow,'surname'])
+      individualList <- as(list(individual), "ListOfindividualName")
+      creator <- new("creator", individual = individualList, electronicMailAddress = creators[irow, 'email'])
+      creatorList[[length(creatorList)+1]] <- creator
+    }
   }
   
   titleObj <- new("title", value=title)
@@ -1707,27 +1717,30 @@ getRecordrDbVersion <- function(recordr) {
 
 execMetaTodata.frame <- function(execMetaList) {
   # Now conver the list of ExecMetadata objects to a data.frame for the user's consumption.
-  for (iRun in 1:length(execMetaList)) {
-    thisRun <- execMetaList[[iRun]]
-    #slotDataTypes <- getSlots("ExecMetadata")
-    thisRunList <- list()
-    #slotName <- execSlotNames[[i]]
-    #slotDataType <- slotDataTypes[[i]]
-    execSlotNames <- slotNames("ExecMetadata")
-    for (i in 1:length(execSlotNames)) {
-      thisSlotName <- execSlotNames[[i]]
-      if (thisSlotName == "tag") {
-        thisRunList[length(thisRunList) + 1] <- paste(slot(thisRun, thisSlotName), collapse=",")
-      } else {
-        thisRunList[length(thisRunList) + 1] <- slot(thisRun, thisSlotName)
+  rundf <- data.frame()
+  if (length(execMetaList) > 0) {
+    for (iRun in 1:length(execMetaList)) {
+      thisRun <- execMetaList[[iRun]]
+      #slotDataTypes <- getSlots("ExecMetadata")
+      thisRunList <- list()
+      #slotName <- execSlotNames[[i]]
+      #slotDataType <- slotDataTypes[[i]]
+      execSlotNames <- slotNames("ExecMetadata")
+      for (i in 1:length(execSlotNames)) {
+        thisSlotName <- execSlotNames[[i]]
+        if (thisSlotName == "tag") {
+          thisRunList[length(thisRunList) + 1] <- paste(slot(thisRun, thisSlotName), collapse=",")
+        } else {
+          thisRunList[length(thisRunList) + 1] <- slot(thisRun, thisSlotName)
+        }
       }
-    }
-    names(thisRunList) <- slotNames("ExecMetadata")
-    if (iRun == 1) {
-      rundf <- as.data.frame(thisRunList, row.names=NULL, stringsAsFactors=F)
-    } else {
-      newdf <- as.data.frame(thisRunList, row.names=NULL, stringsAsFactors=F)
-      rundf <- rbind(rundf, newdf)
+      names(thisRunList) <- slotNames("ExecMetadata")
+      if (iRun == 1) {
+        rundf <- as.data.frame(thisRunList, row.names=NULL, stringsAsFactors=F)
+      } else {
+        newdf <- as.data.frame(thisRunList, row.names=NULL, stringsAsFactors=F)
+        rundf <- rbind(rundf, newdf)
+      }
     }
   }
   return(rundf)
