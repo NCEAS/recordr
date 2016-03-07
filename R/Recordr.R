@@ -835,6 +835,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     return(invisible(runs))
   }
         
+  filesdf <-  data.frame(row.names=NULL, stringsAsFactors=F)
   # Loop through selected runs
   for(i in 1:length(runs)) {     
     thisRow <- runs[[i]]       
@@ -928,15 +929,20 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
 
     }
 
-    
+    fstatsAll <-  data.frame(row.names=NULL, stringsAsFactors=F)
     # Read the info file once, and prepare this dfs of read files and generated files
     if(is.element("used", sections) || is.element("generated", sections)) {
       fstatsRead <- readFileMeta(recordr, executionId=executionId, access="read")
+      if(nrow(fstatsRead) > 0) {
+        fstatsAll <- rbind(fstatsAll, fstatsRead)
+      }
       #fstatsRead <- fstats[order(basename(fstatsRead$filePath)),]
       fstatsWrite <- readFileMeta(recordr, executionId=executionId, access="write")
       #fstatsWrite <- fstats[order(basename(fstatsWrite$filePath)),]
+      if(nrow(fstatsWrite) > 0) {
+        fstatsAll <- rbind(fstatsAll , fstatsWrite)
+      }
     }
-    
     # "%-30s %-10d %-19s\n"
     fileNameLength = 30    
     filePathLength = 60
@@ -968,11 +974,15 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
       }
     }
     
+    # Accumulate file entries for this run into the data.frame that holds 
+    # file entries for all selected runs.
+    filesdf <- rbind(filesdf, fstatsAll)
     # Print provenance relationships
     if(verbose) {
       cat(sprintf("\nProvenance relationships:\n"))
       print(relations)
     }
+    
     # Page console output if multiple runs are being viewed
     if (length(runs) > 1 && page) {
       inputLine <- readline("enter <return> to continue, q<return> to quit: ")
@@ -982,6 +992,9 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
       next
     }
   }
+  
+  rundf <- execMetaTodata.frame(runs)
+  return(list(runs = rundf, files = filesdf))
 })
 
 #' Publish a recordr'd execution to DataONE

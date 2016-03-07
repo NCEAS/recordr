@@ -355,7 +355,7 @@ setMethod("readFileMeta", signature("Recordr"), function(recordr,
   selectStatement <- paste(select, whereClause, orderByClause, sep=" ")
   #cat(sprintf("select: %s\n", selectStatement))
   result <- dbSendQuery(conn = dbConn, statement=selectStatement)
-  resultdf <- dbFetch(result)
+  resultdf <- dbFetch(result, n=-1)
   dbClearResult(result)
   
   # Now delete records if requested.
