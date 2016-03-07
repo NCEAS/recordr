@@ -623,7 +623,7 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
   }
   #cat(sprintf("select: %s\n", selectStatement))
   result <- dbSendQuery(conn = dbConn, statement=selectStatement)
-  resultdf <- dbFetch(result)
+  resultdf <- dbFetch(result, n=-1)
   dbClearResult(result)
   
   # If no result were returned from the query, return an empty list
