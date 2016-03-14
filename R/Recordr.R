@@ -714,7 +714,8 @@ setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA
   for(i in 1:length(runs)) {
     printRun(runs[[i]])
   }
-     
+  
+  # Return invisible copy of runs, as we have already printed out a formatted version of the run info.
   invisible(execMetaTodata.frame(runs))
 })
 
@@ -979,7 +980,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
   }
   
   rundf <- execMetaTodata.frame(runs)
-  return(list(runs = rundf, files = filesdf))
+  invisible(list(runs = rundf, files = filesdf))
 })
 
 #' Publish a recordr'd execution to DataONE
@@ -1198,7 +1199,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # Record the time that this execution was published, the published id, subject that submitted the data.
   updateExecMeta(recordr, executionId=id, subject=subject, publishTime=publishTime, publishNodeId=mnId, 
                  publishId=metadataId) 
-  invisible(metadataId)
+  return(metadataId)
 })
 
 #' Retrieve the metadata object for a run
