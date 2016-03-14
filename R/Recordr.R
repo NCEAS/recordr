@@ -602,7 +602,6 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.charact
 #' @param error The text of the error message to match.
 #' @param seq The run sequence number (can be a single value or a range, e.g \code{seq="1:10"})
 #' @param noop Don't delete any date, just show what would be deleted.
-#' @param quiet Don't print any informational messages to the display
 #' @seealso \code{\link[=Recordr-class]{Recordr}}{ class description}
 #' @export
 setGeneric("deleteRuns", function(recordr, ...) {
@@ -614,28 +613,22 @@ setGeneric("deleteRuns", function(recordr, ...) {
 setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.character(NA), file = as.character(NA), 
                                                        start = as.character(NA), end = as.character(NA), 
                                                        tag = as.character(NA), error = as.character(NA), 
-                                                       seq = as.integer(NA), noop = FALSE, quiet = FALSE) {
+                                                       seq = as.integer(NA), noop = FALSE) {
 
   runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, delete=TRUE)
   # selectRuns returns a list of ExecMeta objects
   if (length(runs) == 0) {
-    if (!quiet) {
-      message(sprintf("No runs matched search criteria."))
-    }
+    message(sprintf("No runs matched search criteria."))
     return(invisible(runs))
   } else {
-    if (!quiet) {
-      if (noop) {
-        message(sprintf("The following %d runs would have been deleted:\n", length(runs)))
-      } else {
-        message(sprintf("The following %d runs will be deleted:\n", length(runs)))
-      }
+    if (noop) {
+      message(sprintf("The following %d runs would have been deleted:\n", length(runs)))
+    } else {
+      message(sprintf("The following %d runs will be deleted:\n", length(runs)))
     }
   }
   
-  if (! quiet) {
-    printRun(headerOnly=TRUE)
-  }
+  printRun(headerOnly=TRUE)
   
   # Loop through selected runs
   for(i in 1:length(runs)) {
@@ -663,9 +656,7 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
         }
       }
     }
-    if (! quiet) {
-      printRun(row)
-    }
+    printRun(row)
   }
   
   invisible(execMetaTodata.frame(runs))
@@ -688,7 +679,6 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
 #' @param tag Text of tag to match
 #' @param error Text of error message to match 
 #' @param seq A run sequence number (can be a range, e.g \code{seq=1:10})
-#' @param quiet Don't print any informational messages to the display
 #' @param orderBy The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime
 #' @seealso \code{\link[=Recordr-class]{Recordr}}{ class description}
 #' @export
@@ -710,23 +700,19 @@ setGeneric("listRuns", function(recordr, ...) {
 #' }
 #
 setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA), script=as.character(NA), start = as.character(NA), end=as.character(NA), tag=as.character(NA), 
-                                                     error=as.character(NA), seq=as.character(NA), quiet=FALSE, orderBy = "-startTime") {
+                                                     error=as.character(NA), seq=as.character(NA), orderBy = "-startTime") {
   
   runs <- selectRuns(recordr, runId=id, script=script, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=as.character(seq), orderBy=orderBy)
   if (length(runs) == 0) {
-    if (!quiet) {
-      message(sprintf("No runs matched search criteria."))
-    }
+    message(sprintf("No runs matched search criteria."))
     return(invisible(runs))
   }
-
-  if (!quiet) {
-    # Print header line
-    printRun(headerOnly = TRUE)
-    # Loop through selected runs
-    for(i in 1:length(runs)) {
-      printRun(runs[[i]])
-    }
+  
+  # Print header line
+  printRun(headerOnly = TRUE)
+  # Loop through selected runs
+  for(i in 1:length(runs)) {
+    printRun(runs[[i]])
   }
      
   invisible(execMetaTodata.frame(runs))
@@ -826,15 +812,12 @@ setGeneric("viewRuns", function(recordr, ...) {
 #' viewRuns(rc, seq="1:10", sections="generated")
 #' }
 setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA), file=as.character(NA), start=as.character(NA), end=as.character(NA), tag=as.character(NA), error=as.character(NA),
-                                                 seq=as.character(NA), orderBy="-startTime", sections=c("details","used","generated"), verbose=FALSE, page=TRUE, quiet=TRUE) {
   
   runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, orderBy=orderBy)
   # selectRuns returns a list of ExecMetadata objects
   if (length(runs) == 0) {
-    if (!quiet) {
       message(sprintf("No runs matched search criteria."))
-    }
-    return(invisible(runs))
+    return(runs)
   }
         
   filesdf <-  data.frame(row.names=NULL, stringsAsFactors=F)
