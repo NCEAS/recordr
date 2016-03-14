@@ -790,6 +790,14 @@ setGeneric("viewRuns", function(recordr, ...) {
 })
 
 #' @rdname viewRuns 
+#' @details The execution and file information for runs that match the search criteria are 
+#' printed to the console. The output is divided into three sections: "details", "used"
+#' and "generated". The "details" section shows execution information such as the start and end time
+#' of the run, run identifier, etc. The "used" section lists files that were read by a run. The
+#' "generated" section lists files that were created by a run. The list that is returned from \code{"viewRuns"}
+#' contains two elements - a data.frame with the execution information, and a data.frame that contains
+#' file information.
+#' @return A list that contains information about all selected runs.
 #' @param id The execution identifier of a run to view
 #' @param file The name of script to match 
 #' @param start Match runs that started in this time range (inclusive)
@@ -810,9 +818,12 @@ setGeneric("viewRuns", function(recordr, ...) {
 #' # View the tenth run that was recorded
 #' viewRuns(rc, seq=10)
 #' # View the first ten runs, with only the files "generated" section displayed
-#' viewRuns(rc, seq="1:10", sections="generated")
+#' info <- viewRuns(rc, seq="1:10", sections="generated")
+#' nrow(info$runs)
+#' nrow(info$files)
 #' }
 setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA), file=as.character(NA), start=as.character(NA), end=as.character(NA), tag=as.character(NA), error=as.character(NA),
+                                                 seq=as.character(NA), orderBy="-startTime", sections=c("details","used","generated"), verbose=FALSE, page=TRUE,
   
   runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, orderBy=orderBy)
   # selectRuns returns a list of ExecMetadata objects
