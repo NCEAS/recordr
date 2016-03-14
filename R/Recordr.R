@@ -824,6 +824,14 @@ setGeneric("viewRuns", function(recordr, ...) {
 #' }
 setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA), file=as.character(NA), start=as.character(NA), end=as.character(NA), tag=as.character(NA), error=as.character(NA),
                                                  seq=as.character(NA), orderBy="-startTime", sections=c("details","used","generated"), verbose=FALSE, page=TRUE,
+                                                 output=TRUE) {
+  
+  # User requested no output, so send output to a temp file. 
+  if (!output) {
+    tf <- tempfile()
+    sink(file=tf)
+    on.exit(expr=sink(file=NULL))
+  }
   
   runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, orderBy=orderBy)
   # selectRuns returns a list of ExecMetadata objects
@@ -979,6 +987,9 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
       cat(sprintf("\nProvenance relationships:\n"))
       print(relations)
     }
+    
+    # Process next run if output is being suppressed
+    if(!output) next
     
     # Page console output if multiple runs are being viewed
     if (length(runs) > 1 && page) {
