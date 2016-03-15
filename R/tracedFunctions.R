@@ -12,7 +12,7 @@ recordr_getObject <- function(node, pid, ...) {
   # "recordr_getObject". It is possible for the user to enter this function then, if they
   # didn't actually load the dataone package (i.e. library(dataone)), so check if dataone
   # package is available, and print the appropriate message if not.
-  if(suppressWarnings(require(dataone))) {
+  if(suppressWarnings(requireNamespace(dataone))) {
     # Call the original function that we are overriding
     d1o <- dataone::getObject(node, pid, ...)
   } else {
@@ -56,7 +56,7 @@ recordr_getObject <- function(node, pid, ...) {
 # Override the DataONE 'create' method
 #' @export
 recordr_create <- function(mnode, pid, file, sysmeta, ...) {
-  if(suppressWarnings(require(dataone))) {
+  if(suppressWarnings(requireNamespace(dataone))) {
     # Call the overridden function
     result <- dataone::create(mnode, pid, file, sysmeta, ...)
   } else {
@@ -105,7 +105,7 @@ recordr_create <- function(mnode, pid, file, sysmeta, ...) {
 # Override the DataONE 'update' method
 #' @export
 recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
-  if(suppressWarnings(require(dataone))) {
+  if(suppressWarnings(requireNamespace(dataone))) {
     # Call the overridden function
     result <- dataone::updateObject(mnode, pid, file, newpid, sysmeta)
   } else {
@@ -300,7 +300,7 @@ recordr_read.csv <- function(...) {
 #' Override ggplot2::ggsave()
 #' @export
 recordr_ggsave <- function(filename, ...) {
-  if (suppressWarnings(require("ggplot2"))) {
+  if (suppressWarnings(requireNamespace("ggplot2"))) {
     # Call the original function that we are overriding
     obj <- ggplot2::ggsave(filename, ...)
   } else {
@@ -529,7 +529,7 @@ recordr_readPNG <- function (source, ...) {
   # "recordr_getObject". It is possible for the user to enter this function then, if they
   # didn't actually load the dataone package (i.e. library(dataone)), so check if dataone
   # package is available, and print the appropriate message if not.
-  if(suppressWarnings(require(png))) {
+  if(suppressWarnings(requireNamespace(png))) {
     # Call the original function that we are overriding
     obj <- png::readPNG(source, ...)
   } else {
