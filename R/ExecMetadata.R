@@ -437,7 +437,6 @@ setMethod("updateExecMeta", signature("Recordr"), function(recordr,
 #' @param recordr A Recordr object
 #' @param ... additional parameters
 #' @seealso \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
-#' @export
 setGeneric("readExecMeta", function(recordr, ...) {
   standardGeneric("readExecMeta")
 })
