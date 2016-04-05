@@ -19,16 +19,16 @@
 
 #' A class representing a script execution with the run manager
 #' @author slaughter
-#' @slot executionId
-#' @slot metadataId
-#' @slot tag
-#' @slot datapackageId
-#' @slot user
-#' @slot subject
-#' @slot hostId
-#' @slot startTime
-#' @slot operatingSystem
-#' @slot runtime
+#' @slot executionId A character containing the unique indentifier for this execution.
+#' @slot metadataId A character containing the unique identifier for the associated metadata object.
+#' @slot tag A character vector containing text associated with this execution.
+#' @slot datapackageId A character containing the unique identifier for an uploaded package.
+#' @slot user A character containing the user name that ran the execution.
+#' @slot subject A character containing the user identity that uploaded the package.
+#' @slot hostId A character containing the host identifier to which the package was uploaded.
+#' @slot startTime A character containing a the start time of the execution.
+#' @slot operatingSystem A character continaing the operating system name.
+#' @slot runtime A character containing R build and version information.
 #' @slot softwareApplication
 #' @slot moduleDependencies
 #' @slot endTime
@@ -48,7 +48,6 @@
 #'  \item{\code{\link{updateExecMeta}}}{: Update saved execution metadata.}
 #' }
 #' @seealso \code{\link{recordr}}{ package description.}
-## @export
 setClass("ExecMetadata", slots = c(executionId      = "character",
                                    metadataId       = "character",
                                    tag             = "character",
@@ -75,8 +74,25 @@ setClass("ExecMetadata", slots = c(executionId      = "character",
 
 #' Initialize an execution metadata object
 #' @param .Object The ExecMetada object
-#' @param programName The name of the program that is being run.
+#' @param executionId a \code{"character"}, the unique identifier for an execution
+#' @param metadataId a \code{"character"}, the unique identifier for the metadata object associated with an execution
 #' @param tag A character vector that describes this execution.
+#' @param datapackageId a \code{"character"}, the unique identifier for the datapackage associated with an execution
+#' @param user a \code{"character"}, the user that started the execution
+#' @param subject a \code{"character"}, the user identity that owns the uploaded execution datapackage
+#' @param hostId  a \code{"character"},  the host identifier that the execution datapackage was uploaded to
+#' @param startTime a \code{"character"},  the starting time of the execution
+#' @param operatingSystem a \code{"character"}, the operating system that the execution ran on
+#' @param runtime a \code{"character"}, the software application used for the run, e.g. "R version 3.2.3 (2015-12-10)"
+#' @param moduleDependencies a \code{"character"} vector, a list of modules loaded during an execution  
+#' @param programName  a \code{"character"}, The name of the program that is being run.
+#' @param endTime a \code{"character"}, the ending time of an execution
+#' @param errorMessage a \code{"character"}, error messages generated during an execution
+#' @param publishTime a \code{"character"}, the time of publication (uploading) of an execution package
+#' @param publishNodeId a \code{"character"}, the node identifier that an execution package was published to
+#' @param publishId a \code{"character"}, the unique identifier associated with a published execution
+#' @param console a \code{"logical"}, was this execution recorded as commands typed at the console 
+#' @param seq an \code{"integer"}, an integer associated with an execution
 #' @rdname initialize-ExecMetadata
 #' @aliases initialize-ExecMetadata
 #' @seealso \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
@@ -165,7 +181,6 @@ setMethod("initialize", signature = "ExecMetadata", definition = function(.Objec
 
 #' Save a single execution metadata.
 #' @param recordr A Recordr object
-#' @param execMetadata an ExecMetadata object to save.
 #' @param ... Not yet used.
 #' @seealso \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
 setGeneric("writeExecMeta", function(recordr, execMeta, ...) {
@@ -174,6 +189,7 @@ setGeneric("writeExecMeta", function(recordr, execMeta, ...) {
 
 #' @rdname  writeExecMeta
 setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(recordr, execMeta, ...) {
+#' @param execMeta an ExecMetadata object to save.
   
   # Check if the connection to the database is still working
   tmpDBconn <- FALSE
@@ -313,7 +329,7 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
 #' and ending time, for example). Also, excution can be updated when a run
 #' is published, with information about the publishing process.
 #' @param recordr A Recordr object
-#' @param executionId The execution id of the execution to be updated
+#' @param ... additional arguments
 #' @seealso \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
 ## @export
 setGeneric("updateExecMeta", function(recordr, executionId, ...) {
@@ -321,6 +337,7 @@ setGeneric("updateExecMeta", function(recordr, executionId, ...) {
 })
 
 #' @rdname updateExecMeta
+#' @param executionId The execution id of the execution to be updated
 #' @param subject The authorized subject, i.e. from the client certificate.
 #' @param endTime The ending time of the exection.
 #' @param errorMessage An error message generated by the execution.
@@ -419,6 +436,7 @@ setMethod("updateExecMeta", signature("Recordr"), function(recordr,
 #' @details The \code{"startTime"} and \code{"endTime"} parameters are used to specify a time
 #' range to find runs that started execution between the start and end times that are specified.
 #' @param recordr A Recordr object
+#' @param ... additional parameters
 #' @seealso \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
 #' @export
 setGeneric("readExecMeta", function(recordr, ...) {
@@ -437,6 +455,7 @@ setGeneric("readExecMeta", function(recordr, ...) {
 #' @param seq An exectioin sequence nuber
 #' @param orderBy The column to sort the result set by.
 #' @param sortOrder The sort order. Values include "ascending", "descending".
+#' @param delete a \code{"logical"}, if TRUE, the selected runs are deleted (default: FALSE).
 #' @return A list of ExecMetadata objects 
 setMethod("readExecMeta", signature("Recordr"), function(recordr, 
                                     executionId=as.character(NA),  script=as.character(NA), 
