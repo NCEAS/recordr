@@ -63,7 +63,7 @@ setClass("Recordr", slots = c(recordrDir = "character",
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
 setMethod("initialize", signature = "Recordr", 
           definition = function(.Object,
-                                recordrDir = as.character(NA), quiet=FALSE) {
+                                recordrDir = as.character(NA)) {
   # User didn't specify recordr dir, use ~/.recordr
   if (is.na(recordrDir)) {
     recordrDir <- sprintf("%s/.recordr", path.expand("~"))
