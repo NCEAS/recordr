@@ -22,9 +22,9 @@ Imports:
     digest,
     XML,
     RSQLite,
+    EML
 Suggests:
     dataone,
-    EML,
     ggplot2,
     knitr,
     png,
