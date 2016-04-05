@@ -618,17 +618,13 @@ recordr_writePNG <- function(image, target, ...) {
   return(outImage)
 }
 
-#' Disable or enable provenance capture temporarily
-#' It may be necessary to disable provenance capture temporarily, for example when
-#' record() is writting out a housekeeping file.
-#' A state variable in the ".recordr" environment is used to
-#' temporarily disable provenance capture so that housekeeping tasks
-#' will not have provenance information recorded for them.
-#' Return the state of provenance capture: TRUE is enalbed, FALSE is disabled
-#' @param enable logical variable used to enable or disable provenance capture
-#' @return enabled a logical indicating the state of provenance capture: TRUE=enabled, FALSE=disabled
-#' @author slaughter
-#' @export
+# Disable or enable provenance capture temporarily
+# It may be necessary to disable provenance capture temporarily, for example when
+# record() is writting out a housekeeping file.
+# A state variable in the ".recordr" environment is used to
+# temporarily disable provenance capture so that housekeeping tasks
+# will not have provenance information recorded for them.
+# Return the state of provenance capture: TRUE is enalbed, FALSE is disabled
 setProvCapture <- function(enable) {
   # If the '.recordr' environment hasn't been created, then we are calling this
   # function outside the context of record(), so don't attempt to update the environment'
@@ -661,12 +657,7 @@ getProvCapture <-  function() {
   return(enabled)
 }
 
-#' Archive a file into the recordr archive directory
-#' @param file The file to save in the archive
-#' @return The name of the archived file path relative to the recordr home directory
-#' @import uuid
-#' @note This function is intended to run only during a record() session, i.e. the
-#' recordr environment needs to be available.
+# Archive a file into the recordr archive directory
 archiveFile <- function(file) {
   if(!file.exists(file)) {
     message("Cannot copy file %s, it does not exist\n", file)
