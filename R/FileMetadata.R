@@ -57,10 +57,18 @@ setClass("FileMetadata", slots = c(fileId = "character",
 
 #' Initialize a file metadata object.
 #' @details This method is used internally by the recordr package.
-#' @param .Object a FileMetdata object
-#' @param file The file to get metadata for
-#' @param executionId the execution that this file belongs to
-#' @param access the access that occurred for this file ("read", "write", "execute")
+#' @param .Object a \code{"FileMetdata"} object
+#' @param file a \code{"character"}, a file to acquire metadata for
+#' @param fileId a \code{"character"}, the unique identifier for this FileMeta object
+#' @param sha256 a \code{"character"}, the checksum for the file
+#' @param size a \code{"numeric"}, size in bytes of the file
+#' @param user a \code{"character"}, the user that owns the file
+#' @param createTime a \code{"character"}, the creation time of the file
+#' @param modifyTime a \code{"character"}, the modification time of the file
+#' @param executionId a \code{"character"}, the executionId associated with this FileMeatadata object
+#' @param access \code{"character"}, the access that occurred for this file ("read", "write", "execute")
+#' @param format a \code{"character"}, the format type associate with the file, e.g. "text/csv"
+#' @param archivedFilePath a \code{"character"}, the file path of the file 
 #' @rdname initialize-FileMetadata
 #' @aliases initialize-FileMetadata
 #' @import uuid
@@ -245,6 +253,7 @@ setGeneric("readFileMeta", function(recordr, ...) {
 #' @param format The format type of the object, e.g. "text/plain"
 #' @param orderBy The column to sort the result set by.
 #' @param sortOrder The sort type. Values include ("ascending", "descending")
+#' @param delete a \code{"logical"}, if TRUE, the selected file entries are deleted (default: FALSE).
 #' @return A dataframe containing file metadata objects
 setMethod("readFileMeta", signature("Recordr"), function(recordr, 
                                     fileId=as.character(NA),  executionId=as.character(NA), 
