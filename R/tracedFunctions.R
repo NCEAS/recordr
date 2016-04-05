@@ -58,7 +58,7 @@ recordr_getObject <- function(node, pid, ...) {
 recordr_create <- function(mnode, pid, file, sysmeta, ...) {
   if(suppressWarnings(requireNamespace(dataone))) {
     # Call the overridden function
-    result <- dataone::create(mnode, pid, file, sysmeta, ...)
+    result <- dataone::createObject(mnode, pid, file, sysmeta, ...)
   } else {
     stop("recordr package is tracing getObject(), but package \"dataone\" is not available.")
   } 
