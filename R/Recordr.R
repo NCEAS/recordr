@@ -425,6 +425,13 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
       }
   }
     
+  # These variables should be defined by the metadata template, however, define initial values 
+  # here in case they are not found in the template.
+  creators <- list()
+  abstract <- as.character(NA)
+  methodDescription <- as.character(NA)
+  geo_coverage <- geoCoverage("global", west="-180", east="180", north="90", south="-90")
+  temp_coverage <- temporalCoverage(Sys.Date(), Sys.Date())
   #mdfile <- sprintf("%s/metadata.R", path.expand("~"), recordr@recordrDir)
   success <- source(metadataTemplateFile, local=TRUE)
   # Set the identifier scheme to "uuid" for now, the user might specify "doi" during the
