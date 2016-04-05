@@ -1,10 +1,10 @@
 Package: recordr
-Title: Provenance tracking of R script executions.
+Title: Provenance tracking of R script executions
 Version: 0.9.0.9006
 Authors@R: c( person("Peter", "Slaughter", role = c("aut", "cre"), email = "slaughter@nceas.ucsb.edu"),
-    person("Matthew", "Jones", email = "jones@nceas.ucsb.edu"),
-    person("Chris", "Jones", email = "cjones@nceas.ucsb.edu"),
-    person("Lauren", "Walker", email = "walker@nceas.ucsb.edu")  )
+    person("Matthew", "Jones", role = "aut", email = "jones@nceas.ucsb.edu"),
+    person("Chris", "Jones", role = "ctb", email = "cjones@nceas.ucsb.edu"),
+    person("Lauren", "Walker", role = "ctb", email = "walker@nceas.ucsb.edu")  )
 Description: Provide methods to record data provenance about R script
     executions. Provenance data includes files that were read and written by
     the script, along with information about the execution, such as start time
