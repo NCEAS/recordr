@@ -334,7 +334,7 @@ setMethod("readFileMeta", signature("Recordr"), function(recordr,
     if(!is.null(whereClause)) {
       whereClause <- sprintf(" %s and format = \'%s\'", whereClause, format)
     } else {
-      whereClause <- sprintf(" where format = \'%s\'", formatjjj)
+      whereClause <- sprintf(" where format = \'%s\'", format)
     }
   }
   # If the user specified 'delete=TRUE', so first fetch the
