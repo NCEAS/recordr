@@ -33,7 +33,6 @@
 #' @slot access
 #' @slot format
 #' @slot archivedFilePath
-#' @import tools
 #' @include Recordr.R
 #' @section Methods:
 #' \itemize{
