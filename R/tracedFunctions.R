@@ -177,7 +177,7 @@ recordr_source <- function (file, local = FALSE, echo = verbose, print.eval = ec
 # Override the R 'write.csv' method
 recordr_write.csv <- function(x, file, ...) {
   # Call the original function that we are overriding
-  obj <- utils::write.csv(x, file, ...)
+  utils::write.csv(x, file, ...)
   
   # Get the option that controls whether or not file write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
@@ -185,16 +185,17 @@ recordr_write.csv <- function(x, file, ...) {
   capture_file_writes <- getOption("capture_file_writes")
   if(is.null(capture_file_writes)) capture_file_writes <- TRUE
   
+  datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+  
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_writes) {
-    # Currently connections are not traced
     if(is.element("connection", class(file))) {
       #message(sprintf("Tracing write.csv from a connection is not supported."))
-      return(dataRead)
+      # write.csv does not return a value
+      invisible(NULL)
     }
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
-    datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
     dataFmt <- "text/csv"
     dataObj <- new("DataObject", id=datasetId, file=file, format=dataFmt)
@@ -215,7 +216,8 @@ recordr_write.csv <- function(x, file, ...) {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  return(obj)
+  # write.csv does not return a value
+  invisible(NULL)
 }
 
 # Override read.csv
