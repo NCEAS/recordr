@@ -183,13 +183,13 @@ setMethod("initialize", signature = "ExecMetadata", definition = function(.Objec
 #' @param recordr A Recordr object
 #' @param ... Not yet used.
 #' @seealso \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
-setGeneric("writeExecMeta", function(recordr, execMeta, ...) {
+setGeneric("writeExecMeta", function(recordr, ...) {
   standardGeneric("writeExecMeta")
 })
 
 #' @rdname  writeExecMeta
-setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(recordr, execMeta, ...) {
 #' @param execMeta an ExecMetadata object to save.
+setMethod("writeExecMeta", signature("Recordr"), function(recordr, execMeta, ...) {
   
   # Check if the connection to the database is still working
   tmpDBconn <- FALSE
@@ -331,8 +331,7 @@ setMethod("writeExecMeta", signature("Recordr", "ExecMetadata"), function(record
 #' @param recordr A Recordr object
 #' @param ... additional arguments
 #' @seealso \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
-## @export
-setGeneric("updateExecMeta", function(recordr, executionId, ...) {
+setGeneric("updateExecMeta", function(recordr, ...) {
   standardGeneric("updateExecMeta")
 })
 
