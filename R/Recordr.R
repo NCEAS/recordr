@@ -29,10 +29,9 @@
 #' @slot dbConn A value of type \code{"SQLiteConnection"} that contains the connection of the recordr database
 #' @slot dbFile A valof of type \code{"character"} that contains the location of the recordr database file
 #' @rdname Recordr-class
-#' @import datapackage
+#' @import datapack
 #' @import methods
 #' @import uuid
-#' @import tools
 #' @import digest
 #' @import EML
 #' @import RSQLite
