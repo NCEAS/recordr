@@ -122,9 +122,7 @@ setMethod("initialize", signature = "Recordr",
 #' session can be closed by calling the endRecord() method. When the record() function is called to record
 #' a script, the startRecord() function is called automatically.
 #' @param recordr a Recordr instance
-#' @param tag a string that is associated with this run
-#' @param .file the filename for the script to run (only used internally when startRecord() is called from record())
-#' @param .console a logical argument that is used internally by the recordr package
+#' @param ... additional parameters
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
 #' @export
 setGeneric("startRecord", function(recordr, ...) {
@@ -132,6 +130,10 @@ setGeneric("startRecord", function(recordr, ...) {
 })
 
 #' @rdname startRecord
+#' @param tag a string that is associated with this run
+#' @param .file the filename for the script to run (only used internally when startRecord() is called from record())
+#' @param .console a logical argument that is used internally by the recordr package
+
 #' @return execution identifier that uniquely identifies this recorded session
 #' @examples 
 #' \dontrun{
@@ -543,6 +545,13 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
 #' runs that match the search parameters.
 #' @details This method is used internally by the \emph{recordr} package.
 #' @param recordr A Recordr instance
+#' @param ... additional parameters
+#' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
+setGeneric("selectRuns", function(recordr, ...) {
+  standardGeneric("selectRuns")
+})
+
+#' @rdname selectRuns
 #' @param runId An execution identifiers
 #' @param script The flle name of script to match.
 #' @param startTime Match executions that started after this time (inclusive)
@@ -551,12 +560,7 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
 #' @param errorMessage The text of error message to match.
 #' @param seq The run sequence number
 #' @param orderBy The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime
-#' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
-setGeneric("selectRuns", function(recordr, ...) {
-  standardGeneric("selectRuns")
-})
-
-#' @rdname selectRuns
+#' @param delete A logical value, if TRUE then the selected runs are deleted from the Recordr database.
 #' @return A data.frame that contains execution metadata for executions that matched the search criteria
 setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.character(NA), script=as.character(NA), startTime=as.character(NA), endTime=as.character(NA), 
                                                        tag=as.character(NA), errorMessage=as.character(NA), seq=as.integer(NA), orderBy="-startTime", delete=FALSE) {
@@ -594,6 +598,14 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.charact
 #' by the recordr package, so this deletion is irreversible, unless the user
 #' maintains their own backup.
 #' @param recordr A Recordr instance
+#' @param ... additional arguments
+#' @seealso \code{\link[=Recordr-class]{Recordr}}{ class description}
+#' @export
+setGeneric("deleteRuns", function(recordr, ...) {
+  standardGeneric("deleteRuns")
+})
+
+#' @rdname deleteRuns
 #' @param id An execution identifier
 #' @param file The name of script to match.
 #' @param start A one or two element character list specifying a date range to match for run start time
@@ -602,13 +614,6 @@ setMethod("selectRuns", signature("Recordr"), function(recordr, runId=as.charact
 #' @param error The text of the error message to match.
 #' @param seq The run sequence number (can be a single value or a range, e.g \code{seq="1:10"})
 #' @param noop Don't delete any date, just show what would be deleted.
-#' @seealso \code{\link[=Recordr-class]{Recordr}}{ class description}
-#' @export
-setGeneric("deleteRuns", function(recordr, ...) {
-  standardGeneric("deleteRuns")
-})
-
-#' @rdname deleteRuns
 #' @return A data.frame containing execution metadata for the runs that were deleted.
 setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.character(NA), file = as.character(NA), 
                                                        start = as.character(NA), end = as.character(NA), 
@@ -671,15 +676,7 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
 #' \code{"start=c("2015-01-01, "2015-01-31")} will cause the search to return any execution with a starting
 #' time in the first month of 2015. 
 #' @param recordr A Recordr instance
-#' @param file The name of the script to match 
-#' @param start Match runs that started in this time range (inclusive)
-#' Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"
-#' @param end A character value runs that ended in this time range (inclusive)
-#' Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"
-#' @param tag Text of tag to match
-#' @param error Text of error message to match 
-#' @param seq A run sequence number (can be a range, e.g \code{seq=1:10})
-#' @param orderBy The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime
+#' @param ... additional parameters
 #' @seealso \code{\link[=Recordr-class]{Recordr}}{ class description}
 #' @export
 setGeneric("listRuns", function(recordr, ...) {
@@ -687,14 +684,23 @@ setGeneric("listRuns", function(recordr, ...) {
 })
 
 #' @rdname listRuns
+#' @param id a \code{"character"}, the identifier to match
+#' @param script  \code{"character"},the name of the script to match 
+#' @param start \code{"character"}, Match runs that started in this time range (inclusive)
+#' Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"
+#' @param end a \code{"character"}, Match runs that ended in this time range (inclusive)
+#' Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"
+#' @param tag \code{"character"} Text of tag to match
+#' @param error \code{"character"} Text of error message to match 
+#' @param seq \code{"integer"} A run sequence number (can be a range, e.g \code{seq=1:10})
+#' @param orderBy The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime
 #' @return data frame containing information for each run
-#' @examples 
-#' \dontrun {
+#' @examples \dontrun {
 #' rc <- new("Recordr")
 #' # List runs that started in January 2015
 #' listRuns(rc, start=c("2015-01-01", "2015-01-31))
 #' # List runs that started on or after March 1, 2014
-#' listruns(rc, start="2014-03-01"
+#' listruns(rc, start="2014-03-01")
 #' # List runs that contain a tag with the string "analysis v1.3")
 #' listRuns(rc, tag="analysis v1.3")
 #' }
@@ -783,6 +789,7 @@ printRun <- function(run=NA, headerOnly = FALSE)  {
 #' View detailed information for an execution
 #' @description Detailed information for an execution is printed to the display.
 #' @param recordr A Recordr instance
+#' @param ... additional parameter
 #' @export
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
 setGeneric("viewRuns", function(recordr, ...) {
@@ -810,8 +817,9 @@ setGeneric("viewRuns", function(recordr, ...) {
 #' @param orderBy Sort the results according to the specified column. A hypen ('-') prepended to the column name 
 #' denoes a descending sort. The default value is "-startTime"
 #' @param sections Print the specified sections of the output. Default=c("details", "used", "generated")
-#' @param verbose
+#' @param verbose a \code{"logical"}, if TRUE then extra information is printed.
 #' @param page A logical value - if TRUE then pause after each run is displayed.
+#' @param output a \code{"logical"}, if FALSE then no output is printed to the console (useful if only the returned object is needed).
 #' @examples
 #' \dontrun{
 #' rc <- new("Recordr")
@@ -1007,6 +1015,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
 
 #' Publish a recordr'd execution to DataONE
 #' @param recordr a Recordr instance
+#' @param ... additional parameters
 #' seealso \code{\link[=Recordr-class]{Recordr}} { class description}
 #' @export
 setGeneric("publishRun", function(recordr, ...) {
@@ -1227,10 +1236,11 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
 #' Retrieve the metadata object for a run
 #' @description When a script or console session is recorded (see record() and startrecord()), 
 #' a metadata object is created that describes the objects associated with the run, using the
-#' Ecological Metadata Language \link{https://knb.ecoinformatics.org/#external//emlparser/docs/index.html}.
+#' Ecological Metadata Language \url{https://knb.ecoinformatics.org/#external//emlparser/docs/index.html}.
 #' This metadata can be retrieved from the recordr cache for review or editing if desired. If the metadata
 #' is updated, it can be re-inserted into the recordr cache using the \code{putMetadata} method.
 #' @param recordr a Recordr instance
+#' @param ... additional parameters
 #' seealso \code{\link[=Recordr-class]{Recordr}} { class description}
 #' @export
 setGeneric("getMetadata", function(recordr, ...) {
@@ -1287,6 +1297,7 @@ setMethod("getMetadata", signature("Recordr"), function(recordr, id=as.character
 #' @description Put a metadata document into the recordr cache for an run, replacing the
 #' existing metadata object for the specified run, if one exists.
 #' @param recordr a Recordr instance
+#' @param ... additional parameters
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
 #' @export
 setGeneric("putMetadata", function(recordr, ...) {
@@ -1386,7 +1397,17 @@ recordrShutdown <- function() {
 }
 
 #' Create a minimal EML document.
-#' Creating EML should be more complete, but this minimal example will suffice to create a valid document.
+#' @description An EML document is create from the values passed in.
+#' @param recordr A Recordr object.
+#' @param id The identifier for the EML document.
+#' @param system The system for the document.
+#' @param title The document title.
+#' @param creators A list of creator elements.
+#' @param abstract The document abstract.
+#' @param methodDescription The dataset method description.
+#' @param geo_coverage The geographic coverage element.
+#' @param temp_coverage The temporal coverage element.
+#' @param endpoint The online distribution URL.
 makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDescription=NA, geo_coverage=NA, temp_coverage=NA, endpoint=NA) {
   #dt <- eml_dataTable(dat, description=description)
   oeList <- as(list(), "ListOfotherEntity")
@@ -1483,6 +1504,11 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
 }
 
 #' Create a geographic coverage element from a description and bounding coordinates
+#' @param geoDescription a character string containing the description of the geogragraphic covereage
+#' @param west a character string containing the western most coordinate of the coverage (ex. "-134.32")
+#' @param east a character string containing the eastern most coordinate of the coverage (ex. "-120.42")
+#' @param north a character string containing the northern most coordinate of the coverage (ex. "34.32")
+#' @param south a character string containing the southern ost coordinate of the coverage (ex. "30.14")
 geoCoverage <- function(geoDescription, west, east, north, south) {
   bc <- new("boundingCoordinates", westBoundingCoordinate=as.character(west), 
             eastBoundingCoordinate=as.character(east), 
@@ -1504,6 +1530,9 @@ temporalCoverage <- function(begin, end) {
 }
 
 #' Create a coverage element
+#' @param gc An EML::geographicCoverage object
+#' @param tempc  A EML::temporalCoverage object
+#' @return An EML::Coverage object
 coverageElement <- function(gc, tempc) {
   gcList <- as(list(), "ListOfgeographicCoverage")
   gcList[[1]] <- gc
@@ -1515,6 +1544,7 @@ coverageElement <- function(gc, tempc) {
 
 #' Get a database connection
 #' @import RSQLite
+#' @param dbFile the path to the recordr database file (default: ~/.recordr/recordr.sqlite)
 getDBconnection <- function(dbFile) {
   dbDir <- dirname(dbFile)
   if(!file.exists(dbDir)) {
@@ -1776,6 +1806,7 @@ condenseStr <- function(filePath, newLength) {
 }
 
 #' Remove a file from the recordr archive directory
+#' @param recordr A Recordr object
 #' @param fileId The fileId to remove from the archive
 #' @return A logical value - TRUE if the file is remove, FALSE if not
 #' @import uuid
