@@ -29,6 +29,7 @@ Suggests:
     knitr,
     png,
     testthat
+Alternate_repository: c("http://packages.ropensci.org", "http://NCEAS.github.io/drat")
 License: Apache License 2.0
 URL: https://github.com/NCEAS/recordr
 BugReports: https://github.com/NCEAS/recordr/issues
