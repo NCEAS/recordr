@@ -535,8 +535,7 @@ recordr_readPNG <- function (source, ...) {
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_reads) {
     if(is.element("raw", class(source))) {
-      filePath <- summary(con)$description
-      message(sprintf("Tracing readPNG with source as a raw vector is not supported."))
+      #message(sprintf("Tracing readPNG with source as a raw vector is not supported."))
       return(obj)
     } else {
       filePath <- source
