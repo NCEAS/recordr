@@ -29,12 +29,12 @@ test_that("Can trace readPNG, writePNG", {
     writePNG(img, target = tf)
     status <- endRecord(rc)
     
-    mdf <- listRuns(rc, tag=tagNum, quiet = TRUE)
+    mdf <- listRuns(rc, tag=tagNum)
     oneRow <- nrow(mdf) == 1
     expect_that(oneRow, is_true())
     expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
     # Delete the single run
-    mdf <- deleteRuns(rc, tag=tagNum, quiet = TRUE)
+    mdf <- deleteRuns(rc, tag=tagNum)
     # If we deleted the run, then the returned data
     # frame of deleted runs will have one row
     oneRow <- nrow(mdf) == 1

@@ -54,12 +54,12 @@ test_that("Can trace dataone::create(), getObject(), update()", {
     expect_that(xmlValue(xmlRoot(response)), matches(newid))
     endRecord(rc)
     
-    mdf <- listRuns(rc, tag=tagNum, quiet = TRUE)
+    mdf <- listRuns(rc, tag=tagNum)
     oneRow <- nrow(mdf) == 1
     expect_that(oneRow, is_true())
     expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
     # Delete the single run
-    mdf <- deleteRuns(rc, tag=tagNum, quiet = TRUE)
+    mdf <- deleteRuns(rc, tag=tagNum)
     # If we deleted the run successfully, then the returned data
     # frame of deleted runs will have one row
     oneRow <- nrow(mdf) == 1
@@ -74,11 +74,11 @@ test_that("Can trace dataone::create(), getObject(), update()", {
     
     df <- read.csv(text=rawToChar(obj))
     expect_equal(testdf, df)
-    mdf <- listRuns(rc, tag=tagNum, quiet = TRUE)
+    mdf <- listRuns(rc, tag=tagNum)
     oneRow <- nrow(mdf) == 1
     expect_that(oneRow, is_true())
     expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
-    mdf <- deleteRuns(rc, tag=tagNum, quiet = TRUE)
+    mdf <- deleteRuns(rc, tag=tagNum)
     oneRow <- nrow(mdf) == 1
     expect_that(oneRow, is_true())
     # 
@@ -108,12 +108,12 @@ test_that("Can trace dataone::create(), getObject(), update()", {
     expect_that(updsysmeta@obsoletes, matches(newid))
     endRecord(rc)
     
-    mdf <- listRuns(rc, tag=tagNum, quiet = TRUE)
+    mdf <- listRuns(rc, tag=tagNum)
     oneRow <- nrow(mdf) == 1
     expect_that(oneRow, is_true())
     expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
     # Delete the single run
-    mdf <- deleteRuns(rc, tag=tagNum, quiet = TRUE)
+    mdf <- deleteRuns(rc, tag=tagNum)
     oneRow <- nrow(mdf) == 1
     expect_that(oneRow, is_true())
   }

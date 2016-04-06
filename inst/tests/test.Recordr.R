@@ -62,13 +62,13 @@ test_that("Can record a script execution", {
   #expect_that(length(getIdentifiers(pkg)), equals(2))
   
   #expect_that(class(pkg@sysmeta)[1], equals("SystemMetadata"))
-  mdf <- listRuns(recordr, tag=newTag, quiet = TRUE)
+  mdf <- listRuns(recordr, tag=newTag)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
   expect_that(mdf[mdf$tag == newTag, 'executionId'], matches(executionId))
   # Delete the single run
   
-  mdf <- deleteRuns(recordr, tag=newTag, quiet = TRUE)
+  mdf <- deleteRuns(recordr, tag=newTag)
   # If we deleted the run, then the returned data
   # frame of deleted runs will have one row
   oneRow <- nrow(mdf) == 1
@@ -78,7 +78,7 @@ test_that("Can record a script execution", {
 test_that("Can list a script execution", {
   recordr <- new("Recordr")
   # List the single run
-  mdf <- listRuns(recordr, tag=uuidTag, quiet = TRUE)
+  mdf <- listRuns(recordr, tag=uuidTag)
   # If we successfully listed the run, then the returned data
   # frame of deleted runs will have one row
   oneRow <- nrow(mdf) == 1
@@ -88,7 +88,7 @@ test_that("Can list a script execution", {
 test_that("Can delete a script execution", {
   recordr <- new("Recordr")
   # Delete the single run
-  mdf <- deleteRuns(recordr, tag=uuidTag, quiet = TRUE)
+  mdf <- deleteRuns(recordr, tag=uuidTag)
   # If we deleted the run, then the returned data
   # frame of deleted runs will have one row
   oneRow <- nrow(mdf) == 1
