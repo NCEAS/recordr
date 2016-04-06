@@ -6,13 +6,14 @@
 #' @include Constants.R
 #' @importFrom tools file_ext
 # Override dataone::getObject function
+#' @export
 recordr_getObject <- function(node, pid, ...) {
   # Call the masked function to retrieve the DataONE object
   # This function has been entered because the user called "getObject", which redirects to
   # "recordr_getObject". It is possible for the user to enter this function then, if they
   # didn't actually load the dataone package (i.e. library(dataone)), so check if dataone
   # package is available, and print the appropriate message if not.
-  if(suppressWarnings(requireNamespace(dataone))) {
+  if(suppressWarnings(requireNamespace("dataone"))) {
     # Call the original function that we are overriding
     d1o <- dataone::getObject(node, pid, ...)
   } else {
@@ -54,6 +55,7 @@ recordr_getObject <- function(node, pid, ...) {
 }
 
 ## Override the DataONE 'create' method
+#' @export
 recordr_create <- function(mnode, pid, file, sysmeta, ...) {
   if(suppressWarnings(requireNamespace("dataone"))) {
     # Call the overridden function
@@ -102,6 +104,7 @@ recordr_create <- function(mnode, pid, file, sysmeta, ...) {
 }
 
 # Override the DataONE 'update' method
+#' @export
 recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
   if(suppressWarnings(requireNamespace("dataone"))) {
     # Call the overridden function
@@ -150,6 +153,7 @@ recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
 }
 
 # Override the 'source' function so that recordr can detect when the user's script sources another script
+#' @export
 recordr_source <- function (file, local = FALSE, echo = verbose, print.eval = echo,
                             verbose = getOption("verbose"), prompt.echo = getOption("prompt"),
                             max.deparse.length = 150, chdir = FALSE, encoding = getOption("encoding"),
@@ -176,6 +180,7 @@ recordr_source <- function (file, local = FALSE, echo = verbose, print.eval = ec
 }
 
 # Override the R 'write.csv' method
+#' @export
 recordr_write.csv <- function(x, file, ...) {
   # Call the original function that we are overriding
   utils::write.csv(x, file, ...)
@@ -222,6 +227,7 @@ recordr_write.csv <- function(x, file, ...) {
 }
 
 # Override read.csv
+#' @export
 recordr_read.csv <- function(...) {
   dataRead <- utils::read.csv(...)
   # Record the provenance relationship between the user's script and an input data file.
@@ -294,6 +300,7 @@ recordr_read.csv <- function(...) {
 }
 
 # Override ggplot2::ggsave()
+#' @export
 recordr_ggsave <- function(filename, ...) {
   if (suppressWarnings(requireNamespace("ggplot2"))) {
     # Call the original function that we are overriding
@@ -361,6 +368,7 @@ recordr_ggsave <- function(filename, ...) {
 
 # Override the 'readLines' function
 # record the provenance relationship of script -> used -> file 
+#' @export
 recordr_readLines <- function(con, ...) {
   # Call the original function that we are overriding
   obj <- base::readLines(con, ...)
@@ -412,6 +420,7 @@ recordr_readLines <- function(con, ...) {
 
 # Override the 'writeLines' function
 # record the provenance relationship of script <- used <- used
+#' @export
 recordr_writeLines <- function(text, con, ...) {
   # Call the original function that we are overriding
   base::writeLines(text, con, ...)
@@ -461,6 +470,7 @@ recordr_writeLines <- function(text, con, ...) {
 
 # Override the 'readLines' function
 # record the provenance relationship of script -> used -> file 
+#' @export
 recordr_scan <- function(file, ...) {
   # Call the original function that we are overriding
   obj <- base::scan(file, ...)
@@ -512,6 +522,7 @@ recordr_scan <- function(file, ...) {
 
 # Override the 'readPNG' function
 # record the provenance relationship of script -> used -> file 
+#' @export
 recordr_readPNG <- function (source, ...) {
   
   # Call the original function that we are overriding
@@ -570,6 +581,7 @@ recordr_readPNG <- function (source, ...) {
 
 # Override the 'writePNG' function
 # record the provenance relationship of script <- used <- used
+#' @export
 recordr_writePNG <- function(image, target, ...) {
   # Call the original function that we are overriding
   outImage <- png::writePNG(image, target, ...)
