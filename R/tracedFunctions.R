@@ -55,7 +55,7 @@ recordr_getObject <- function(node, pid, ...) {
 
 ## Override the DataONE 'create' method
 recordr_create <- function(mnode, pid, file, sysmeta, ...) {
-  if(suppressWarnings(requireNamespace(dataone))) {
+  if(suppressWarnings(requireNamespace("dataone"))) {
     # Call the overridden function
     result <- dataone::createObject(mnode, pid, file, sysmeta, ...)
   } else {
@@ -103,7 +103,7 @@ recordr_create <- function(mnode, pid, file, sysmeta, ...) {
 
 # Override the DataONE 'update' method
 recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
-  if(suppressWarnings(requireNamespace(dataone))) {
+  if(suppressWarnings(requireNamespace("dataone"))) {
     # Call the overridden function
     result <- dataone::updateObject(mnode, pid, file, newpid, sysmeta)
   } else {
@@ -520,7 +520,7 @@ recordr_readPNG <- function (source, ...) {
   # "recordr_getObject". It is possible for the user to enter this function then, if they
   # didn't actually load the dataone package (i.e. library(dataone)), so check if dataone
   # package is available, and print the appropriate message if not.
-  if(suppressWarnings(requireNamespace(png))) {
+  if(suppressWarnings(requireNamespace("png"))) {
     # Call the original function that we are overriding
     obj <- png::readPNG(source, ...)
   } else {
