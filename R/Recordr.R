@@ -430,7 +430,8 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   abstract <- as.character(NA)
   methodDescription <- as.character(NA)
   geo_coverage <- geoCoverage("global", west="-180", east="180", north="90", south="-90")
-  temp_coverage <- temporalCoverage(Sys.Date(), Sys.Date())
+  currentYear <- format(Sys.Date(), "%Y")
+  temp_coverage <- temporalCoverage(currentYear, currentYear)
   #mdfile <- sprintf("%s/metadata.R", path.expand("~"), recordr@recordrDir)
   success <- source(metadataTemplateFile, local=TRUE)
   # Set the identifier scheme to "uuid" for now, the user might specify "doi" during the
@@ -1360,8 +1361,9 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
   if(asText) {
     # Validate the EML
     result = tryCatch({
-      xmlDoc <- xmlParse(metadata)
-      checkEML <- read_eml(xmlDoc)
+      tf <- tempfile()
+      writeLines(metadata, tf)
+      checkEML <- read_eml(tf)
     }, warning = function(w) {
       stop(sprintf("Error re-inserting EML into execution %s", id))
     }, error = function(e) {
@@ -1462,8 +1464,9 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
       # Turns out that DataONE doesn't recognize<otherEntity><alternateIdentifier as a valid element, so it will be
       # removed during the publishing process.
       altId <- new("alternateIdentifier", character = fileId, system = "UUID")
-      eg <- new("EntityGroup", entityName=basename(filePath), physical = phys, alternateIdentifier = as(list(altId), "ListOfalternateIdentifier"))
-      oe <- new("otherEntity", EntityGroup=eg, entityType=format)
+      #eg <- new("EntityGroup", entityName=basename(filePath), physical = phys, alternateIdentifier = as(list(altId), "ListOfalternateIdentifier"))
+      #oe <- new("otherEntity", EntityGroup=eg, entityType=format)
+      oe <- new("otherEntity", entityName=basename(filePath), entityType=format, physical = phys, alternateIdentifier = as(list(altId), "ListOfalternateIdentifier"))
       
       oeList[[length(oeList) + 1]] <- oe
     }
@@ -1481,7 +1484,8 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
   titleObj <- new("title", value=title)
   titleList <- as(list(titleObj), "ListOftitle")
   coverage <- coverageElement(geo_coverage, temp_coverage)
-  rg <- new("ResourceGroup", title = titleList, creator = as(creatorList, "ListOfcreator"), pubDate = as.character(Sys.Date()), abstract = abstract, coverage = coverage)
+  #rg <- new("ResourceGroup", title = titleList, creator = as(creatorList, "ListOfcreator"), 
+  #pubDate = as.character(Sys.Date()), abstract = abstract, coverage = coverage)
   
   # Create a contact for the dataset, use the first contact in the passed in data.frame
   individual <- new("individualName", givenName=creators[1, 'given'], surName=creators[1, 'surname'])
@@ -1490,14 +1494,19 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
   contactList <- as(list(contact), "ListOfcontact")
   
   if (!is.na(methodDescription)) {
-    ps <- new("proceduralStep", description=methodDescription)
-    ms <- new("methodStep", ProcedureStepType = ps)
+    #ps <- new("proceduralStep", description=methodDescription)
+    #ms <- new("methodStep", ProcedureStepType = ps)
+    ms <- new("methodStep", description=methodDescription)
     loMethodStep <- new("ListOfmethodStep", list(ms))
     methods <- new("methods", methodStep=loMethodStep)
   }
   
   ds <- new("dataset",
-            ResourceGroup = rg,
+            title = titleList,
+            creator = as(creatorList, "ListOfcreator"),
+            pubDate = as.character(Sys.Date()), 
+            abstract = abstract, 
+            coverage = coverage,
             contact = contactList,
             methods = methods,
             otherEntity = as(oeList, "ListOfotherEntity")
