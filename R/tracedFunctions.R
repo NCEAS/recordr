@@ -4,6 +4,7 @@
 # are read and written.
 #
 #' @include Constants.R
+#' @importFrom tools file_ext
 # Override dataone::getObject function
 recordr_getObject <- function(node, pid, ...) {
   # Call the masked function to retrieve the DataONE object
