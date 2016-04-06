@@ -41,9 +41,8 @@ test_that("Can record a script execution", {
   # Check that package metadata can be retrieved and updated
   executionId <- record(recordr, scriptPath, tag=uuidTag)
   metadata <- getMetadata(recordr, id=executionId)
-  metadata <- gsub("John", "Stephen", metadata)
-  metadata <- gsub("Smith", "Hubbell", metadata)
-  putMetadata(recordr, id=executionId, asText=TRUE)
+  metadata <- gsub("<surName>.*</surName>", "<surName>Hubbell</surName>", metadata)
+  putMetadata(recordr, id=executionId, metadata=metadata, asText=TRUE)
   newMeta <- getMetadata(recordr, id=executionId)
   expect_true(any(grepl("Hubbell", metadata)))
   # Check the D1 package created by the record() call  
