@@ -1,4 +1,4 @@
-testthat::context("Test tracing R functions")
+testthat::context("Test tracing dataone functions")
 
 test_that("Recordr library loads", {
   library(recordr)
@@ -10,9 +10,9 @@ test_that("Can create Recordr instance", {
   expect_that(rc@class[1], matches("Recordr"))
 })
 
-test_that("Can trace dataone::create(), getObject(), update()", {
+test_that("Can trace dataone::createObject(), getObject(), updateObject()", {
   library(digest)
-  library(datapackage)
+  library(datapack)
   library(XML)
   library(uuid)
   skip_on_cran()
@@ -49,7 +49,7 @@ test_that("Can trace dataone::create(), getObject(), update()", {
     expect_that(sysmeta@authoritativeMemberNode, equals(mn@identifier))
     
     # Upload the data to the MN using create(), checking for success and a returned identifier
-    response <- create(mn, newid, csvfile, sysmeta)
+    response <- createObject(mn, newid, csvfile, sysmeta)
     expect_that(response, not(is_null()))
     expect_that(xmlValue(xmlRoot(response)), matches(newid))
     endRecord(rc)
