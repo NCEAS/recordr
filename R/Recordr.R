@@ -83,7 +83,7 @@ setMethod("initialize", signature = "Recordr",
   
   if (!dbIsValid(dbConn)) {
     if(is.null(dbConn)) {
-      stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
+      stop(sprintf("Error reconnecting to database file %s\n", .Object@dbFile))
     }
   }
   
@@ -702,10 +702,10 @@ setGeneric("listRuns", function(recordr, ...) {
 #' @param seq \code{"integer"} A run sequence number (can be a range, e.g \code{seq=1:10})
 #' @param orderBy The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime
 #' @return data frame containing information for each run
-#' @examples \dontrun {
+#' @examples \dontrun{
 #' rc <- new("Recordr")
 #' # List runs that started in January 2015
-#' listRuns(rc, start=c("2015-01-01", "2015-01-31))
+#' listRuns(rc, start=c("2015-01-01", "2015-01-31"))
 #' # List runs that started on or after March 1, 2014
 #' listruns(rc, start="2014-03-01")
 #' # List runs that contain a tag with the string "analysis v1.3")
