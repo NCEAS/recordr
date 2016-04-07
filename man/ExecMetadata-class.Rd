@@ -7,6 +7,47 @@
 \description{
 A class representing a script execution with the run manager
 }
+\section{Slots}{
+
+\describe{
+\item{\code{executionId}}{A \code{character} containing the unique indentifier for this execution.}
+
+\item{\code{metadataId}}{A \code{character} containing the unique identifier for the associated metadata object.}
+
+\item{\code{tag}}{A \code{character} vector containing text associated with this execution.}
+
+\item{\code{datapackageId}}{A \code{character} containing the unique identifier for an uploaded package.}
+
+\item{\code{user}}{A \code{character} containing the user name that ran the execution.}
+
+\item{\code{subject}}{A \code{character} containing the user identity that uploaded the package.}
+
+\item{\code{hostId}}{A \code{character} containing the host identifier to which the package was uploaded.}
+
+\item{\code{startTime}}{A \code{character} containing a the start time of the execution.}
+
+\item{\code{operatingSystem}}{A \code{character} continaing the operating system name.}
+
+\item{\code{runtime}}{A \code{character} containing R build and version information.}
+
+\item{\code{softwareApplication}}{A \code{character} containing the software application used, e.g. ("R")}
+
+\item{\code{moduleDependencies}}{A \code{character} containing the modules used by the software application.}
+
+\item{\code{endTime}}{A \code{character} containing the end time of the execution.}
+
+\item{\code{errorMessage}}{A \code{character} containing any error messages captured during the execution.}
+
+\item{\code{publishTime}}{A \code{character} containing the time that the execution package was uploaded to a repository.}
+
+\item{\code{publishNodeId}}{A \code{character} containing the node name that the execution was published to.}
+
+\item{\code{publishId}}{A \code{character} containing the identifier for the uploaded package.}
+
+\item{\code{console}}{A \code{logical} indicating whether this was a console session, i.e. startRecord() -> endRecord()}
+
+\item{\code{seq}}{A \code{integer} containing a simple integer value associated with the exection.}
+}}
 \section{Methods}{
 
 \itemize{

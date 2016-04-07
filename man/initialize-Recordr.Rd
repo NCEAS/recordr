@@ -6,8 +6,7 @@
 \alias{initialize-Recordr}
 \title{Initialize a Recorder object}
 \usage{
-\S4method{initialize}{Recordr}(.Object, recordrDir = as.character(NA),
-  quiet = FALSE)
+\S4method{initialize}{Recordr}(.Object, recordrDir = as.character(NA))
 }
 \arguments{
 \item{.Object}{The Recordr object}

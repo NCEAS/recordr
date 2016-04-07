@@ -22,17 +22,17 @@
 #' @details This class is used internally by the recordr package.
 #' @rdname FileMetadata-class
 #' @aliases FileMetadata-class
-#' @slot fileId
-#' @slot executionId
-#' @slot filePath
-#' @slot sha256
-#' @slot size
-#' @slot user
-#' @slot createTime
-#' @slot modifyTime
-#' @slot access
-#' @slot format
-#' @slot archivedFilePath
+#' @slot fileId a \code{character} containing the unique identifier for the file entry
+#' @slot executionId a \code{characgter} containing the identifier associated with the file entry
+#' @slot filePath a \code{character} containing the location of the file
+#' @slot sha256 a \code{character} containign the check of the file
+#' @slot size a \code{numeric} containing the size fo the file
+#' @slot user a \code{character} containing the user associated with the file entry.
+#' @slot createTime a \code{character} containing the file creation time.
+#' @slot modifyTime a \code{character} containing the file modification time.
+#' @slot access a \code{character} containing the type of access made to the file ("read", "write", "execute")
+#' @slot format a \code{character} containing the file format (e.g. "text/csv")
+#' @slot archivedFilePath a \code{character} containing the location of the archived file
 #' @include Recordr.R
 #' @section Methods:
 #' \itemize{

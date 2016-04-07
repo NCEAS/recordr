@@ -2,11 +2,20 @@
 % Please edit documentation in R/tracedFunctions.R
 \name{recordr_ggsave}
 \alias{recordr_ggsave}
-\title{Override ggplot2::ggsave()}
+\title{Provenance wrapper for the ggplot2::ggsave function}
 \usage{
 recordr_ggsave(filename, ...)
 }
+\arguments{
+\item{filename}{The filename to save the plot to}
+
+\item{...}{additional parameters}
+}
 \description{
-Override ggplot2::ggsave()
+Override the ggplot2::ggsave function and record a provenance relationship
+for the file that was written.
+}
+\note{
+This function is not intended to be called directly by a user.
 }
 

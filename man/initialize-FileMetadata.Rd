@@ -13,13 +13,29 @@
   format = as.character(NA), archivedFilePath = as.character(NA))
 }
 \arguments{
-\item{.Object}{a FileMetdata object}
+\item{.Object}{a \code{"FileMetdata"} object}
 
-\item{file}{The file to get metadata for}
+\item{file}{a \code{"character"}, a file to acquire metadata for}
 
-\item{executionId}{the execution that this file belongs to}
+\item{fileId}{a \code{"character"}, the unique identifier for this FileMeta object}
 
-\item{access}{the access that occurred for this file ("read", "write", "execute")}
+\item{sha256}{a \code{"character"}, the checksum for the file}
+
+\item{size}{a \code{"numeric"}, size in bytes of the file}
+
+\item{user}{a \code{"character"}, the user that owns the file}
+
+\item{createTime}{a \code{"character"}, the creation time of the file}
+
+\item{modifyTime}{a \code{"character"}, the modification time of the file}
+
+\item{executionId}{a \code{"character"}, the executionId associated with this FileMeatadata object}
+
+\item{access}{\code{"character"}, the access that occurred for this file ("read", "write", "execute")}
+
+\item{format}{a \code{"character"}, the format type associate with the file, e.g. "text/csv"}
+
+\item{archivedFilePath}{a \code{"character"}, the file path of the file}
 }
 \description{
 Initialize a file metadata object.

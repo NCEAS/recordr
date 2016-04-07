@@ -17,6 +17,8 @@ selectRuns(recordr, ...)
 \arguments{
 \item{recordr}{A Recordr instance}
 
+\item{...}{additional parameters}
+
 \item{runId}{An execution identifiers}
 
 \item{script}{The flle name of script to match.}
@@ -32,6 +34,8 @@ selectRuns(recordr, ...)
 \item{seq}{The run sequence number}
 
 \item{orderBy}{The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime}
+
+\item{delete}{A logical value, if TRUE then the selected runs are deleted from the Recordr database.}
 }
 \value{
 A data.frame that contains execution metadata for executions that matched the search criteria

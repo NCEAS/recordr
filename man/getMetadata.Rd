@@ -12,7 +12,9 @@ getMetadata(recordr, ...)
   seq = as.character(NA), as = as.character("text"))
 }
 \arguments{
-\item{recordr}{a Recordr instance
+\item{recordr}{a Recordr instance}
+
+\item{...}{additional parameters
 seealso \code{\link[=Recordr-class]{Recordr}} { class description}}
 
 \item{id}{The identifier for a run}
@@ -27,7 +29,7 @@ A character vector containing the metadata
 \description{
 When a script or console session is recorded (see record() and startrecord()), 
 a metadata object is created that describes the objects associated with the run, using the
-Ecological Metadata Language \link{https://knb.ecoinformatics.org/#external//emlparser/docs/index.html}.
+Ecological Metadata Language \url{https://knb.ecoinformatics.org/#external//emlparser/docs/index.html}.
 This metadata can be retrieved from the recordr cache for review or editing if desired. If the metadata
 is updated, it can be re-inserted into the recordr cache using the \code{putMetadata} method.
 }

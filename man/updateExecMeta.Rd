@@ -6,7 +6,7 @@
 \alias{updateExecMeta,Recordr-method}
 \title{Update a single execution metadata object.}
 \usage{
-updateExecMeta(recordr, executionId, ...)
+updateExecMeta(recordr, ...)
 
 \S4method{updateExecMeta}{Recordr}(recordr, executionId = as.character(NA),
   subject = as.character(NA), endTime = as.character(NA),
@@ -15,6 +15,8 @@ updateExecMeta(recordr, executionId, ...)
 }
 \arguments{
 \item{recordr}{A Recordr object}
+
+\item{...}{additional arguments}
 
 \item{executionId}{The execution id of the execution to be updated}
 

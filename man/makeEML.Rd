@@ -2,15 +2,34 @@
 % Please edit documentation in R/Recordr.R
 \name{makeEML}
 \alias{makeEML}
-\title{Create a minimal EML document.
-Creating EML should be more complete, but this minimal example will suffice to create a valid document.}
+\title{Create a minimal EML document.}
 \usage{
 makeEML(recordr, id, system, title, creators, abstract = NA,
   methodDescription = NA, geo_coverage = NA, temp_coverage = NA,
   endpoint = NA)
 }
+\arguments{
+\item{recordr}{A Recordr object.}
+
+\item{id}{The identifier for the EML document.}
+
+\item{system}{The system for the document.}
+
+\item{title}{The document title.}
+
+\item{creators}{A list of creator elements.}
+
+\item{abstract}{The document abstract.}
+
+\item{methodDescription}{The dataset method description.}
+
+\item{geo_coverage}{The geographic coverage element.}
+
+\item{temp_coverage}{The temporal coverage element.}
+
+\item{endpoint}{The online distribution URL.}
+}
 \description{
-Create a minimal EML document.
-Creating EML should be more complete, but this minimal example will suffice to create a valid document.
+An EML document is create from the values passed in.
 }
 

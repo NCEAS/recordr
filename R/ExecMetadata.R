@@ -19,25 +19,25 @@
 
 #' A class representing a script execution with the run manager
 #' @author slaughter
-#' @slot executionId A character containing the unique indentifier for this execution.
-#' @slot metadataId A character containing the unique identifier for the associated metadata object.
-#' @slot tag A character vector containing text associated with this execution.
-#' @slot datapackageId A character containing the unique identifier for an uploaded package.
-#' @slot user A character containing the user name that ran the execution.
-#' @slot subject A character containing the user identity that uploaded the package.
-#' @slot hostId A character containing the host identifier to which the package was uploaded.
-#' @slot startTime A character containing a the start time of the execution.
-#' @slot operatingSystem A character continaing the operating system name.
-#' @slot runtime A character containing R build and version information.
-#' @slot softwareApplication
-#' @slot moduleDependencies
-#' @slot endTime
-#' @slot errorMessage
-#' @slot publishTime
-#' @slot publishNodeId
-#' @slot publishId
-#' @slot console
-#' @slot seq
+#' @slot executionId A \code{character} containing the unique indentifier for this execution.
+#' @slot metadataId A \code{character} containing the unique identifier for the associated metadata object.
+#' @slot tag A \code{character} vector containing text associated with this execution.
+#' @slot datapackageId A \code{character} containing the unique identifier for an uploaded package.
+#' @slot user A \code{character} containing the user name that ran the execution.
+#' @slot subject A \code{character} containing the user identity that uploaded the package.
+#' @slot hostId A \code{character} containing the host identifier to which the package was uploaded.
+#' @slot startTime A \code{character} containing a the start time of the execution.
+#' @slot operatingSystem A \code{character} continaing the operating system name.
+#' @slot runtime A \code{character} containing R build and version information.
+#' @slot softwareApplication A \code{character} containing the software application used, e.g. ("R")
+#' @slot moduleDependencies A \code{character} containing the modules used by the software application.
+#' @slot endTime A \code{character} containing the end time of the execution.
+#' @slot errorMessage A \code{character} containing any error messages captured during the execution.
+#' @slot publishTime A \code{character} containing the time that the execution package was uploaded to a repository.
+#' @slot publishNodeId A \code{character} containing the node name that the execution was published to.
+#' @slot publishId A \code{character} containing the identifier for the uploaded package.
+#' @slot console A \code{logical} indicating whether this was a console session, i.e. startRecord() -> endRecord()
+#' @slot seq A \code{integer} containing a simple integer value associated with the exection.
 #' @import RSQLite
 #' @include Recordr.R
 #' @section Methods:

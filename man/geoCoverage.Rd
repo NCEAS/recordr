@@ -6,6 +6,17 @@
 \usage{
 geoCoverage(geoDescription, west, east, north, south)
 }
+\arguments{
+\item{geoDescription}{a character string containing the description of the geogragraphic covereage}
+
+\item{west}{a character string containing the western most coordinate of the coverage (ex. "-134.32")}
+
+\item{east}{a character string containing the eastern most coordinate of the coverage (ex. "-120.42")}
+
+\item{north}{a character string containing the northern most coordinate of the coverage (ex. "34.32")}
+
+\item{south}{a character string containing the southern ost coordinate of the coverage (ex. "30.14")}
+}
 \description{
 Create a geographic coverage element from a description and bounding coordinates
 }

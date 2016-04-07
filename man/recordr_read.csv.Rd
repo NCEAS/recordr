@@ -2,11 +2,18 @@
 % Please edit documentation in R/tracedFunctions.R
 \name{recordr_read.csv}
 \alias{recordr_read.csv}
-\title{Override read.csv}
+\title{Provenance wrapper for the R utils::read.csv function}
 \usage{
 recordr_read.csv(...)
 }
+\arguments{
+\item{...}{function parameters}
+}
 \description{
-Override read.csv
+Override the utils::read.csv function and record a provenance relationship
+for the file that was read.
+}
+\note{
+This function is not intended to be called directly by a user.
 }
 

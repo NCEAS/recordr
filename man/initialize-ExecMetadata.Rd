@@ -20,9 +20,43 @@
 \arguments{
 \item{.Object}{The ExecMetada object}
 
+\item{executionId}{a \code{"character"}, the unique identifier for an execution}
+
+\item{metadataId}{a \code{"character"}, the unique identifier for the metadata object associated with an execution}
+
 \item{tag}{A character vector that describes this execution.}
 
-\item{programName}{The name of the program that is being run.}
+\item{datapackageId}{a \code{"character"}, the unique identifier for the datapackage associated with an execution}
+
+\item{user}{a \code{"character"}, the user that started the execution}
+
+\item{subject}{a \code{"character"}, the user identity that owns the uploaded execution datapackage}
+
+\item{hostId}{a \code{"character"},  the host identifier that the execution datapackage was uploaded to}
+
+\item{startTime}{a \code{"character"},  the starting time of the execution}
+
+\item{operatingSystem}{a \code{"character"}, the operating system that the execution ran on}
+
+\item{runtime}{a \code{"character"}, the software application used for the run, e.g. "R version 3.2.3 (2015-12-10)"}
+
+\item{moduleDependencies}{a \code{"character"} vector, a list of modules loaded during an execution}
+
+\item{programName}{a \code{"character"}, The name of the program that is being run.}
+
+\item{endTime}{a \code{"character"}, the ending time of an execution}
+
+\item{errorMessage}{a \code{"character"}, error messages generated during an execution}
+
+\item{publishTime}{a \code{"character"}, the time of publication (uploading) of an execution package}
+
+\item{publishNodeId}{a \code{"character"}, the node identifier that an execution package was published to}
+
+\item{publishId}{a \code{"character"}, the unique identifier associated with a published execution}
+
+\item{console}{a \code{"logical"}, was this execution recorded as commands typed at the console}
+
+\item{seq}{an \code{"integer"}, an integer associated with an execution}
 }
 \description{
 Initialize an execution metadata object

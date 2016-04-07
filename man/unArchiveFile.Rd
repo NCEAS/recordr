@@ -7,6 +7,8 @@
 unArchiveFile(recordr, fileId)
 }
 \arguments{
+\item{recordr}{A Recordr object}
+
 \item{fileId}{The fileId to remove from the archive}
 }
 \value{

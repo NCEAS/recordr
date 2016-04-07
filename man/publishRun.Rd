@@ -13,7 +13,9 @@ publishRun(recordr, ...)
   quiet = TRUE)
 }
 \arguments{
-\item{recordr}{a Recordr instance
+\item{recordr}{a Recordr instance}
+
+\item{...}{additional parameters
 seealso \code{\link[=Recordr-class]{Recordr}} { class description}}
 
 \item{id}{the run identifier for the execution to upload to DataONE}

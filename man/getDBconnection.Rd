@@ -6,6 +6,9 @@
 \usage{
 getDBconnection(dbFile)
 }
+\arguments{
+\item{dbFile}{the path to the recordr database file (default: ~/.recordr/recordr.sqlite)}
+}
 \description{
 Get a database connection
 }

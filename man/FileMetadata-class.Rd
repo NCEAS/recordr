@@ -10,6 +10,31 @@ A class containing information about a file or group of files
 \details{
 This class is used internally by the recordr package.
 }
+\section{Slots}{
+
+\describe{
+\item{\code{fileId}}{a \code{character} containing the unique identifier for the file entry}
+
+\item{\code{executionId}}{a \code{characgter} containing the identifier associated with the file entry}
+
+\item{\code{filePath}}{a \code{character} containing the location of the file}
+
+\item{\code{sha256}}{a \code{character} containign the check of the file}
+
+\item{\code{size}}{a \code{numeric} containing the size fo the file}
+
+\item{\code{user}}{a \code{character} containing the user associated with the file entry.}
+
+\item{\code{createTime}}{a \code{character} containing the file creation time.}
+
+\item{\code{modifyTime}}{a \code{character} containing the file modification time.}
+
+\item{\code{access}}{a \code{character} containing the type of access made to the file ("read", "write", "execute")}
+
+\item{\code{format}}{a \code{character} containing the file format (e.g. "text/csv")}
+
+\item{\code{archivedFilePath}}{a \code{character} containing the location of the archived file}
+}}
 \section{Methods}{
 
 \itemize{

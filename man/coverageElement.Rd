@@ -6,6 +6,14 @@
 \usage{
 coverageElement(gc, tempc)
 }
+\arguments{
+\item{gc}{An EML::geographicCoverage object}
+
+\item{tempc}{A EML::temporalCoverage object}
+}
+\value{
+An EML::Coverage object
+}
 \description{
 Create a coverage element
 }

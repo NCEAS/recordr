@@ -18,6 +18,8 @@ readExecMeta(recordr, ...)
 \arguments{
 \item{recordr}{A Recordr object}
 
+\item{...}{additional parameters}
+
 \item{executionId}{A character value that specifies an execution identifier to search for.}
 
 \item{script}{A character value that specifies a script name to search for.}
@@ -37,6 +39,8 @@ be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to "YYYY-MM-DD
 \item{orderBy}{The column to sort the result set by.}
 
 \item{sortOrder}{The sort order. Values include "ascending", "descending".}
+
+\item{delete}{a \code{"logical"}, if TRUE, the selected runs are deleted (default: FALSE).}
 }
 \value{
 A list of ExecMetadata objects

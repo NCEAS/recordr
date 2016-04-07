@@ -14,6 +14,8 @@ putMetadata(recordr, ...)
 \arguments{
 \item{recordr}{a Recordr instance}
 
+\item{...}{additional parameters}
+
 \item{id}{The identifier for a run}
 
 \item{seq}{The sequence number for a run}

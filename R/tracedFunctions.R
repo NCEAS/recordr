@@ -5,7 +5,13 @@
 #
 #' @include Constants.R
 #' @importFrom tools file_ext
-# Override dataone::getObject function
+#' @title Provenance wrapper function for dataone::getObject
+#' @description Override the dataone::getObject method and record a provenance relationship
+#' for the object that was downloaded.
+#' @param node The DataONE node to get the object from
+#' @param pid The persistent identifier for the object 
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_getObject <- function(node, pid, ...) {
   # Call the masked function to retrieve the DataONE object
@@ -54,7 +60,15 @@ recordr_getObject <- function(node, pid, ...) {
   return(d1o)
 }
 
-## Override the DataONE 'create' method
+#' Provenance wrapper function for dataone::createObject method
+#' @description Override the dataone::createOjbect method and record a provenance relationship
+#' for the object created.
+#' @param mnode The member node to craete the object on
+#' @param pid A persistent identifier
+#' @param file The file to upload
+#' @param sysmeta A SysstemMetadata object associated with the uploaded object
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_create <- function(mnode, pid, file, sysmeta, ...) {
   if(suppressWarnings(requireNamespace("dataone"))) {
@@ -103,7 +117,16 @@ recordr_create <- function(mnode, pid, file, sysmeta, ...) {
   return(result)
 }
 
-# Override the DataONE 'update' method
+#' Provenance wrapper function for dataone::updateObject
+#' @description Override the dataone::updateObject method and record a provenance
+#' relationship for the object uploaded.
+#' @param mnode The DataONE member node to update the object on
+#' @param pid The persistent identifier of the object to be updated
+#' @param file The file to upload
+#' @param newpid The persistent identifier of the updating object
+#' @param sysmeta The SystemMetadata for the updating object
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
   if(suppressWarnings(requireNamespace("dataone"))) {
@@ -231,7 +254,11 @@ recordr_write.csv <- function(x, file, ...) {
   invisible(NULL)
 }
 
-# Override read.csv
+#' Provenance wrapper for the R utils::read.csv function
+#' @description Override the utils::read.csv function and record a provenance relationship
+#' for the file that was read.
+#' @param ... function parameters
+#' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_read.csv <- function(...) {
   dataRead <- utils::read.csv(...)
@@ -304,7 +331,12 @@ recordr_read.csv <- function(...) {
   return(dataRead)
 }
 
-# Override ggplot2::ggsave()
+#' Provenance wrapper for the ggplot2::ggsave function
+#' @description Override the ggplot2::ggsave function and record a provenance relationship
+#' for the file that was written.
+#' @param filename The filename to save the plot to
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_ggsave <- function(filename, ...) {
   if (suppressWarnings(requireNamespace("ggplot2"))) {
@@ -371,8 +403,12 @@ recordr_ggsave <- function(filename, ...) {
   return(obj)
 }
 
-# Override the 'readLines' function
-# record the provenance relationship of script -> used -> file 
+#' Provenance wrapper for R base::readLines function
+#' @description Override the base::readLines function and record a provenance relationship
+#' for the file read.
+#' @param con A connetion to read from
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_readLines <- function(con, ...) {
   # Call the original function that we are overriding
@@ -423,8 +459,13 @@ recordr_readLines <- function(con, ...) {
   invisible(obj)
 }
 
-# Override the 'writeLines' function
-# record the provenance relationship of script <- used <- used
+#' Provenance wrapper for R base::writeLines function
+#' @description Override the base::writeLines function and record a provenance relationship
+#' for the file that was written.
+#' @param text A character vector to write.
+#' @param con The connection to write to.
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_writeLines <- function(text, con, ...) {
   # Call the original function that we are overriding
@@ -473,8 +514,12 @@ recordr_writeLines <- function(text, con, ...) {
 }
 
 
-# Override the 'readLines' function
-# record the provenance relationship of script -> used -> file 
+#' Provenance wrapper for the R base::scan function
+#' @description Override the base::scan function and record a provenance relationship
+#' for the scanned file.
+#' @param file The file to scan.
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_scan <- function(file, ...) {
   # Call the original function that we are overriding
@@ -525,8 +570,12 @@ recordr_scan <- function(file, ...) {
   invisible(obj)
 }
 
-# Override the 'readPNG' function
-# record the provenance relationship of script -> used -> file 
+#' Provenance wrapper for the pnd::read function 
+#' @description Override the png::read function and record a provenance relationship
+#' for the file read. 
+#' @param source The PNG file to read.
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_readPNG <- function (source, ...) {
   
@@ -584,8 +633,13 @@ recordr_readPNG <- function (source, ...) {
   invisible(obj)
 }
 
-# Override the 'writePNG' function
-# record the provenance relationship of script <- used <- used
+#' Provenance wrapper for the png::write function
+#' @description Override the png::write function and record a provenance relationship
+#' for the file that was written.
+#' @param image The image to write out.
+#' @param target The file to write to.
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_writePNG <- function(image, target, ...) {
   # Call the original function that we are overriding

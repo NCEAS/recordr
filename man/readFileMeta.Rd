@@ -37,6 +37,8 @@ readFileMeta(recordr, ...)
 \item{orderBy}{The column to sort the result set by.}
 
 \item{sortOrder}{The sort type. Values include ("ascending", "descending")}
+
+\item{delete}{a \code{"logical"}, if TRUE, the selected file entries are deleted (default: FALSE).}
 }
 \value{
 A dataframe containing file metadata objects

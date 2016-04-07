@@ -3,19 +3,19 @@
 \docType{methods}
 \name{writeExecMeta}
 \alias{writeExecMeta}
-\alias{writeExecMeta,Recordr,ExecMetadata-method}
+\alias{writeExecMeta,Recordr-method}
 \title{Save a single execution metadata.}
 \usage{
-writeExecMeta(recordr, execMeta, ...)
+writeExecMeta(recordr, ...)
 
-\S4method{writeExecMeta}{Recordr,ExecMetadata}(recordr, execMeta, ...)
+\S4method{writeExecMeta}{Recordr}(recordr, execMeta, ...)
 }
 \arguments{
 \item{recordr}{A Recordr object}
 
 \item{...}{Not yet used.}
 
-\item{execMetadata}{an ExecMetadata object to save.}
+\item{execMeta}{an ExecMetadata object to save.}
 }
 \description{
 Save a single execution metadata.

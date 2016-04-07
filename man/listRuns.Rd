@@ -11,29 +11,31 @@ listRuns(recordr, ...)
 \S4method{listRuns}{Recordr}(recordr, id = as.character(NA),
   script = as.character(NA), start = as.character(NA),
   end = as.character(NA), tag = as.character(NA),
-  error = as.character(NA), seq = as.character(NA), quiet = FALSE,
+  error = as.character(NA), seq = as.character(NA),
   orderBy = "-startTime")
 }
 \arguments{
 \item{recordr}{A Recordr instance}
 
-\item{start}{Match runs that started in this time range (inclusive)
+\item{...}{additional parameters}
+
+\item{id}{a \code{"character"}, the identifier to match}
+
+\item{script}{\code{"character"},the name of the script to match}
+
+\item{start}{\code{"character"}, Match runs that started in this time range (inclusive)
 Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"}
 
-\item{end}{A character value runs that ended in this time range (inclusive)
+\item{end}{a \code{"character"}, Match runs that ended in this time range (inclusive)
 Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"}
 
-\item{tag}{Text of tag to match}
+\item{tag}{\code{"character"} Text of tag to match}
 
-\item{error}{Text of error message to match}
+\item{error}{\code{"character"} Text of error message to match}
 
-\item{seq}{A run sequence number (can be a range, e.g \code{seq=1:10})}
-
-\item{quiet}{Don't print any informational messages to the display}
+\item{seq}{\code{"integer"} A run sequence number (can be a range, e.g \code{seq=1:10})}
 
 \item{orderBy}{The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime}
-
-\item{file}{The name of the script to match}
 }
 \value{
 data frame containing information for each run
@@ -48,6 +50,17 @@ The \code{"start"} and \code{"end"} parameters can be used to specify a time
 range to find runs that started execution and ended in the specified time range. For examples, specifying
 \code{"start=c("2015-01-01, "2015-01-31")} will cause the search to return any execution with a starting
 time in the first month of 2015.
+}
+\examples{
+\dontrun{
+rc <- new("Recordr")
+# List runs that started in January 2015
+listRuns(rc, start=c("2015-01-01", "2015-01-31"))
+# List runs that started on or after March 1, 2014
+listruns(rc, start="2014-03-01")
+# List runs that contain a tag with the string "analysis v1.3")
+listRuns(rc, tag="analysis v1.3")
+}
 }
 \seealso{
 \code{\link[=Recordr-class]{Recordr}}{ class description}

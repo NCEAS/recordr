@@ -2,11 +2,22 @@
 % Please edit documentation in R/tracedFunctions.R
 \name{recordr_write.csv}
 \alias{recordr_write.csv}
-\title{Override the R 'write.csv' method}
+\title{Provenance wrapper for the R write.csv function}
 \usage{
 recordr_write.csv(x, file, ...)
 }
+\arguments{
+\item{x}{The object to write}
+
+\item{file}{The output connection to write to}
+
+\item{...}{additional parameters}
+}
 \description{
-Record the provenance relationship of local objecct <- wasGeneratedBy <- script
+Override the utils::write.csv function and record a provenance relationship
+for the written file.
+}
+\note{
+This function is not intended to be called directly by a user.
 }
 

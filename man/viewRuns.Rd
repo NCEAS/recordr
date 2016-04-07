@@ -13,10 +13,12 @@ viewRuns(recordr, ...)
   end = as.character(NA), tag = as.character(NA),
   error = as.character(NA), seq = as.character(NA),
   orderBy = "-startTime", sections = c("details", "used", "generated"),
-  verbose = FALSE, page = TRUE, quiet = TRUE)
+  verbose = FALSE, page = TRUE, output = TRUE)
 }
 \arguments{
 \item{recordr}{A Recordr instance}
+
+\item{...}{additional parameter}
 
 \item{id}{The execution identifier of a run to view}
 
@@ -39,10 +41,26 @@ denoes a descending sort. The default value is "-startTime"}
 
 \item{sections}{Print the specified sections of the output. Default=c("details", "used", "generated")}
 
+\item{verbose}{a \code{"logical"}, if TRUE then extra information is printed.}
+
 \item{page}{A logical value - if TRUE then pause after each run is displayed.}
+
+\item{output}{a \code{"logical"}, if FALSE then no output is printed to the console (useful if only the returned object is needed).}
+}
+\value{
+A list that contains information about all selected runs.
 }
 \description{
 Detailed information for an execution is printed to the display.
+}
+\details{
+The execution and file information for runs that match the search criteria are 
+printed to the console. The output is divided into three sections: "details", "used"
+and "generated". The "details" section shows execution information such as the start and end time
+of the run, run identifier, etc. The "used" section lists files that were read by a run. The
+"generated" section lists files that were created by a run. The list that is returned from \code{"viewRuns"}
+contains two elements - a data.frame with the execution information, and a data.frame that contains
+file information.
 }
 \examples{
 \dontrun{
@@ -50,7 +68,9 @@ rc <- new("Recordr")
 # View the tenth run that was recorded
 viewRuns(rc, seq=10)
 # View the first ten runs, with only the files "generated" section displayed
-viewRuns(rc, seq="1:10", sections="generated")
+info <- viewRuns(rc, seq="1:10", sections="generated")
+nrow(info$runs)
+nrow(info$files)
 }
 }
 \seealso{

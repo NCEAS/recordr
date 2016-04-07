@@ -14,6 +14,8 @@ startRecord(recordr, ...)
 \arguments{
 \item{recordr}{a Recordr instance}
 
+\item{...}{additional parameters}
+
 \item{tag}{a string that is associated with this run}
 
 \item{.file}{the filename for the script to run (only used internally when startRecord() is called from record())}
