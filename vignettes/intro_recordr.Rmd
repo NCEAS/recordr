@@ -79,7 +79,7 @@ any information capture. Informaiton capture is terminated when *endRecord()* is
 entered in the console, and execution information is written to the *recordr* 
 cache.
 
-```{r console session,warning=F,message=F}
+```{r console session,warning=F,message=F,eval=F}
 startRecord(rc, tag="first console run")
 
 df <- read.csv(file = system.file("./extdata/coverages_2001-2010.csv", package="recordr"))
@@ -101,7 +101,7 @@ More detailed information can be retrieved and viewed for a run or set of runs
 using the *viewRuns()* method.
 
 ```
-#{r viewRuns,warning=F,message=F}
+{r viewRuns,warning=F,message=F}
 viewRuns(rc, tag="console run", sections=c("details", "used", "generated"))
 ```
 
@@ -145,7 +145,7 @@ Now save the file back into the *recordr* cache so that it will be included
 with the published package:
 
 ```{r putMetadata,warning=F,message=F}
-putMetadata(rc, seq=2, metadata=tf, asText=F)
+status <- putMetadata(rc, seq=2, metadata=tf, asText=F)
 ```
 
 The parameter 'asText' tells *putMetdata()* that `metadata=tf`
