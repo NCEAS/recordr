@@ -1,7 +1,7 @@
 ---
 title: "intro_recordr"
 author: "Peter Slaughter"
-date: "October 3, 2015"
+date: '`r Sys.Date()`'
 output: html_document
 ---
 #Overview
