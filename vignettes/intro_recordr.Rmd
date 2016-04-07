@@ -20,11 +20,11 @@ modify an R script in order to use *record*.
 
 The following example runs a sample script that is included with the *recordr* package:
 
-```{r echo=F,warning=F,message=F}
+```{r echo=F,warning=F,message=F,eval=F}
 # For recordr package maintainer only
-# library(recordr)
-# rc <- new("Recordr")
-# deleteRuns(rc, seq="1:1000", quiet=T)
+library(recordr)
+rc <- new("Recordr")
+deleteRuns(rc, seq=1:1000)
 ```
 
 ```{r record,warning=F,message=F}
