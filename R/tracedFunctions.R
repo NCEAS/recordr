@@ -152,34 +152,39 @@ recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
   return(result)
 }
 
-# Override the 'source' function so that recordr can detect when the user's script sources another script
-#' @export
-recordr_source <- function (file, local = FALSE, echo = verbose, print.eval = echo,
-                            verbose = getOption("verbose"), prompt.echo = getOption("prompt"),
-                            max.deparse.length = 150, chdir = FALSE, encoding = getOption("encoding"),
-                            continue.echo = getOption("continue"), skip.echo = 0,
-                            keep.source = getOption("keep.source")) {
-  if(length(verbose) == 0)
-    verbose = FALSE
-  
-  if(chdir) {
-    cwd = getwd()
-    on.exit(setwd(cwd))
-    setwd(dirname(file))
-  }
-  
-  #cat(sprintf("recordr_source: Sourcing file: %s\n", file))
-  
-  base::source(file, local, echo, print.eval, verbose, prompt.echo,
-               max.deparse.length, chdir, encoding,continue.echo, skip.echo,
-               keep.source)
-  
-  # Record the provenance relationship between the sourcing script and the sourced script
-  # as 'sourced script <- wasInfluenceddBy <- sourcing script
-  # i.e. insertRelationship
-}
+## @export
+#recordr_source <- function (file, local = FALSE, echo = verbose, print.eval = echo,
+#                            verbose = getOption("verbose"), prompt.echo = getOption("prompt"),
+#                            max.deparse.length = 150, chdir = FALSE, encoding = getOption("encoding"),
+#                            continue.echo = getOption("continue"), skip.echo = 0,
+#                            keep.source = getOption("keep.source")) {
+#  if(length(verbose) == 0)
+#    verbose = FALSE
+#  
+#  if(chdir) {
+#    cwd = getwd()
+#    on.exit(setwd(cwd))
+#    setwd(dirname(file))
+#  }
+#  
+#  #cat(sprintf("recordr_source: Sourcing file: %s\n", file))
+#  
+#  base::source(file, local, echo, print.eval, verbose, prompt.echo,
+#               max.deparse.length, chdir, encoding,continue.echo, skip.echo,
+#               keep.source)
+#  
+#  # Record the provenance relationship between the sourcing script and the sourced script
+#  # as 'sourced script <- wasInfluenceddBy <- sourcing script
+#  # i.e. insertRelationship
+#}
 
-# Override the R 'write.csv' method
+#' Provenance wrapper for the R write.csv function
+#' @description Override the utils::write.csv function and record a provenance relationship
+#' for the written file.
+#' @param x The object to write
+#' @param file The output connection to write to
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_write.csv <- function(x, file, ...) {
   # Call the original function that we are overriding
