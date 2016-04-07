@@ -1100,14 +1100,14 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # e.g. "PROD" for production, "STAGING", "SANDBOX", "DEV"
   if(!quiet) cat(sprintf("Contacting coordinating node for environment %s...\n", d1Env))
   if(!quiet) cat(sprintf("Getting member node url for memober node id: %s...\n", mnId))
-  d1c <- D1Client(d1Env, mnId)
+  d1c <- dataone::D1Client(d1Env, mnId)
   if (is.null(d1c@mn)) {
     stop(sprintf("Unable to contact member node \"%s\".\nUnable to publish run.\n", mnId))
   }
   resolveURI <- sprintf("%s/resolve", d1c@cn@endpoint)
   
   # Check the user's DataONE authentication.
-  am <- AuthenticationManager()
+  am <- dataone::AuthenticationManager()
   if(!dataone:::isAuthValid(am, d1c@mn)) {
     msg <- sprintf("Please see \"DataONE Authentication\" in \"intro_recordr\" vignette.")
     msg <- sprintf("%sEnter this command at the R console: \"vignette(\"intro_recordr\")", msg)
@@ -1230,7 +1230,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   if(!quiet) cat(sprintf("Uploading data package...\n"))
   # uploadDataPackage returns the "package pid" 'published identifier' for this datapackage. This will be displayed in the 
   # viewRuns() output for this under "Published ID".
-  resourceMapId <- uploadDataPackage(d1c, pkg, replicate=replicationAllowed, numberReplicas=numberOfReplicas, 
+  resourceMapId <- dataone::uploadDataPackage(d1c, pkg, replicate=replicationAllowed, numberReplicas=numberOfReplicas, 
                                      preferredNodes=preferredNodes, public=public, quiet=quiet, resolveURI=resolveURI)
   
   if(!quiet) cat(sprintf("Uploaded data package with resource map id: %s", resourceMapId))
