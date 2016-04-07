@@ -127,21 +127,24 @@ Open the file ~/.dataone/sessionConfig.R and make the following changes:
 
 The metadata file that was created for the run can now be edited. Use
 the following calls to retrieve the metdata for the console session that
-was recorded:
+was recorded and write it to a temporary file:
 
 ```{r getMetadata,warning=F,message=F}
 myMeta <- getMetadata(rc, seq=2)
-writeLines(myMeta, "/tmp/my.eml")
+tf <- tempfile(fileext=".xml")
+writeLines(myMeta, tf)
 ```
+
+At this point the metadata file can be edited.
 
 Now save the file back into the *recordr* cache so that it will be included
 with the published package:
 
 ```{r putMetadata,warning=F,message=F}
-putMetadata(rc, seq=2, metadata="/tmp/my.eml", asText=F)
+putMetadata(rc, seq=2, metadata=tf, asText=F)
 ```
 
-The parameter 'asText' tells *putMetdata()* that *metadata="/tmp/my.xml"*
+The parameter 'asText' tells *putMetdata()* that `metadata=tf`
 specifies a file to be read and not a character vector containing the metadata.
 
 Now the run can be published, using the values that we specified for DataONE
