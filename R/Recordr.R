@@ -621,11 +621,12 @@ setGeneric("deleteRuns", function(recordr, ...) {
 #' @param error The text of the error message to match.
 #' @param seq The run sequence number (can be a single value or a range, e.g \code{seq="1:10"})
 #' @param noop Don't delete any date, just show what would be deleted.
+#' @param quiet A \code{logical} if TRUE then output is not printed. Useful if only the return value is desired.
 #' @return A data.frame containing execution metadata for the runs that were deleted.
 setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.character(NA), file = as.character(NA), 
                                                        start = as.character(NA), end = as.character(NA), 
                                                        tag = as.character(NA), error = as.character(NA), 
-                                                       seq = as.integer(NA), noop = FALSE) {
+                                                       seq = as.integer(NA), noop = FALSE, quiet=FALSE) {
 
   runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, delete=TRUE)
   # selectRuns returns a list of ExecMeta objects
@@ -634,13 +635,13 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
     return(invisible(runs))
   } else {
     if (noop) {
-      message(sprintf("The following %d runs would have been deleted:\n", length(runs)))
+      if(!quiet) message(sprintf("The following %d runs would have been deleted:\n", length(runs)))
     } else {
-      message(sprintf("The following %d runs will be deleted:\n", length(runs)))
+      if (!quiet) message(sprintf("The following %d runs will be deleted:\n", length(runs)))
     }
   }
   
-  printRun(headerOnly=TRUE)
+  if(!quiet) printRun(headerOnly=TRUE)
   
   # Loop through selected runs
   for(i in 1:length(runs)) {
@@ -668,7 +669,7 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
         }
       }
     }
-    printRun(row)
+    if (!quiet) printRun(row)
   }
   
   invisible(execMetaTodata.frame(runs))
@@ -701,6 +702,7 @@ setGeneric("listRuns", function(recordr, ...) {
 #' @param error \code{"character"} Text of error message to match 
 #' @param seq \code{"integer"} A run sequence number (can be a range, e.g \code{seq=1:10})
 #' @param orderBy The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime
+#' @param quiet A \code{logical}, if TRUE then output is not printed to the console. Default is FALSE.
 #' @return data frame containing information for each run
 #' @examples \dontrun{
 #' rc <- new("Recordr")
@@ -713,7 +715,7 @@ setGeneric("listRuns", function(recordr, ...) {
 #' }
 #
 setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA), script=as.character(NA), start = as.character(NA), end=as.character(NA), tag=as.character(NA), 
-                                                     error=as.character(NA), seq=as.character(NA), orderBy = "-startTime") {
+                                                     error=as.character(NA), seq=as.character(NA), orderBy = "-startTime", quiet=FALSE) {
   
   runs <- selectRuns(recordr, runId=id, script=script, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=as.character(seq), orderBy=orderBy)
   if (length(runs) == 0) {
@@ -722,10 +724,12 @@ setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA
   }
   
   # Print header line
-  printRun(headerOnly = TRUE)
+  if (!quiet) printRun(headerOnly = TRUE)
   # Loop through selected runs
-  for(i in 1:length(runs)) {
-    printRun(runs[[i]])
+  if(!quiet) {
+    for(i in 1:length(runs)) {
+      printRun(runs[[i]])
+    }
   }
   
   # Return invisible copy of runs, as we have already printed out a formatted version of the run info.
