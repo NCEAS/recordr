@@ -712,7 +712,7 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
                        console=console, seq=seq)
       # Haven't seen this executionId yet, so just add it to the flattened result
       emNames <- names(execMetas)
-      execMetas[length(execMetas)+1] <- thisExecMeta
+      execMetas[[length(execMetas)+1]] <- thisExecMeta
       if(length(execMetas) == 1) {
          names(execMetas) <- executionId
          execIds <- executionId
