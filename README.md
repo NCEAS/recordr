@@ -1,6 +1,6 @@
-[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/recordr)](http://cran.r-project.org/web/packages/recordr)
+[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/recordr)](https://cran.r-project.org/package=recordr)
 
-- **Author**: Peter Slaughter, Matthew B. Jones, Christopher Jones ([NCEAS](http://www.nceas.ucsb.edu))
+- **Author**: Peter Slaughter, Matthew B. Jones, Christopher Jones, Lauren Palmer ([NCEAS](http://www.nceas.ucsb.edu))
 - [doi:10.5063/F1GF0RF6](http://doi.org/10.5063/F1GF0RF6)
 - **License**: [Apache 2](http://opensource.org/licenses/Apache-2.0)
 - [Package source code on Github](https://github.com/NCEAS/recordr)
@@ -17,42 +17,57 @@ A *recordr* overview vignette can be viewed at https://github.com/NCEAS/recordr/
 
 ## Installation Notes 
 
-One of the R packages that recordr imports (the redland R package) depends on the Redland RDF libraries that must be
-installed before installing *recordr*.
+The *recordr* R package requires the R package *redland*. If you are installing on Ubuntu then the Redland C libraries
+must be installed first. If you are installing on Mac OS X or Windows then installing these libraries is not required.
 
-On Mac OSX you can use Macports to install the necessary libraries. From a terminal window
-you can enter the command:
+### Installing on Mac OS X
 
-```
-sudo port install redland
-```
-
-On Ubuntu the redland C libraries are installed from a terminal window with the commands:
+On Mac OS X *recordr* can be installed with the following commands:
 
 ```
-sudo apt-get update
-sudo apt-get install librdf0
-sudo apt-get install librdf0-dev
-sudo apt-get install pkg-config
-```
-
-Once the Redland RDF libraries are installed, the *recordr* package can be installed.
-Please note that the *recordr* package is not yet available via CRAN but a pre-release version of *recordr* and
-the R packages it depends on can be installed via the NCEAS drat repository. The *recordr* package also
-depends on the rOpenSci *EML* package that is also available as a pre-release R package.
-
-From the R console, enter the following commands:
-
-```r
-library(devtools)
-install_github("ropensci/EML", build=FALSE, dependencies=c("DEPENDS", "IMPORTS"))
-install.packages("drat")
-library(drat)
-addRepo("NCEAS")
 install.packages("recordr")
 library(recordr)
 ```
-  
+
+The *recordr* R package should be available for use at this point.
+
+Note: if you wish to build the required *redland* package from source before installing *recordr*, please see the redland [installation instructions]( https://github.com/ropensci/redland-bindings/tree/master/R/redland).
+
+### Installing on Ubuntu
+
+For ubuntu, install the required Redland C libraries by entering the following commands 
+in a terminal window:
+
+```
+sudo apt-get update
+sudo apt-get install librdf0 librdf0-dev
+```
+
+Then install the R package from the R console:
+
+```
+install.packages("recordr")
+library(recordr)
+```
+
+The *recordr* R package should be available for use at this point
+
+### Installing on Windows
+
+For windows, the required *redland* R package is distributed as a binary release, so it is not
+necessary to install any additional system libraries.
+
+To install the *recordr* R packages from the R console:
+
+```
+install.packages("recordr")
+library(recordr)
+```
+
+The *recordr* R package should be available for use at this point.
+
+Note: if you wish to build the required *redland* package from source before installing *recordr*, please see the redland [installation instructions]( https://github.com/ropensci/redland-bindings/tree/master/R/redland).
+
 ## License
 
 The `recordr` package is licensed as open source software under the Apache 2.0 license.
