@@ -4,7 +4,7 @@ Version: 1.0.0
 Authors@R: c( person("Peter", "Slaughter", role = c("aut", "cre"), email = "slaughter@nceas.ucsb.edu"),
     person("Matthew", "Jones", role = "aut", email = "jones@nceas.ucsb.edu"),
     person("Chris", "Jones", role = "ctb", email = "cjones@nceas.ucsb.edu"),
-    person("Lauren", "Walker", role = "ctb", email = "walker@nceas.ucsb.edu")  )
+    person("Lauren", "Palmer", role = "ctb", email = "walker@nceas.ucsb.edu")  )
 Description: Provide methods to record data provenance about R script
     executions. Provenance data includes files that were read and written by
     the script, along with information about the execution, such as start time
