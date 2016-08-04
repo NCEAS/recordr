@@ -237,7 +237,6 @@ setMethod("writeFileMeta", signature("Recordr", "FileMetadata"), function(record
 #' @param recordr A recordr object
 #' @param ... Additional parameters
 #' @seealso \code{\link[=FileMetadata-class]{FileMetadata}} { class description}
-#' @export
 setGeneric("readFileMeta", function(recordr, ...) {
   standardGeneric("readFileMeta")
 })
