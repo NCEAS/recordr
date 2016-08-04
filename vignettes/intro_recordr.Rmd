@@ -100,8 +100,7 @@ to a data repository when publishRun() is called.
 More detailed information can be retrieved and viewed for a run or set of runs
 using the *viewRuns()* method.
 
-```
-{r viewRuns,warning=F,message=F}
+```{r viewRuns,warning=F,message=F}
 viewRuns(rc, tag="console run", sections=c("details", "used", "generated"))
 ```
 
