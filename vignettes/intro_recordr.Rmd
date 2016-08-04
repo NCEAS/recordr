@@ -6,7 +6,7 @@ output: html_document
 ---
 #Overview
 
-The *recordr* package collects information about R script executions (aka runs). The captured information 
+The *recordr* package collects information about R script executions (aka runs). The captured information
 includes the files that were read and written by the R script, and details of the execution
 environment, such as the operating system version, R packages loaded, etc.
 
@@ -15,8 +15,8 @@ The recorded information for a script constitutes data provenance for the data p
 #Using recordr
 ### Recording a Script Execution
 The *record()* method takes an R script as an argument and sources it, recording files that
-were read and written by R functions that are registered with *recordr*. It is not necessary to 
-modify an R script in order to use *record*. 
+were read and written by R functions that are registered with *recordr*. It is not necessary to
+modify an R script in order to use *record*.
 
 The following example runs a sample script that is included with the *recordr* package:
 
@@ -41,7 +41,7 @@ search, view, modify and publish items stored in the cache. It is not recommende
 Script runs that have been recorded can be listed using the *listRuns()* method. The
 listing can be filtered by the tag value specified when a run was recorded.
 Runs can also be filtered by run start time, run end time, the text of error messages for a run and by a sequence number, which is an integer
-value assigned to each run to assist in easily specifying a particular run for listing, 
+value assigned to each run to assist in easily specifying a particular run for listing,
 viewing or publishing.
 
 In this example, all runs with a tag containing the string "first" are listed. Because
@@ -49,13 +49,13 @@ recordr has only run once in this demo, only one run is listed:
 ```{r listRuns,warning=F,message=F}
 listRuns(rc, tag="first")
 ```
-If no search parameters are specified to *listRuns*, then all recorded runs are listed. 
+If no search parameters are specified to *listRuns*, then all recorded runs are listed.
 
-### Preparing Metdata for a Run
+### Preparing Metadata for a Run
 
-The first time that recordr() is run, an initial metadata template file is copied to 
+The first time that recordr() is run, an initial metadata template file is copied to
 the file "~/.record/package_metadata_template.R". Each time that record() is called, a
-metdata file is created for the current run by using the template file as a starting
+metadata file is created for the current run by using the template file as a starting
 point and generating an EML document, creating EML elements for the items in
 the template file. In addition 'otherEntity' element is created for each each data
 object that is created by the run and the R script that was run.
@@ -63,8 +63,8 @@ object that is created by the run and the R script that was run.
 The metadata template file can be edited before a run, using the values you specify
 to affect the generated EML document.
 
-If you are using Rstudio, click on File->Open File (Ctrl-O)
-and open ~/.recordr, then click on "package_metadata_template.R" in the File pane. 
+If you are using RStudio, click on File->Open File (Ctrl-O)
+and open ~/.recordr, then click on "package_metadata_template.R" in the File pane.
 
 Currently only the items that are in the template file can be updated, and new elements
 cannot be added, so for example, the 'title', 'abstract' and 'creators' can be edited.
@@ -75,8 +75,8 @@ cannot be added, so for example, the 'title', 'abstract' and 'creators' can be e
 *startRecord()* and *endRecord()* methods. When *startRecord()* is typed in
 the R console, information capture begins. Information will be captured for any
 function registered with *recordr*, while all other console input will not cause
-any information capture. Informaiton capture is terminated when *endRecord()* is
-entered in the console, and execution information is written to the *recordr* 
+any information capture. Information capture is terminated when *endRecord()* is
+entered in the console, and execution information is written to the *recordr*
 cache.
 
 ```{r console session,warning=F,message=F,eval=F}
@@ -92,7 +92,7 @@ endRecord(rc)
 ```
 
 The history of all statements typed during this recorded console session is
-saved in the *recordr* cache and will be included in the data package uploaded 
+saved in the *recordr* cache and will be included in the data package uploaded
 to a data repository when publishRun() is called.
 
 ### Viewing Script Executions
@@ -105,6 +105,6 @@ using the *viewRuns()* method.
 viewRuns(rc, tag="console run", sections=c("details", "used", "generated"))
 ```
 
-Information for all matching runs is retrieved and displayed, 
-The output displayed by *viewRuns* is divided into the secions "details", "used" 
+Information for all matching runs is retrieved and displayed,
+The output displayed by *viewRuns* is divided into the sections "details", "used"
 and "generated", which can be selectively displayed using the _sections_ parameter.

@@ -10,12 +10,12 @@ The *recordr* R package provides an automated way to capture data provenance for
 console commands without the need to modify existing R code. The provenance that is captured during
 an R script execution includes information about the script that was run, files that were read and
 written, and details about the execution environment at the time of execution. R code, Input files and generated files from every script execution, or "run", can be efficiently archived so that these past versions of files can be retrieved for a run in order to investigate previous versions of processing or
-analysis, support reproducibilty, and provide an easy way to publish data products and all files that
+analysis, support reproducibility, and provide an easy way to publish data products and all files that
 contributed to those products to a data repository such as the DataONE network.
 
 A *recordr* overview vignette can be viewed at https://github.com/NCEAS/recordr/blob/master/vignettes/intro_recordr.Rmd.
 
-## Installation Notes 
+## Installation Notes
 
 The *recordr* R package requires the R package *redland*. If you are installing on Ubuntu then the Redland C libraries
 must be installed first. If you are installing on Mac OS X or Windows then installing these libraries is not required.
@@ -35,7 +35,7 @@ Note: if you wish to build the required *redland* package from source before ins
 
 ### Installing on Ubuntu
 
-For ubuntu, install the required Redland C libraries by entering the following commands 
+For ubuntu, install the required Redland C libraries by entering the following commands
 in a terminal window:
 
 ```
@@ -74,7 +74,7 @@ The `recordr` package is licensed as open source software under the Apache 2.0 l
 
 ## Example Usage
 
-The `recordr` package can be used to track code execution in R, data inputs and outputs to 
+The `recordr` package can be used to track code execution in R, data inputs and outputs to
 those executions, and the software environment during the execution (e.g., R, OS versions).  
 Some examples are provided in the overview vignette.  As a quick start, here is an example that
 starts recordr, executes a precanned R script, and then views the details of that script run.
