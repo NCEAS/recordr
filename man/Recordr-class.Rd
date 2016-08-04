@@ -31,7 +31,6 @@ package and uploaded to the requested member node.
  \item{\code{\link{listRuns}}}{: Add a DataObject to the DataPackage}
  \item{\code{\link{viewRuns}}}{: Record relationships of objects in a DataPackage}
  \item{\code{\link{deleteRuns}}}{: Record derivation relationships between objects in a DataPackage}
- \item{\code{\link{publishRun}}}{: Retrieve relationships of package objects}
 }
 }
 \seealso{
