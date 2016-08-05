@@ -51,24 +51,6 @@ listRuns(rc, tag="first")
 ```
 If no search parameters are specified to *listRuns*, then all recorded runs are listed.
 
-### Preparing Metadata for a Run
-
-The first time that recordr() is run, an initial metadata template file is copied to
-the file "~/.record/package_metadata_template.R". Each time that record() is called, a
-metadata file is created for the current run by using the template file as a starting
-point and generating an EML document, creating EML elements for the items in
-the template file. In addition 'otherEntity' element is created for each each data
-object that is created by the run and the R script that was run.
-
-The metadata template file can be edited before a run, using the values you specify
-to affect the generated EML document.
-
-If you are using RStudio, click on File->Open File (Ctrl-O)
-and open ~/.recordr, then click on "package_metadata_template.R" in the File pane.
-
-Currently only the items that are in the template file can be updated, and new elements
-cannot be added, so for example, the 'title', 'abstract' and 'creators' can be edited.
-
 ### Recording An R Console Session
 
 *recordr* can also collect information during an R console session using the
