@@ -754,13 +754,13 @@ archiveFile <- function(file) {
   # 32,000 entries, so this simple scheme should not run into any OS limits. Also, these directories
   # will not be searched, as the filepaths are contains in a database, so directory
   # lookup performance is not an issue.
-  archiveRelDir <- sprintf("archive/%s", substr(as.character(Sys.time()), 1, 10))
-  fullDirPath <- sprintf("%s/%s", recordrEnv$recordr@recordrDir, archiveRelDir)
+  archiveRelDir <- file.path("archive", substr(as.character(Sys.time()), 1, 10))
+  fullDirPath <- normalizePath(file.path(recordrEnv$recordr@recordrDir, archiveRelDir), mustWork=FALSE)
   if (!file.exists(fullDirPath)) {
     dir.create(fullDirPath, recursive = TRUE)
   }  
-  archivedRelFilePath <- sprintf("%s/%s", archiveRelDir, UUIDgenerate())
-  fullFilePath <- sprintf("%s/%s", recordrEnv$recordr@recordrDir, archivedRelFilePath)
+  archivedRelFilePath <- file.path(archiveRelDir, UUIDgenerate())
+  fullFilePath <- normalizePath(file.path(recordrEnv$recordr@recordrDir, archivedRelFilePath), mustWork=FALSE)
   # First check if the file has already been archived by searching for a file
   # with the same sha256 checksum. Each archived file must have a unique name
   # as a filename may be an input for many runs on the same day, with the
