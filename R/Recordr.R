@@ -282,7 +282,12 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
   # endRecord() is called.
   if (.console) {
     startMarker <- sprintf("recordr execution %s started", recordrEnv$execMeta@executionId)
-    timestamp (stamp = c(date(), startMarker), quiet = TRUE)
+    # Calling 'timestamp' from batch mode on windows causes R to hang. Nice!
+    # The result of this is that recordr will not be able to mark the history file
+    # and include the relevant history in a console log with the script.
+    if(.Platform$OS.type != "windows") {
+      timestamp (stamp = c(date(), startMarker), quiet = TRUE)
+    }
   }
   
   setProvCapture(TRUE)
@@ -344,14 +349,24 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
     # at the console since startRecord() was invoked.
     startMarker <- sprintf("recordr execution %s started", recordrEnv$execMeta@executionId)
     endMarker   <- sprintf("recordr execution %s ended", recordrEnv$execMeta@executionId)
-    timestamp (stamp = c(date(), endMarker), quiet = TRUE)
-    tmpFile <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".log")
+    # Calling 'timestamp' from batch mode on windows causes R to hang. Nice!
+    # The result of this is that recordr will not be able to mark the history file
+    # and include the relevant history in a console log with the script.
+    if(.Platform$OS.type != "windows") {
+      timestamp (stamp = c(date(), endMarker), quiet = TRUE)
+    }
+    tmpFile <- normalizePath(tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".log"), 
+                             mustWork=FALSE)
     savehistory(file=tmpFile)
+    # Sometimes windows doesn't actually write out the history, so create an empty file.
+    if(!file.exists(tmpFile)) {
+      writeLines(c(startMarker, "Saving history not supported on windows.", endMarker), tmpFile)
+    }
     recordrHistory <- ""
     allHistory <- ""
     foundStart <- FALSE
     foundEnd <- FALSE
-    consoleLogFile <-  sprintf("%s/console.log", runDir)
+    consoleLogFile <-  normalizePath(file.path(runDir, "console.log"), mustWork=FALSE)
     
     # Loop through the history, extracting everything between the start and end markers
     # Handle special case of start marker not being in the history, i.e. exceeded max
