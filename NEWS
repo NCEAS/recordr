@@ -1,11 +1,12 @@
-Changes in Version 0.9.0.9007
+Changes in Version 1.0.0
 
 NEW FEATURES
 
-* Multiple tag values can now be recorded for an execution
-* record(), startRecord(), listRuns(), viewRuns() now support tags with multiple, distinct values
+* record data provenance (files read and written) for R script executions
 
-BUG FIXES
+* record data provenance (files read and written) for R console sessions
 
-* Fixed error when overridden function 'read.csv()' called: "Error:: invalid 'file' argument")
+* search and list all recorded executions and sessions
+
+* view detailed information about script exections and sessions
 
