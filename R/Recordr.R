@@ -1021,7 +1021,7 @@ geoCoverage <- function(geoDescription, west, east, north, south) {
 getDBconnection <- function(dbFile) {
   dbDir <- normalizePath(dirname(dbFile), mustWork=FALSE)
   if(!file.exists(dbDir)) {
-    dir.createate(dbDir, recursive=T)
+    dir.create(dbDir, recursive=T)
   }
   dbConn <- dbConnect(RSQLite::SQLite(), dbFile)
   if (dbIsValid(dbConn)) {
