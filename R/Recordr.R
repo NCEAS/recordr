@@ -321,13 +321,12 @@ setGeneric("endRecord", function(recordr) {
 #' runIdentifier <- endRecord(rc)
 #' }
 setMethod("endRecord", signature("Recordr"), function(recordr) {
-  
+  on.exit(recordrShutdown())
   # Check if a recording session is active
     if (! is.element(".recordr", base::search())) {
     message("A Recordr session is not currently active.")
     return(NULL)
   }
-  on.exit(recordrShutdown())
   recordrEnv <- as.environment(".recordr")
   runDir <- normalizePath(file.path(recordr@recordrDir, "runs", 
                           gsub(":", "_", recordrEnv$execMeta@executionId)), 
@@ -471,22 +470,22 @@ setGeneric("record", function(recordr, file, ...) {
 #' executionId <- record(rc, file="myscript.R", tag="first run of myscript.R")
 #' }
 setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
-  # Check if a recording session didn't clean up properly by removing the
-  # temporary environments. If yes, then remove them now. The recordr pacakge
-  # does not allow concurrent execution of two record() sessions.
-  if ( is.element(".recordr", base::search())) {
-    detach(".recordr")
-  }
-  file <- normalizePath(file, mustWork=TRUE)
-
-  if(!file.exists(file)) {
-    stop(sprintf("Error, file \"%s\" does not exist\n", file))
-  }
-  execId <- startRecord(recordr, tag, .file=file, .console=FALSE)
-  recordrEnv <- as.environment(".recordr")
-  setProvCapture(TRUE)
-  # Source the user's script, passing in arguments that they intended for the 'source' call.  
+  # Ensure that the .recordr environment is detached from the search path.
+  on.exit(recordrShutdown())
+  
+  # Execute the script specified by the user, making sure to catch any error encountered.
   result = tryCatch ({
+    if ( is.element(".recordr", base::search())) {
+      detach(".recordr")
+    }
+    file <- normalizePath(file, mustWork=TRUE)
+    if(!file.exists(file)) {
+      stop(sprintf("Error, file \"%s\" does not exist\n", file))
+    }
+    execId <- startRecord(recordr, tag, .file=file, .console=FALSE)
+    recordrEnv <- as.environment(".recordr")
+    setProvCapture(TRUE)
+    # Source the user's script, passing in arguments that they intended for the 'source' call.  
     #cat(sprintf("Sourcing file %s\n", filePath))
     # Because we are calling the 'source' function with the packageId, the overridden function
     # for 'source' will not be called, and a provenance entry for this 'source' will not be
@@ -495,20 +494,22 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
     #base::source(file, local=FALSE, ...)
     base::source(file, ...)
   }, warning = function(warningCond) {
-    slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
-    cat(sprintf("Warning:: %s\n", recordrEnv$execMeta@errorMessage))
+    if(exists(recordrEnv$execMeta)) {
+      slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
+    }
+    cat(sprintf("Warning:: %s\n", warningCond$message))
   }, error = function(errorCond) {
     slot(recordrEnv$execMeta, "errorMessage") <- errorCond$message
     cat(sprintf("Error:: %s\n", recordrEnv$execMeta@errorMessage))
   }, finally = {
-    # Disable provenance capture while some housekeeping is done
     
+    # Disable provenance capture while some housekeeping is done
     setProvCapture(FALSE)
-
-    # Stop recording provenance and finalize the data package    
-    endRecord(recordr)
+    # Stop recording provenance and finalize the data package. If the
+    # recordr environment wasn't setup properly, then we won't
+    # be able to properly end recording.
     if (is.element(".recordr", base::search())) {
-      detach(".recordr", unload=TRUE)
+      endRecord(recordr)
     }
     # return the execution identifier
     return(execId)
@@ -992,10 +993,9 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
   invisible(list(runs = rundf, files = filesdf))
 })
 
+# Detach the recordr environment ".recordr" from the search path
 recordrShutdown <- function() {
-  
   if (is.element(".recordr", base::search())) {
-    recordrEnv <- as.environment(".recordr")
     detach(".recordr")
   }
 }
