@@ -12,7 +12,6 @@ test_that("Can create Recordr instance", {
 
 test_that("Can trace readLines, writeLines", {
   library(uuid)
-  skip_on_cran()
   # 
   # Test overriding writeLines
   #
