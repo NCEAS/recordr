@@ -502,7 +502,6 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
     slot(recordrEnv$execMeta, "errorMessage") <- errorCond$message
     cat(sprintf("Error:: %s\n", recordrEnv$execMeta@errorMessage))
   }, finally = {
-    
     # Disable provenance capture while some housekeeping is done
     setProvCapture(FALSE)
     # Stop recording provenance and finalize the data package. If the
@@ -621,7 +620,7 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
       if(thisRunDir == normalizePath(file.path(recordr@recordrDir, "runs"), mustWork=FALSE) || thisRunDir == "") {
         stop(sprintf("Error determining directory to remove, directory: %s", thisRunDir))
       }
-      unlink(thisRunDir, recursive = TRUE)
+      if(!is.null(thisRunDir) && !is.na(thisRunDir) && thisRunDir != "") unlink(thisRunDir, recursive = TRUE)
       # Delete all file access entries for this execution, for any type of access,
       # i.e. "read", "write", "execute"
       # The file info for the deleted entries is returned
@@ -1297,10 +1296,15 @@ unArchiveFile <- function(recordr, fileId) {
   } else {
     # Are more that the current execution referencing the file? If yes, then don't delete it.
     checksum <- fm[1,'sha256']
+    relFilePath <- fm[1,'archivedFilePath']
     frefs <- readFileMeta(recordr, sha256=checksum)
     if(nrow(frefs) == 1) {
-      archivedFilePath <- sprintf("%s/%s", recordr@recordrDir, fm[1,'archivedFilePath'])
-      unlink(archivedFilePath, force=TRUE)
+      archivedFilePath <- sprintf("%s/%s", recordr@recordrDir, relFilePath)
+      # One final sanity check before deleting file. Make sure we are only deleting files from
+      # the recordr 'archive' directory
+      if(nchar(relFilePath) > 0) {
+        if(grepl("^archive/", relFilePath)) unlink(archivedFilePath, force=TRUE)
+      }
     }
   }
   invisible(archivedFilePath)
