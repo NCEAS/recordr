@@ -15,6 +15,7 @@ test_that("Can trace dataone::createObject(), getObject(), updateObject()", {
   library(datapack)
   library(XML)
   library(uuid)
+  # This test requires valid authentication, as it writes content to a DataONE member node.
   skip_on_cran()
   if(!require(dataone)) skip("dataone package required for this test")
   cn <- CNode("STAGING")
