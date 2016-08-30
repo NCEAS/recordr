@@ -15,15 +15,21 @@
 #' @export
 recordr_getObject <- function(node, pid, ...) {
   # Call the masked function to retrieve the DataONE object
-  # This function has been entered because the user called "getObject", which redirects to
-  # "recordr_getObject". It is possible for the user to enter this function then, if they
-  # didn't actually load the dataone package (i.e. library(dataone)), so check if dataone
-  # package is available, and print the appropriate message if not.
-  if(suppressWarnings(requireNamespace("dataone"))) {
-    # Call the original function that we are overriding
-    d1o <- dataone::getObject(node, pid, ...)
+  functionName <- "getObject"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr overrode) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next getObject fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding. 
+    d1o <- f(node, pid, ...)
+    rm(f)
   } else {
-    stop("recordr package is tracing getObject(), but package \"dataone\" is not available.")
+    message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
   } 
   
   # Get the option that controls whether or not DataONE read operations are traced.
@@ -71,11 +77,21 @@ recordr_getObject <- function(node, pid, ...) {
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_create <- function(mnode, pid, file, sysmeta, ...) {
-  if(suppressWarnings(requireNamespace("dataone"))) {
-    # Call the overridden function
-    result <- dataone::createObject(mnode, pid, file, sysmeta, ...)
+  functionName <- "create"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next create() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    result <- f(mnode, pid, file, sysmeta, ...)
+    rm(f)
   } else {
-    stop("recordr package is tracing getObject(), but package \"dataone\" is not available.")
+    message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
   } 
   
   # Get the option that controls whether or not DataONE write operations are traced.
@@ -129,12 +145,22 @@ recordr_create <- function(mnode, pid, file, sysmeta, ...) {
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
-  if(suppressWarnings(requireNamespace("dataone"))) {
-    # Call the overridden function
-    result <- dataone::updateObject(mnode, pid, file, newpid, sysmeta)
+  functionName <- "updateObject"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next updateObject() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    result <- f(mnode, pid, file, newpid, sysmeta, ...)
+    rm(f)
   } else {
-    stop("recordr package is tracing dataone::update(), but package dataone is not available.")
-  } 
+    message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
+  }   
   
   # Get the option that controls whether or not DataONE write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
@@ -211,7 +237,23 @@ recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
 #' @export
 recordr_write.csv <- function(x, file, ...) {
   # Call the original function that we are overriding
-  utils::write.csv(x, file, ...)
+  # utils::write.csv(x, file, ...)
+  functionName <- "write.csv"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr overrode) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next write.csv() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    f(x, file, ...)
+    rm(f)
+  } else {
+    cat(sprintf("unable to find function %s on search path", functionName))
+    return(NULL)
+  } 
   
   # Get the option that controls whether or not file write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
@@ -224,7 +266,7 @@ recordr_write.csv <- function(x, file, ...) {
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_writes) {
     if(is.element("connection", class(file))) {
-      #message(sprintf("Tracing write.csv from a connection is not supported."))
+      message(sprintf("Tracing write.csv from a connection is not supported by the recordr package."))
       # write.csv does not return a value
       invisible(NULL)
     }
@@ -261,7 +303,26 @@ recordr_write.csv <- function(x, file, ...) {
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_read.csv <- function(...) {
-  dataRead <- utils::read.csv(...)
+  #dataRead <- utils::read.csv(...)
+  functionName <- "read.csv"
+  # Find the next "read.csv" on the search path. The user could have defined their own
+  # read.csv, so we want to call the one that recordr shadowed. If the user doesn't
+  # have their own version of this function, then the R system version in packqge:utils
+  # will be found and called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next read.csv() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    dataRead <- f(...)
+    rm(f)
+  } else {
+    cat(sprintf("unable to find function %s on search path", functionName))
+    return(NULL)
+  } 
+  
   # Record the provenance relationship between the user's script and an input data file.
   # If the user didn't specify a data file, i.e. they are reading from a text connection,
   # then exit, as we don't track provenance for text connections. With read.csv, a
@@ -287,7 +348,7 @@ recordr_read.csv <- function(...) {
   
   # Currently connections are not traced
   if(is.element("connection", class(fileArg))) {
-    #message(sprintf("Tracing read.csv from a connection is not supported."))
+    message(sprintf("Tracing read.csv from a connection is not supported by the recordr package."))
     return(dataRead)
   }
   
@@ -339,11 +400,21 @@ recordr_read.csv <- function(...) {
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_ggsave <- function(filename, ...) {
-  if (suppressWarnings(requireNamespace("ggplot2"))) {
-    # Call the original function that we are overriding
-    obj <- ggplot2::ggsave(filename, ...)
+  functionName <- "ggsave"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next ggsave() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    obj <- f(filename, ...)
+    rm(f)
   } else {
-    stop("recordr package is tracing ggplot2::ggsave(), but package ggplot2 is not available.")
+      message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
   }
   
   # Get the option that controls whether or not file write operations are traced.
@@ -412,7 +483,23 @@ recordr_ggsave <- function(filename, ...) {
 #' @export
 recordr_readLines <- function(con, ...) {
   # Call the original function that we are overriding
-  obj <- base::readLines(con, ...)
+  #obj <- base::readLines(con, ...)
+  functionName <- "readLines"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next readLines() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    obj <- f(con, ...)
+    rm(f)
+  } else {
+      message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
+  }
   
   # Get the option that controls whether or not file read operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
@@ -427,7 +514,7 @@ recordr_readLines <- function(con, ...) {
   if (getProvCapture() && capture_file_reads) {
     if(is.element("connection", class(con))) {
       filePath <- summary(con)$description
-      #message(sprintf("Tracing readLines from a connection is not supported."))
+      message(sprintf("Tracing readLines from a connection is not supported by the recordr package."))
       return(obj)
     } else {
       filePath <- con
@@ -469,7 +556,23 @@ recordr_readLines <- function(con, ...) {
 #' @export
 recordr_writeLines <- function(text, con, ...) {
   # Call the original function that we are overriding
-  base::writeLines(text, con, ...)
+  #base::writeLines(text, con, ...)
+  functionName <- "writeLines"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next writeLines() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    obj <- f(text, con, ...)
+    rm(f)
+  } else {
+    message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
+  }
   
   # Get the option that controls whether or not file write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
@@ -481,7 +584,7 @@ recordr_writeLines <- function(text, con, ...) {
   if (getProvCapture() && capture_file_writes) {
     if(is.element("connection", class(con))) {
       filePath <- summary(con)$description
-      #message(sprintf("Tracing writeLines from a connection is not supported."))
+      message(sprintf("Tracing writeLines from a connection is not supported by the recordr package."))
       return()
     } else {
       filePath <- con
@@ -523,7 +626,23 @@ recordr_writeLines <- function(text, con, ...) {
 #' @export
 recordr_scan <- function(file, ...) {
   # Call the original function that we are overriding
-  obj <- base::scan(file, ...)
+  #obj <- base::scan(file, ...)
+  functionName <- "scan"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next scan() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    obj <- f(file, ...)
+    rm(f)
+  } else {
+    message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
+  }
   
   # Get the option that controls whether or not file read operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
@@ -537,7 +656,7 @@ recordr_scan <- function(file, ...) {
   if (getProvCapture() && capture_file_reads) {
     if(is.element("connection", class(file))) {
       #filePath <- summary(file)$description
-      #message(sprintf("Tracing scan from a connection is not supported."))
+      message(sprintf("Tracing scan from a connection is not supported by the recordr package."))
       return(obj)
     } else {
       filePath <- file
@@ -578,19 +697,23 @@ recordr_scan <- function(file, ...) {
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_readPNG <- function (source, ...) {
-  
   # Call the original function that we are overriding
-  # Call the masked function to retrieve the DataONE object
-  # This function has been entered because the user called "getObject", which redirects to
-  # "recordr_getObject". It is possible for the user to enter this function then, if they
-  # didn't actually load the dataone package (i.e. library(dataone)), so check if dataone
-  # package is available, and print the appropriate message if not.
-  if(suppressWarnings(requireNamespace("png"))) {
-    # Call the original function that we are overriding
-    obj <- png::readPNG(source, ...)
+  functionName <- "readPNG"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next readPNG() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    obj <- f(source, ...)
+    rm(f)
   } else {
-    stop("recordr package is tracing readPNG(), but package \"png\" is not available.\nPlease install package \"png\"")
-  } 
+    message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
+  }
   
   # Get the option that controls whether or not file read operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
@@ -601,7 +724,7 @@ recordr_readPNG <- function (source, ...) {
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_reads) {
     if(is.element("raw", class(source))) {
-      #message(sprintf("Tracing readPNG with source as a raw vector is not supported."))
+      message(sprintf("Tracing readPNG with source as a raw vector is not supported by the recordr package."))
       return(obj)
     } else {
       filePath <- source
@@ -643,7 +766,23 @@ recordr_readPNG <- function (source, ...) {
 #' @export
 recordr_writePNG <- function(image, target, ...) {
   # Call the original function that we are overriding
-  outImage <- png::writePNG(image, target, ...)
+  #outImage <- png::writePNG(image, target, ...)
+  functionName <- "writePNG"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next writePNG() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    outImage <- f(image, target, ...)
+    rm(f)
+  } else {
+    message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
+  }
   
   # Get the option that controls whether or not file write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
@@ -657,7 +796,7 @@ recordr_writePNG <- function(image, target, ...) {
     # image will be written to.
     if(is.element("connection", class(target))) {
       filePath <- summary(target)$description
-      message(sprintf("Tracing writePNG from a connection is not supported."))
+      message(sprintf("Tracing writePNG from a connection is not supported by the recordr package."))
       return()
     } else {
       filePath <- target
@@ -753,7 +892,8 @@ archiveFile <- function(file) {
   # limits aren't exceeded. Directories on ext3 filesystems a directory can contain 
   # 32,000 entries, so this simple scheme should not run into any OS limits. Also, these directories
   # will not be searched, as the filepaths are contains in a database, so directory
-  # lookup performance is not an issue.
+  # lookup performance is not an issue. Note, the function 'unarchive()' depends on the
+  # filename containing 'archive' in order to be deleted, so don't change this.
   archiveRelDir <- file.path("archive", substr(as.character(Sys.time()), 1, 10))
   fullDirPath <- normalizePath(file.path(recordrEnv$recordr@recordrDir, archiveRelDir), mustWork=FALSE)
   if (!file.exists(fullDirPath)) {
@@ -769,4 +909,20 @@ archiveFile <- function(file) {
             copy.mode = TRUE, copy.date = TRUE)
   # TODO: Check if the file was actually copied
   return(archivedRelFilePath)
+}
+
+findOnSearchPath <- function(name, env = parent.frame()) {
+  if (identical(env, emptyenv())) {
+    return(as.character(NA))
+  } else if (exists(name, envir = env, inherits = FALSE) && environmentName(env) != ".recordr") {
+    # Success case
+    if(identical(env, baseenv())) {
+      return("package:base")
+    } else {
+      return(sprintf("%s", environmentName(env)))
+    }
+  } else {
+    # Recursive case
+    findOnSearchPath(name, parent.env(env))
+  }
 }
