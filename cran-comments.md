@@ -4,7 +4,7 @@
 * Ubuntu 14.04, R 3.3.1
 * Windows 7, R 3.3.1 (i386, x86_64)
 * Windows (via win-builder): x86_64-w64-mingw32 (64-bit) 3.3.1 (2016-06-21)
-* Windows (via win-builder): x86_64-w64-mingw32 (64-bit) R Under development (unstable) (2016-08-03 r71023)
+* Windows (via win-builder): x86_64-w64-mingw32 (64-bit) R Under development (unstable) (2016-08-28 r71162)
 
 ## R CMD check results
 
