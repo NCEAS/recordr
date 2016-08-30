@@ -1,4 +1,15 @@
-Changes in Version 1.0.0
+Changes in Version 1.0.2
+
+* fixed problem where vignettes were not rendering during package install
+
+* added description to the 'intro_recordr' vignette regarding 
+  the R mechanism used by recordr to record processing provenance information.
+
+Changes in Version 1.0.1
+
+* remove illegal characters from the DESCRIPTION file
+
+Version 1.0.0
 
 NEW FEATURES
 
@@ -9,4 +20,3 @@ NEW FEATURES
 * search and list all recorded executions and sessions
 
 * view detailed information about script exections and sessions
-
