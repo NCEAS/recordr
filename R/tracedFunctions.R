@@ -868,13 +868,33 @@ getProvCapture <-  function() {
 }
 
 # Archive a file into the recordr archive directory
-archiveFile <- function(file) {
+archiveFile <- function(file, force=FALSE) {
   if(!file.exists(file)) {
-    message("Cannot copy file %s, it does not exist\n", file)
+    message("Cannot copy file %s to recordr archive, it does not exist\n", file)
     return(NULL)
   }
   
   recordrEnv <- as.environment(".recordr") 
+  # If force is trune, then always archive the file, regardless of user defined settings
+  if(!force) {
+    # Don't archive files that are bigger than a user specified maximum, in bytes
+    maxArchiveFileSize <- getOption("recordr_max_archive_file_size")
+    if(is.null(maxArchiveFileSize) || is.na(maxArchiveFileSize)) {
+      maxArchiveFileSize <- 0.0
+    } 
+    maxArchiveFileSize <- as.double(maxArchiveFileSize)
+    # Check if this file should be archived and if not, return NA
+    if(maxArchiveFileSize > 0.0) {
+      fpInfo <- file.info(file)
+      if(!is.null(fpInfo[["size"]])) {
+        cat(sprintf("checking file size"))
+        if(fpInfo[["size"]] > maxArchiveFileSize) {
+          return(as.character(NA))
+        }
+      }
+    }
+  }
+  
   # First check if a file with the same sha256 has been accessed before.
   # If it has, then don't archive this file again, and return the
   # archived location of the previously archived file.

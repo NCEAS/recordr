@@ -405,7 +405,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # Archive the script that was executed, or the console log if we
   # were recording console commands. The script can be retrieved
   # by searching for access="execute"
-  archivedFilePath <- normalizePath(archiveFile(file=recordrEnv$scriptPath), mustWork=FALSE)
+  archivedFilePath <- normalizePath(archiveFile(file=recordrEnv$scriptPath, force=TRUE), mustWork=FALSE)
   fpInfo <- file.info(recordrEnv$scriptPath)
   if (is.null(fpInfo[["uname"]])) fpInfo[["uname"]] <- as.character(NA)
   filemeta <- new("FileMetadata", file=recordrEnv$scriptPath, 
