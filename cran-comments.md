@@ -28,8 +28,8 @@
       be called regardless of package load order, provided that the function is not called with a 
       fully qualified name, i.e. `ggplot2::ggsave', or if the function is inside a package that
       imports the function. Not all instances of a function call will be recorded, but certainly
-      the function calls that recordr overrides and are called from a user scripts will be
-      recorded.
+      the select set of function calls that recordr overrides and are on the search path will
+      be recorded.
       
       When one of our overridding functions is called, we record the 
       data provenance for the function, i.e. the files specified for read and/or write, then 
