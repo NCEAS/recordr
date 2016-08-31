@@ -1,17 +1,33 @@
-Changes in Version 1.0.2
+recordr 1.0.3
+
+## Bug Fixes
+
+* Prevent 'cran-comments.md' from being included in package builds.
+
+## New Features
+
+* Explain in 'intro_recordr' vignette more fully how recordr overrides functions.
+
+recordr 1.0.2
+
+## Bug Fixes
 
 * fixed problem where vignettes were not rendering during package install
+
+## New Features 
 
 * added description to the 'intro_recordr' vignette regarding 
   the R mechanism used by recordr to record processing provenance information.
 
-Changes in Version 1.0.1
+recordr 1.0.1
+
+## Bug Fixes
 
 * remove illegal characters from the DESCRIPTION file
 
-Version 1.0.0
+recordr 1.0.0
 
-NEW FEATURES
+## New Features
 
 * record data provenance (files read and written) for R script executions
 
