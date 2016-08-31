@@ -1,6 +1,6 @@
 Package: recordr
 Title: R Provenance Tracking
-Version: 1.0.2
+Version: 1.0.3
 Authors@R: c( person("Peter", "Slaughter", role = c("aut", "cre"), email = "slaughter@nceas.ucsb.edu"),
     person("Matthew", "Jones", role = "aut", email = "jones@nceas.ucsb.edu"),
     person("Chris", "Jones", role = "ctb", email = "cjones@nceas.ucsb.edu"),
@@ -11,7 +11,7 @@ Description: Provide methods to record data provenance about R script
     end time, the R modules loaded during the execution, etc. This provenance
     information along with any files created by the script can then be combined
     into a data package and published to a data repository such as 'DataONE' <https://www.dataone.org>.
-Date: 2016-08-29
+Date: 2016-08-30
 Depends:
     R (>= 3.1.1),
     methods
