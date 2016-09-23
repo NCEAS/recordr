@@ -12,7 +12,6 @@ test_that("Can create Recordr instance", {
 
 test_that("Can trace readLines, writeLines", {
   library(uuid)
-  skip_on_cran()
   # 
   # Test overriding writeLines
   #
@@ -24,12 +23,12 @@ test_that("Can trace readLines, writeLines", {
   tfile <- sprintf("%s/letters.dat", tempdir())
   writeLines(sbuf, tfile)
   status <- endRecord(rc)
-  mdf <- listRuns(rc, tag=tagNum)
+  mdf <- listRuns(rc, tag=tagNum, quiet=T)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
   expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
   # Delete the single run
-  mdf <- deleteRuns(rc, tag=tagNum)
+  mdf <- deleteRuns(rc, tag=tagNum, quiet=T)
   # If we deleted the run, then the returned data
   # frame of deleted runs will have one row
   oneRow <- nrow(mdf) == 1
@@ -47,12 +46,12 @@ test_that("Can trace readLines, writeLines", {
   writeLines(sbuf, fcon)
   close(fcon)
   status <- endRecord(rc)
-  mdf <- listRuns(rc, tag=tagNum)
+  mdf <- listRuns(rc, tag=tagNum, quiet=T)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
   expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
   # Delete the single run
-  mdf <- deleteRuns(rc, tag=tagNum)
+  mdf <- deleteRuns(rc, tag=tagNum, quiet=T)
   # If we deleted the run, then the returned data
   # frame of deleted runs will have one row
   oneRow <- nrow(mdf) == 1
@@ -66,13 +65,13 @@ test_that("Can trace readLines, writeLines", {
   # Read from the file just created
   newBuf <- readLines(tfile) 
   status <- endRecord(rc)
-  mdf <- listRuns(rc, tag=tagNum)
+  mdf <- listRuns(rc, tag=tagNum, quiet=T)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
   expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
   expect_equal(sbuf, newBuf)
   # Delete the single run
-  mdf <- deleteRuns(rc, tag=tagNum)
+  mdf <- deleteRuns(rc, tag=tagNum, quiet=T)
   # If we deleted the run, then the returned data
   # frame of deleted runs will have one row
   oneRow <- nrow(mdf) == 1
@@ -88,13 +87,13 @@ test_that("Can trace readLines, writeLines", {
   newBuf <- readLines(fcon) 
   close(fcon)
   status <- endRecord(rc)
-  mdf <- listRuns(rc, tag=tagNum)
+  mdf <- listRuns(rc, tag=tagNum, quiet=T)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
   expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
   expect_equal(sbuf, newBuf)
   # Delete the single run
-  mdf <- deleteRuns(rc, tag=tagNum)
+  mdf <- deleteRuns(rc, tag=tagNum, quiet=T)
   # If we deleted the run, then the returned data
   # frame of deleted runs will have one row
   oneRow <- nrow(mdf) == 1

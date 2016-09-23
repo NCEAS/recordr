@@ -11,7 +11,8 @@ deleteRuns(recordr, ...)
 \S4method{deleteRuns}{Recordr}(recordr, id = as.character(NA),
   file = as.character(NA), start = as.character(NA),
   end = as.character(NA), tag = as.character(NA),
-  error = as.character(NA), seq = as.integer(NA), noop = FALSE)
+  error = as.character(NA), seq = as.integer(NA), noop = FALSE,
+  quiet = FALSE)
 }
 \arguments{
 \item{recordr}{A Recordr instance}
@@ -33,6 +34,8 @@ deleteRuns(recordr, ...)
 \item{seq}{The run sequence number (can be a single value or a range, e.g \code{seq="1:10"})}
 
 \item{noop}{Don't delete any date, just show what would be deleted.}
+
+\item{quiet}{A \code{logical} if TRUE then output is not printed. Useful if only the return value is desired.}
 }
 \value{
 A data.frame containing execution metadata for the runs that were deleted.

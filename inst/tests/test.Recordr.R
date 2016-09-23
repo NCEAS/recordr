@@ -14,8 +14,8 @@ test_that("Can create Recordr instance", {
 # Create an R script that has no dependencies on external files
 createLocalRWScript <- function(scriptPath, inFile, outFile) {
   sink(scriptPath)
-  cat(sprintf('df <- read.csv(file = \"%s\")\n', inFile))
-  cat(sprintf('write.csv(df, file = \"%s\")\n\n', outFile))
+  cat(sprintf("df <- read.csv(file = normalizePath(\"%s\", mustWork=FALSE))\n", inFile))
+  cat(sprintf("write.csv(df, file = normalizePath(\"%s\", mustWork=FALSE))\n\n", outFile))
   sink()
 }
 
@@ -27,9 +27,16 @@ createLocalRWScript <- function(scriptPath, inFile, outFile) {
 # each test performs one operation (i.e. create, list, delete a run)
 library(uuid)
 uuidTag <- UUIDgenerate()
-scriptPath <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".R")
-inFile  <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".csv")
-outFile <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".csv")
+# If we are on Windoes, the double backslashes in the filenames will be
+# written out as single backslashes to our temp file. When this file is
+# sourced, this will cause an error. So, convert these to forward slashes,
+# write those to the temp file, then have the script convert then to the
+# appropriate directory separator for the platform. It would be really nice if
+# R had a way to ignore backslashes in a character string! See the script
+# 'createLocalRWScript' above.
+scriptPath <- gsub("\\\\", "/", tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".R"))
+inFile  <- gsub("\\\\", "/", tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".csv"))
+outFile <- gsub("\\\\", "/", tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".csv"))
 createLocalRWScript(scriptPath, inFile, outFile)
 write.csv(data.frame(x=1:10, y=11:20), file = inFile)
 
@@ -62,13 +69,13 @@ test_that("Can record a script execution", {
   #expect_that(length(getIdentifiers(pkg)), equals(2))
   
   #expect_that(class(pkg@sysmeta)[1], equals("SystemMetadata"))
-  mdf <- listRuns(recordr, tag=newTag)
+  mdf <- listRuns(recordr, tag=newTag, quiet=T)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
   expect_that(mdf[mdf$tag == newTag, 'executionId'], matches(executionId))
   # Delete the single run
   
-  mdf <- deleteRuns(recordr, tag=newTag)
+  mdf <- deleteRuns(recordr, tag=newTag, quiet=T)
   # If we deleted the run, then the returned data
   # frame of deleted runs will have one row
   oneRow <- nrow(mdf) == 1
@@ -78,7 +85,7 @@ test_that("Can record a script execution", {
 test_that("Can list a script execution", {
   recordr <- new("Recordr")
   # List the single run
-  mdf <- listRuns(recordr, tag=uuidTag)
+  mdf <- listRuns(recordr, tag=uuidTag, quiet=T)
   # If we successfully listed the run, then the returned data
   # frame of deleted runs will have one row
   oneRow <- nrow(mdf) == 1
@@ -88,7 +95,7 @@ test_that("Can list a script execution", {
 test_that("Can delete a script execution", {
   recordr <- new("Recordr")
   # Delete the single run
-  mdf <- deleteRuns(recordr, tag=uuidTag)
+  mdf <- deleteRuns(recordr, tag=uuidTag, quiet=T)
   # If we deleted the run, then the returned data
   # frame of deleted runs will have one row
   oneRow <- nrow(mdf) == 1

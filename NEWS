@@ -1,11 +1,38 @@
-Changes in Version 0.9.0.9007
+recordr 1.0.3
 
-NEW FEATURES
+## Bug Fixes
 
-* Multiple tag values can now be recorded for an execution
-* record(), startRecord(), listRuns(), viewRuns() now support tags with multiple, distinct values
+* Prevent 'cran-comments.md' from being included in package builds.
 
-BUG FIXES
+## New Features
 
-* Fixed error when overridden function 'read.csv()' called: "Error:: invalid 'file' argument")
+* Explain in 'intro_recordr' vignette more fully how recordr overrides functions.
 
+recordr 1.0.2
+
+## Bug Fixes
+
+* fixed problem where vignettes were not rendering during package install
+
+## New Features 
+
+* added description to the 'intro_recordr' vignette regarding 
+  the R mechanism used by recordr to record processing provenance information.
+
+recordr 1.0.1
+
+## Bug Fixes
+
+* remove illegal characters from the DESCRIPTION file
+
+recordr 1.0.0
+
+## New Features
+
+* record data provenance (files read and written) for R script executions
+
+* record data provenance (files read and written) for R console sessions
+
+* search and list all recorded executions and sessions
+
+* view detailed information about script exections and sessions

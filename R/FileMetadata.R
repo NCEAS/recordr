@@ -90,8 +90,9 @@ setMethod("initialize", signature = "FileMetadata", definition = function(.Objec
   # so that they don't get written out as an integer timestamp, i.e. milliseconds since ref date
   # 'file' argument is required and can be a URL, so no file info available and should be provided on command 
   # line, if possible
+  file <- normalizePath(file)
   if(file.exists(file)) {
-    filePath <- normalizePath(file)
+    filePath <- file
     fpInfo <- file.info(filePath)
   } else {
     filePath <- file
@@ -237,7 +238,6 @@ setMethod("writeFileMeta", signature("Recordr", "FileMetadata"), function(record
 #' @param recordr A recordr object
 #' @param ... Additional parameters
 #' @seealso \code{\link[=FileMetadata-class]{FileMetadata}} { class description}
-#' @export
 setGeneric("readFileMeta", function(recordr, ...) {
   standardGeneric("readFileMeta")
 })

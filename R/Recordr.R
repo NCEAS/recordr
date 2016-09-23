@@ -36,6 +36,7 @@
 #' @import EML
 #' @import RSQLite
 #' @import XML
+#' @importFrom utils URLdecode packageDescription read.csv savehistory sessionInfo timestamp write.csv
 #' @include Constants.R
 #' @section Methods:
 #' \itemize{
@@ -65,15 +66,16 @@ setMethod("initialize", signature = "Recordr",
                                 recordrDir = as.character(NA)) {
   # User didn't specify recordr dir, use ~/.recordr
   if (is.na(recordrDir)) {
-    recordrDir <- sprintf("%s/.recordr", path.expand("~"))
+    recordrDir <- normalizePath(file.path("~", ".recordr"), mustWork=FALSE)
   }
+  recordrDir <- normalizePath(recordrDir, mustWork=FALSE)
   # If recordrDir doesn't exist, create it
   if(!dir.exists(recordrDir)) {
     dir.create(recordrDir, recursive=TRUE)
   }
   .Object@recordrDir <- recordrDir
   # Open a connection to the database that contains execution metadata,
-  .Object@dbFile <- sprintf("%s/recordr.sqlite", recordrDir)
+  .Object@dbFile <- normalizePath(file.path(recordrDir, "recordr.sqlite"), mustWork=FALSE)
   dbConn <- getDBconnection(dbFile=.Object@dbFile)
   if (is.null(dbConn)) {
     stop("Unable to create a Recordr object\n")
@@ -147,7 +149,6 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
   if (is.element(".recordr", base::search())) {
     stop("A Recordr session is already active. Please run endRecord() if you wish to close this session.")
   }
-  
   # Create an environment on the search path that will store the overridden 
   # funnction names. These overridden functions are the ones that Recordr will
   # record provenance information for. This mechanism is similiar to a callback,
@@ -179,7 +180,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
       stop("Can't specify file argument if running startRecord(), only console commands allowed")
     } else {
       # If user invoked recordr(), not startRecord()/endRecord(), then save the name of the file ru
-      recordrEnv$scriptPath <- .file
+      recordrEnv$scriptPath <- normalizePath(.file, mustWork=TRUE)
     }
   }
 
@@ -270,8 +271,11 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
   recordrEnv$writePNG <- recordr::recordr_writePNG
   recordrEnv$scan <- recordr::recordr_scan
   
-  # Create the run metadata directory for this record()
-  dir.create(sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId), recursive = TRUE)
+  # Create the run metadata directory for this nrecord()
+  # Filename can't have ":" on Windows, so substitute "_". 
+  dir.create(normalizePath(file.path(recordr@recordrDir, "runs", 
+             gsub(":", "_", recordrEnv$execMeta@executionId)),  
+             mustWork=FALSE), recursive = TRUE)
   # Put recordr working directory in so masked functions can access it. No information can be saved locally until this
   # variable is defined.
   recordrEnv$recordrDir <- recordr@recordrDir
@@ -284,7 +288,12 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
   # endRecord() is called.
   if (.console) {
     startMarker <- sprintf("recordr execution %s started", recordrEnv$execMeta@executionId)
+    # Calling 'timestamp' from batch mode on windows causes R to hang. Nice!
+    # The result of this is that recordr will not be able to mark the history file
+    # and include the relevant history in a console log with the script.
+    if(.Platform$OS.type != "windows") {
     timestamp (stamp = c(date(), startMarker), quiet = TRUE)
+  }
   }
   
   setProvCapture(TRUE)
@@ -315,16 +324,16 @@ setGeneric("endRecord", function(recordr) {
 #' runIdentifier <- endRecord(rc)
 #' }
 setMethod("endRecord", signature("Recordr"), function(recordr) {
-  
+  on.exit(recordrShutdown())
   # Check if a recording session is active
   if (! is.element(".recordr", base::search())) {
     message("A Recordr session is not currently active.")
     return(NULL)
   }
-  
-  on.exit(recordrShutdown())
   recordrEnv <- as.environment(".recordr")
-  runDir <- sprintf("%s/runs/%s", recordr@recordrDir, recordrEnv$execMeta@executionId)
+  runDir <- normalizePath(file.path(recordr@recordrDir, "runs", 
+                          gsub(":", "_", recordrEnv$execMeta@executionId)), 
+                          mustWork=FALSE)
   if (!file.exists(runDir)) {
       dir.create(runDir, recursive = TRUE)
   }
@@ -346,14 +355,24 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
     # at the console since startRecord() was invoked.
     startMarker <- sprintf("recordr execution %s started", recordrEnv$execMeta@executionId)
     endMarker   <- sprintf("recordr execution %s ended", recordrEnv$execMeta@executionId)
+    # Calling 'timestamp' from batch mode on windows causes R to hang. Nice!
+    # The result of this is that recordr will not be able to mark the history file
+    # and include the relevant history in a console log with the script.
+    if(.Platform$OS.type != "windows") {
     timestamp (stamp = c(date(), endMarker), quiet = TRUE)
-    tmpFile <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".log")
+    }
+    tmpFile <- normalizePath(tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".log"), 
+                             mustWork=FALSE)
     savehistory(file=tmpFile)
+    # Sometimes windows doesn't actually write out the history, so create an empty file.
+    if(!file.exists(tmpFile)) {
+      writeLines(c(startMarker, "Saving history not supported on windows.", endMarker), tmpFile)
+    }
     recordrHistory <- ""
     allHistory <- ""
     foundStart <- FALSE
     foundEnd <- FALSE
-    consoleLogFile <-  sprintf("%s/console.log", runDir)
+    consoleLogFile <-  normalizePath(file.path(runDir, "console.log"), mustWork=FALSE)
     
     # Loop through the history, extracting everything between the start and end markers
     # Handle special case of start marker not being in the history, i.e. exceeded max
@@ -375,6 +394,8 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
       recordrHistory <- c(headerLine, recordrHistory)
       writeLines(recordrHistory, consoleLogFile)
     } else if (length(recordrHistory) > 0) {
+        # Maybe didn't find both beginning and end markers, but the
+        # history file is non-empty.
         recordrHistory <- c(headerLine, recordrHistory)
         writeLines(recordrHistory, consoleLogFile)
     } else {
@@ -387,8 +408,9 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # Archive the script that was executed, or the console log if we
   # were recording console commands. The script can be retrieved
   # by searching for access="execute"
-  archivedFilePath <- archiveFile(file=recordrEnv$scriptPath)
+  archivedFilePath <- normalizePath(archiveFile(file=recordrEnv$scriptPath, force=TRUE), mustWork=FALSE)
   fpInfo <- file.info(recordrEnv$scriptPath)
+  if (is.null(fpInfo[["uname"]])) fpInfo[["uname"]] <- as.character(NA)
   filemeta <- new("FileMetadata", file=recordrEnv$scriptPath, 
                fileId=recordrEnv$programId, 
                sha256=digest(object=recordrEnv$scriptPath, algo="sha256", file=TRUE)[[1]],
@@ -459,7 +481,8 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # Save the package relationships to disk so that we can recreate this package
   # at a later date.
   provRels <- getRelationships(recordrEnv$dataPkg)
-  filePath <- sprintf("%s/%s.csv", runDir, recordrEnv$execMeta@datapackageId)
+  filePath <- normalizePath(file.path(runDir, paste0(gsub(":", "_", 
+                            recordrEnv$execMeta@datapackageId), ".csv")), mustWork=FALSE)
   write.csv(provRels, file=filePath, row.names=FALSE)
   # Use the datapackage id as the resourceMap id
   #serializationId = recordrEnv$execMeta@datapackageId
@@ -503,22 +526,22 @@ setGeneric("record", function(recordr, file, ...) {
 #' executionId <- record(rc, file="myscript.R", tag="first run of myscript.R")
 #' }
 setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
-  # Check if a recording session didn't clean up properly by removing the
-  # temporary environments. If yes, then remove them now. The recordr pacakge
-  # does not allow concurrent execution of two record() sessions.
+  # Ensure that the .recordr environment is detached from the search path.
+  on.exit(recordrShutdown())
+  
+  # Execute the script specified by the user, making sure to catch any error encountered.
+  result = tryCatch ({
   if ( is.element(".recordr", base::search())) {
     detach(".recordr")
   }
-
+    file <- normalizePath(file, mustWork=TRUE)
   if(!file.exists(file)) {
     stop(sprintf("Error, file \"%s\" does not exist\n", file))
   }
-  
   execId <- startRecord(recordr, tag, .file=file, .console=FALSE)
   recordrEnv <- as.environment(".recordr")
   setProvCapture(TRUE)
   # Source the user's script, passing in arguments that they intended for the 'source' call.  
-  result = tryCatch ({
     #cat(sprintf("Sourcing file %s\n", filePath))
     # Because we are calling the 'source' function with the packageId, the overridden function
     # for 'source' will not be called, and a provenance entry for this 'source' will not be
@@ -527,20 +550,21 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
     #base::source(file, local=FALSE, ...)
     base::source(file, ...)
   }, warning = function(warningCond) {
+    if(exists(recordrEnv$execMeta)) {
     slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
-    cat(sprintf("Warning:: %s\n", recordrEnv$execMeta@errorMessage))
+    }
+    cat(sprintf("Warning:: %s\n", warningCond$message))
   }, error = function(errorCond) {
     slot(recordrEnv$execMeta, "errorMessage") <- errorCond$message
     cat(sprintf("Error:: %s\n", recordrEnv$execMeta@errorMessage))
   }, finally = {
     # Disable provenance capture while some housekeeping is done
-    
     setProvCapture(FALSE)
-
-    # Stop recording provenance and finalize the data package    
-    endRecord(recordr)
+    # Stop recording provenance and finalize the data package. If the
+    # recordr environment wasn't setup properly, then we won't
+    # be able to properly end recording.
     if (is.element(".recordr", base::search())) {
-      detach(".recordr", unload=TRUE)
+      endRecord(recordr)
     }
     # return the execution identifier
     return(execId)
@@ -621,11 +645,12 @@ setGeneric("deleteRuns", function(recordr, ...) {
 #' @param error The text of the error message to match.
 #' @param seq The run sequence number (can be a single value or a range, e.g \code{seq="1:10"})
 #' @param noop Don't delete any date, just show what would be deleted.
+#' @param quiet A \code{logical} if TRUE then output is not printed. Useful if only the return value is desired.
 #' @return A data.frame containing execution metadata for the runs that were deleted.
 setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.character(NA), file = as.character(NA), 
                                                        start = as.character(NA), end = as.character(NA), 
                                                        tag = as.character(NA), error = as.character(NA), 
-                                                       seq = as.integer(NA), noop = FALSE) {
+                                                       seq = as.integer(NA), noop = FALSE, quiet=FALSE) {
 
   runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, delete=TRUE)
   # selectRuns returns a list of ExecMeta objects
@@ -634,24 +659,24 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
     return(invisible(runs))
   } else {
     if (noop) {
-      message(sprintf("The following %d runs would have been deleted:\n", length(runs)))
+      if(!quiet) message(sprintf("The following %d runs would have been deleted:\n", length(runs)))
     } else {
-      message(sprintf("The following %d runs will be deleted:\n", length(runs)))
+      if (!quiet) message(sprintf("The following %d runs will be deleted:\n", length(runs)))
     }
   }
   
-  printRun(headerOnly=TRUE)
+  if(!quiet) printRun(headerOnly=TRUE)
   
   # Loop through selected runs
   for(i in 1:length(runs)) {
     row <- runs[[i]]
     thisRunId <- row@executionId
-    thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, thisRunId)
+    thisRunDir <- normalizePath(file.path(recordr@recordrDir, "runs", gsub(":", "_", thisRunId)), mustWork=FALSE)
     if (!noop) {
-      if(thisRunDir == sprintf("%s/runs", recordr@recordrDir) || thisRunDir == "") {
+      if(thisRunDir == normalizePath(file.path(recordr@recordrDir, "runs"), mustWork=FALSE) || thisRunDir == "") {
         stop(sprintf("Error determining directory to remove, directory: %s", thisRunDir))
       }
-      unlink(thisRunDir, recursive = TRUE)
+      if(!is.null(thisRunDir) && !is.na(thisRunDir) && thisRunDir != "") unlink(thisRunDir, recursive = TRUE)
       # Delete all file access entries for this execution, for any type of access,
       # i.e. "read", "write", "execute"
       # The file info for the deleted entries is returned
@@ -668,7 +693,7 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
         }
       }
     }
-    printRun(row)
+    if (!quiet) printRun(row)
   }
   
   invisible(execMetaTodata.frame(runs))
@@ -701,6 +726,7 @@ setGeneric("listRuns", function(recordr, ...) {
 #' @param error \code{"character"} Text of error message to match 
 #' @param seq \code{"integer"} A run sequence number (can be a range, e.g \code{seq=1:10})
 #' @param orderBy The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime
+#' @param quiet A \code{logical}, if TRUE then output is not printed to the console. Default is FALSE.
 #' @return data frame containing information for each run
 #' @examples \dontrun{
 #' rc <- new("Recordr")
@@ -713,7 +739,7 @@ setGeneric("listRuns", function(recordr, ...) {
 #' }
 #
 setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA), script=as.character(NA), start = as.character(NA), end=as.character(NA), tag=as.character(NA), 
-                                                     error=as.character(NA), seq=as.character(NA), orderBy = "-startTime") {
+                                                     error=as.character(NA), seq=as.character(NA), orderBy = "-startTime", quiet=FALSE) {
   
   runs <- selectRuns(recordr, runId=id, script=script, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=as.character(seq), orderBy=orderBy)
   if (length(runs) == 0) {
@@ -722,10 +748,12 @@ setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA
   }
   
   # Print header line
-  printRun(headerOnly = TRUE)
+  if (!quiet) printRun(headerOnly = TRUE)
   # Loop through selected runs
+  if(!quiet) {
   for(i in 1:length(runs)) {
     printRun(runs[[i]])
+  }
   }
   
   # Return invisible copy of runs, as we have already printed out a formatted version of the run info.
@@ -878,11 +906,11 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     publishNodeId       <- thisRow@publishNodeId
     publishId           <- thisRow@publishId
     seq                 <- thisRow@seq
-    thisRunDir <- sprintf("%s/runs/%s", recordr@recordrDir, executionId)
+    thisRunDir <- normalizePath(file.path(recordr@recordrDir, "runs", gsub(":", "_", executionId)), mustWork=FALSE)
     
     # Read the RDF relationships that were saved to a file. For space considerations, the
     # entire data package is not serialized to disk. 
-    relations <- read.csv(sprintf("%s/%s.csv", thisRunDir, datapackageId), stringsAsFactors=FALSE)
+    relations <- read.csv(normalizePath(file.path(thisRunDir, paste0(gsub(":", "_", datapackageId), ".csv"))), stringsAsFactors=FALSE)
     scriptURL <- relations[relations$predicate == "http://www.w3.org/ns/prov#hadPlan","object"]
     # Clear screen before showing results if we are paging the results
     if (i == 1 && page) cat("\014")
@@ -1397,9 +1425,7 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
 })
 
 recordrShutdown <- function() {
-  
   if (is.element(".recordr", base::search())) {
-    recordrEnv <- as.environment(".recordr")
     detach(".recordr")
   }
 }
@@ -1561,7 +1587,7 @@ coverageElement <- function(gc, tempc) {
 #' @import RSQLite
 #' @param dbFile the path to the recordr database file (default: ~/.recordr/recordr.sqlite)
 getDBconnection <- function(dbFile) {
-  dbDir <- dirname(dbFile)
+  dbDir <- normalizePath(dirname(dbFile), mustWork=FALSE)
   if(!file.exists(dbDir)) {
     dir.create(dbDir, recursive=T)
   }
@@ -1839,11 +1865,16 @@ unArchiveFile <- function(recordr, fileId) {
   } else {
     # Are more that the current execution referencing the file? If yes, then don't delete it.
     checksum <- fm[1,'sha256']
+    relFilePath <- fm[1,'archivedFilePath']
     frefs <- readFileMeta(recordr, sha256=checksum)
     if(nrow(frefs) == 1) {
-      archivedFilePath <- sprintf("%s/%s", recordr@recordrDir, fm[1,'archivedFilePath'])
-      unlink(archivedFilePath, force=TRUE)
+      archivedFilePath <- sprintf("%s/%s", recordr@recordrDir, relFilePath)
+      # One final sanity check before deleting file. Make sure we are only deleting files from
+      # the recordr 'archive' directory
+      if(nchar(relFilePath) > 0) {
+        if(grepl("^archive/", relFilePath)) unlink(archivedFilePath, force=TRUE)
     }
+  }
   }
   invisible(archivedFilePath)
 }
