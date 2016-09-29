@@ -1112,12 +1112,13 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     thisExecMeta <- thisExecMeta[[1]]
   }
   if(is.na(id)) id <- thisExecMeta@executionId
- 
-  runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
+  runDir <- normalizePath(file.path(recordr@recordrDir, "runs", 
+                                    gsub(":", "_", id)),  mustWork=FALSE)
   if (! file.exists(runDir)) {
     msg <- sprintf("A directory was not found for execution identifier: %s\n", id)
     stop(msg)
   }
+  
   # See if this execution has been published before
   if (!is.na(thisExecMeta@publishTime)) {
     msg <- sprintf("The datapackage for this execution was published on %s\n", thisExecMeta@publishTime)
