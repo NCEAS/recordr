@@ -481,9 +481,24 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # Save the package relationships to disk so that we can recreate this package
   # at a later date.
   provRels <- getRelationships(recordrEnv$dataPkg)
-  filePath <- normalizePath(file.path(runDir, paste0(gsub(":", "_", 
-                            recordrEnv$execMeta@datapackageId), ".csv")), mustWork=FALSE)
-  write.csv(provRels, file=filePath, row.names=FALSE)
+  #filePath <- normalizePath(file.path(runDir, paste0(gsub(":", "_", 
+  #                          recordrEnv$execMeta@datapackageId), ".csv")), mustWork=FALSE)
+  #write.csv(provRels, file=filePath, row.names=FALSE)
+  
+  if(nrow(provRels) > 0) {
+    for (iRel in 1:nrow(provRels)) {
+      # Convert the provenance relationships to a standard format and save to the 'provrels' db table
+      provRelsObj <- new("ProvRels",  executionId = recordrEnv$execMeta@executionId, 
+                         subject = provRels[iRel, "subject"],
+                         predicate = provRels[iRel, "predicate"], 
+                         object = provRels[iRel, "object"],
+                         subjectType = provRels[iRel, "subjectType"], 
+                         objectType = provRels[iRel, "objectType"],
+                         dataTypeURI = provRels[iRel, "dataTypeURI"])
+      writeProvRel(recordr, provRelsObj)
+    }
+  }
+  
   # Use the datapackage id as the resourceMap id
   #serializationId = recordrEnv$execMeta@datapackageId
   #filePath <- sprintf("%s/%s.rdf", runDir, serializationId)
