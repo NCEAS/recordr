@@ -36,6 +36,7 @@ Collate:
     'Recordr.R'
     'ExecMetadata.R'
     'FileMetadata.R'
+    'ProvRels.R'
     'onLoad.R'
     'recordr-package.R'
     'tracedFunctions.R'
