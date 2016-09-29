@@ -1224,24 +1224,24 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
       # The 'additionalInfo' value was stored during endRecord() so that we could match up the
       # file and the eml element after the run was finished.
       for(iEntity in 1:length(emlObj@dataset@otherEntity)) {
-        thisDatasetId <- emlObj@dataset@otherEntity[[iEntity]]@EntityGroup@alternateIdentifier[[1]]@character
+        thisDatasetId <- emlObj@dataset@otherEntity[[iEntity]]@alternateIdentifier[[1]]@character
         if(fileId == thisDatasetId) {
           url <- sprintf("%s/%s", resolveURI, fileId)
           distrib <- new("distribution", online = new("online", url=url))
-          emlObj@dataset@otherEntity[[iEntity]]@EntityGroup@physical[[1]]@distribution <- as(list(distrib), "ListOfdistribution")
+          emlObj@dataset@otherEntity[[iEntity]]@physical[[1]]@distribution <- as(list(distrib), "ListOfdistribution")
         }
       }
     }
   }
   
-  # Now that we have used the alternate identifier, blank it out so that the uploaded EML won't have it. Currently
+  # Now that we have used the alternate identifier, blank it out so thatEntityGroup the uploaded EML won't have it. Currently
   # the EML parser in Metacat doesn't allow alternate identifiers.
   if(length(emlObj@dataset@otherEntity) > 0) {
     for(iEntity in 1:length(emlObj@dataset@otherEntity)) {
-      emlObj@dataset@otherEntity[[iEntity]]@EntityGroup@alternateIdentifier <- new("ListOfalternateIdentifier")
+      emlObj@dataset@otherEntity[[iEntity]]@alternateIdentifier <- new("ListOfalternateIdentifier")
     }
   }
-  emlObj@dataset@ResourceGroup@pubDate <- as(publishDay, "pubDate")
+  emlObj@dataset@pubDate <- as(publishDay, "pubDate")
   # Update the metadata stored for this run. The putMetadata() function
   # can't read eml objects yet, so have to write it to a file.
   tempMetadataFile <- tempfile()
