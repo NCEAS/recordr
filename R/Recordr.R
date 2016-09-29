@@ -1256,8 +1256,10 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   
   #
   # Add the saved relationships back in the data package
-  relationshipFile <- sprintf("%s/%s.csv", runDir, packageId)
-  relationships <- read.csv(relationshipFile, stringsAsFactors=FALSE)
+  #relationshipFile <- sprintf("%s/%s.csv", runDir, packageId)
+  #relationships <- read.csv(relationshipFile, stringsAsFactors=FALSE)
+  provRels <- new("ProvRels")
+  relationships <- readProvRels(recordr, id)
   if (nrow(relationships) > 0) {
     for(i in 1:nrow(relationships)) {
       thisRelationship <- relationships[i,]
