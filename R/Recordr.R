@@ -1394,7 +1394,9 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
   
   # Locate the metadata file
   if(is.na(id)) id <- execMeta@executionId
-  runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
+  #runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
+  runDir <- normalizePath(file.path(recordr@recordrDir, "runs", 
+                          gsub(":", "_", id)), mustWork=FALSE)
   if (! file.exists(runDir)) {
     msg <- sprintf("A directory was not found for execution identifier: %s\n", id)
     stop(msg)
