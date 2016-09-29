@@ -925,7 +925,9 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     
     # Read the RDF relationships that were saved to a file. For space considerations, the
     # entire data package is not serialized to disk. 
-    relations <- read.csv(normalizePath(file.path(thisRunDir, paste0(gsub(":", "_", datapackageId), ".csv"))), stringsAsFactors=FALSE)
+    #relations <- read.csv(normalizePath(file.path(thisRunDir, paste0(gsub(":", "_", datapackageId), ".csv"))), stringsAsFactors=FALSE)
+    provRels <- new("ProvRels")
+    relations <- readProvRels(recordr, executionId=thisRow@executionId)
     scriptURL <- relations[relations$predicate == "http://www.w3.org/ns/prov#hadPlan","object"]
     # Clear screen before showing results if we are paging the results
     if (i == 1 && page) cat("\014")
