@@ -36,6 +36,8 @@
 #' @import EML
 #' @import RSQLite
 #' @import XML
+#' @import hash
+#' @import DiagrammeR
 #' @importFrom utils URLdecode packageDescription read.csv savehistory sessionInfo timestamp write.csv
 #' @include Constants.R
 #' @section Methods:
@@ -1900,6 +1902,114 @@ unArchiveFile <- function(recordr, fileId) {
   }
   invisible(archivedFilePath)
 }
+#' Trace lineage for a run and plot found runs.
+#' @description A data processing workflow might include multiple processing steps, with
+#' each step being performed by a separate R script. These multiple steps are linked by
+#' the files that one step writes and the next step in the workflow reads. The \code{plotRuns}
+#' method finds these connections between executions to determine the executions that
+#' comprise a processing workflow.
+#' @param recordr a Recordr instance
+#' @param ... additional parameters
+#' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
+#' @export
+setGeneric("plotRuns", function(recordr, ...) {
+  standardGeneric("plotRuns")
+})
+
+#' @rdname plotRuns
+#' @details If the run \code{id} or \code{seq} number is know for the run to be traced, then one or the
+#' other of these values can be used. Alternatively, other run attributes can be used to determine the run to be traced,
+#' such as \code{file}, \code{start}, etc. If these other search parameters are used and multiple runs are selected,
+#' only the first run selected will be traced. These search parameters can be used together to easily find certain runs, 
+#' for example, the latest run of a particular script, the latest run with a specified tag specified, etc. (see examples).
+#' @param id The identifier for a run. Either \code{id} or \code{seq} can be specified, not both.
+#' @param seq The sequence number for a run.
+#' #' @param id The execution identifier of a run to view
+#' @param file The name of script to match 
+#' @param start Match runs that started in this time range (inclusive)
+#' Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"
+#' @param end Match runs that ended in this time range (inclusive)
+#' Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"
+#' @param tag The text of tag to match 
+#' @param error The text of error message to match. 
+#' @param orderBy Sort the results according to the specified column. A hypen ('-') prepended to the column name 
+#' denoes a descending sort. The default value is "-startTime"
+#' @param direction The direction to trace the lineage, either \code{fowward}, \code{backward}, or \code{both}. 
+#'                  The default is \code{both}
+#' @param quiet A \code{logical} if TRUE then output is not printed. 
+#' @return A list of the execution identifiers that are in the processing workflow.
+#' @export
+#' @examples 
+#' \dontrun{
+#' # Plot processing workflow for the run with sequence number '101'
+#' plotRuns(recordr, seq=101)
+#' # Plot processing workflow for the last execution of script "runModel.R"
+#' plotRuns(recordr, file="runModel.R", orderBy="-startTime")
+#' # Plot processing workflow for the last execution with the tag 'best run yet!' specified.
+#' plotRuns(recordr, tag="best run yet!", orderBy="-startTime")
+#' }
+setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA), file=as.character(NA), 
+                                                     start=as.character(NA), end=as.character(NA), tag=as.character(NA), error=as.character(NA),
+                                                     seq=as.character(NA), orderBy="-startTime", 
+                                                     direction="both", quiet=TRUE, ...) {
+  
+  if (!requireNamespace("DiagrammeR", quietly = TRUE)) {
+    stop("Package \"DiagrammeR\" is needed for function \"plotRuns\" to work. Please install it.",
+         call. = FALSE)
+  }
+  # traceRuns returns a list of ExecMetadata objects based on the user's search parameters.
+  # The user can search for a run by using any run attribute, but only the first run returned will be traced.
+  # The user can specify a sort order to control which run is first, for example, the latest run of a particular
+  # script could be selected.
+  retVals <- traceRuns(recordr, id, file, start, end, tag, error, seq, orderBy, direction, quiet=quiet)
+  
+  linkedIds <- retVals[[1]]
+  execMetas <- retVals[[2]]
+  usedFiles <- retVals[[3]]
+  genFiles <- retVals[[4]]
+  nodes <- hash()
+  
+  graph <- create_graph(graph_attrs = "layout = dot", node_attrs = "fontname = Helvetica", edge_attrs = "color = gray20")
+  
+  # Loop through the list of executions, adding nodes for each execution
+  for (execId in keys(linkedIds)) {
+    em <- execMetas[[execId]]
+    ufs <- usedFiles[[execId]]
+    gfs <- genFiles[[execId]]
+    scriptName <- basename(em@softwareApplication)
+    graph <- add_node(graph, label=scriptName, node=execId)
+    graph <- set_node_attrs(graph, node_attr= "shape", values="rectangle", nodes=execId)
+    # Create nodes and links for input files
+    if(nrow(ufs) > 0) {
+      for(iFile in 1:nrow(ufs)) {
+        fileName <- basename(ufs[iFile, 'filePath'])
+        sha256 <- ufs[iFile, 'sha256']
+        if(!has.key(sha256, nodes)) {
+          graph <- add_node(graph, label=fileName, node=sha256)
+          nodes[[sha256]] <- TRUE
+        } 
+        graph <- add_edge(graph, from=sha256, to=execId)
+      }
+    }
+    # Create nodes and links for the output files
+    if(nrow(gfs) > 0) {
+      for(iFile in 1:nrow(gfs)) {
+        fileName <- basename(gfs[iFile, 'filePath'])
+        sha256 <- gfs[iFile, 'sha256']
+        if(!has.key(sha256, nodes)) {
+          graph <- add_node(graph, label=fileName, node=sha256)
+          nodes[[sha256]] <- TRUE
+        } 
+        graph <- add_edge(graph, from=execId, to=sha256)
+      }
+    }
+  }
+  
+  # Render the graph using GraphViz. Out is sent to the RStudio viewer and
+  # can be exported using the RStudio viewer panel. Other output options will
+  # be added.
+  render_graph(graph)
+})
 #' Trace processing lineage by finding related executions.
 #' @description A data processing workflow might include multiple processing steps, with
 #' each step being performed by a separate R script. These multiple steps are linked by
