@@ -1900,3 +1900,174 @@ unArchiveFile <- function(recordr, fileId) {
   }
   invisible(archivedFilePath)
 }
+#' Trace processing lineage by finding related executions.
+#' @description A data processing workflow might include multiple processing steps, with
+#' each step being performed by a separate R script. These multiple steps are linked by
+#' the files that one step writes and the next step in the workflow reads. The \code{traceRuns}
+#' method finds these connections between executions to determine the executions that
+#' comprise a processing workflow, and returns information for each run in the processing workflow
+#' including all files that were read and written by each script.
+#' @param recordr a Recordr instance
+#' @param ... additional parameters
+#' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
+#' @export
+setGeneric("traceRuns", function(recordr, ...) {
+  standardGeneric("traceRuns")
+})
+
+#' @rdname traceRuns
+#' @details If the run \code{id} or \code{seq} number is know for the run to be traced, then one or the
+#' other of these values can be used. Alternatively, other run attributes can be used to determine the run to be traced,
+#' such as \code{file}, \code{start}, etc. If these other search parameters are used and multiple runs are selected,
+#' only the first run selected will be traced. These search parameters can be used together to easily find certain runs, 
+#' for example, the latest run of a particular script, the latest run with a specified tag specified, etc. (see examples).
+#' @param id The identifier for a run. Either \code{id} or \code{seq} can be specified, not both.
+#' @param seq The sequence number for a run.
+#' #' @param id The execution identifier of a run to view
+#' @param file The name of script to match 
+#' @param start Match runs that started in this time range (inclusive)
+#' Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"
+#' @param end Match runs that ended in this time range (inclusive)
+#' Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to not less that "YYYY"
+#' @param tag The text of tag to match 
+#' @param error The text of error message to match. 
+#' @param orderBy Sort the results according to the specified column. A hypen ('-') prepended to the column name 
+#' denoes a descending sort. The default value is "-startTime"
+#' @param direction The direction to trace the lineage, either \code{fowward}, \code{backward}, or \code{both}. 
+#'                  The default is \code{both}
+#' @param quiet A \code{logical} if TRUE then output is not printed. 
+#' @return A list of the execution identifiers that are in the processing workflow.
+#' @export
+#' @examples 
+#' \dontrun{
+#' # Trace lineage for the run with sequence number '101'
+#' linkedRuns <- traceRuns(recordr, seq=101)
+#' # Trace lineage for the last execution of script "runModel.R"
+#' linkedRuns <- traceRuns(recordr, file="runModel.R", orderBy="-startTime")
+#' # Trace lineage for the last execution with the tag 'best run yet!' specified.
+#' linkedRuns <- traceRuns(recordr, tag="best run yet!", orderBy="-startTime")
+#' }
+setMethod("traceRuns", signature("Recordr"), function(recordr, id=as.character(NA), file=as.character(NA), 
+                                                      start=as.character(NA), end=as.character(NA), tag=as.character(NA), error=as.character(NA),
+                                                      seq=as.character(NA), orderBy="-startTime", 
+                                                      direction="both", quiet=TRUE, ...) {
+  
+  # selectRuns returns a list of ExecMetadata objects based on the user's search parameters.
+  # The user can search for a run by using any run attribute, but only the first run returned will be traced.
+  # The user can specify a sort order to control which run is first, for example, the latest run of a particular
+  # script could be selected.
+  runs <- selectRuns(recordr, runId=id, script=file, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=seq, orderBy=orderBy)
+  if (length(runs) == 0) {
+    message(sprintf("No runs matched search criteria."))
+    return(list())
+  }
+  
+  # Loop through selected runs
+  runToTrace <- runs[[1]]
+  executionId <- runToTrace@executionId
+  retVals <- traverseExecs(recordr, executionId=executionId, direction=direction)
+  visitedIds <- retVals[[1]]
+  linkedIds <- retVals[[2]]
+  execMetas <- retVals[[3]]
+  usedFiles <- retVals[[4]]
+  genFiles <- retVals[[5]]
+  return (list(linkedIds, execMetas=execMetas, usedFiles=usedFiles, genFiles=genFiles))
+})
+
+traverseExecs <- function(recordr, executionId, direction="both", visitedIds=hash(), 
+                          linkedIds=hash(), execMetas=hash(), usedFiles=hash(), 
+                          genFiles=hash(), quiet=TRUE, ...) {
+  
+  # Skip this execution if we have visited it before, i.e. there may be multiple files shared
+  # between executions, so only traverse to an execution once.
+  if(has.key(executionId, visitedIds)) {
+    message(sprintf('skipping already visited execution: %s', executionId))
+    return()
+  }
+  # Read metadata for this execution.
+  execMetaList <- readExecMeta(recordr, executionId=executionId)
+  execMeta <- execMetaList[[1]]
+  startTime <- as.POSIXct(execMeta@startTime)
+  message(sprintf("Entering execution %s", executionId))
+  visitedIds[[executionId]] <- TRUE
+  linkedIds[[executionId]] <- TRUE
+  execMetas[[executionId]] <- execMeta
+  haveReadFiles <- FALSE
+  haveWriteFiles <- FALSE
+  
+  # Traverse backward.
+  if(direction =="backward" || direction =="both") {
+    # get all files that were read by an execution
+    filesRead <- readFileMeta(recordr, executionId=executionId, access="read")
+    usedFiles[[executionId]] <- filesRead
+    haveReadFiles <- TRUE
+    # Check each file that was read, for connections to ancestor executions
+    if(nrow(filesRead) > 0) {
+      for (irow in 1:nrow(filesRead)) {
+        thisChecksum <- filesRead[irow,'sha256']
+        # get files with the same sha256 that were written by an execution
+        filesToCheck <- readFileMeta(recordr, sha256=thisChecksum, access="write")
+        if(nrow(filesToCheck) > 0) {
+          for (iFile in 1:nrow(filesToCheck)) {
+            thisExecId <- filesToCheck[iFile, 'executionId']
+            fileCreationTime <- as.POSIXct(filesToCheck[iFile, 'createTime'])
+            # Don't check this file if it belongs to the current execution.
+            if(thisExecId == executionId) next
+            # Don't check this execution if it has been checked previously
+            if(is.element(thisExecId, visitedIds)) next
+            # If the file was created after this execution started, then it can't be an input.
+            if (startTime < fileCreationTime) next
+            # Check, by recursion, this execution for connections it has to other executions
+            # Recursion stops when an execution is reached that is not 'connected' to another execution that has
+            # not already been visited.
+            traverseExecs(recordr, thisExecId, direction="backward", visitedIds, linkedIds,
+                          execMetas, usedFiles, genFiles, quiet, ...)
+          }
+        }
+      }
+    }
+  }
+  
+  # Traverse forward
+  if(direction=="forward" || direction =="both") {
+    # get all files that were read by an execution
+    filesWritten <- readFileMeta(recordr, executionId=executionId, access="write")
+    # Store all files written by this execution id to return to the calling program.
+    genFiles[[executionId]] <- filesWritten
+    haveWriteFiles <- TRUE
+    # Check each file that was read, for connections to ancestor executions
+    if(nrow(filesWritten) > 0) {
+      for (irow in 1:nrow(filesWritten)) {
+        thisChecksum <- filesWritten[irow,'sha256']
+        # get files with the same sha256 that were written by an execution
+        filesToCheck <- readFileMeta(recordr, sha256=thisChecksum, access="read")
+        if(nrow(filesToCheck) > 0) {
+          for (iFile in 1:nrow(filesToCheck)) {
+            thisExecId <- filesToCheck[iFile, 'executionId']
+            fileCreationTime <- as.POSIXct(filesToCheck[iFile, 'createTime'])
+            # Don't check this file if it belongs to the current execution.
+            if(thisExecId == executionId) next
+            # Don't check this execution if it has been checked previously
+            if(has.key(thisExecId, visitedIds)) next
+            # If the file was created before this execution started, then it can't be an output.
+            if (startTime > fileCreationTime) next
+            # Check, by recursion, this execution for connections it has to other executions
+            # Recursion stops when an execution is reached that is not 'connected' to another execution that has
+            # not already been visited.
+            traverseExecs(recordr, thisExecId, direction="forward", visitedIds=visitedIds, linkedIds=linkedIds, 
+                          execMetas=execMetas, usedFiles=usedFiles, genFiles=genFiles, quiet, ...)
+          }
+        }
+      }
+    }
+  }
+  
+  if(!haveReadFiles) {
+    usedFiles[[executionId]] <- readFileMeta(recordr, executionId=executionId, access="read")
+  }
+  if(!haveWriteFiles) {
+    genFiles[[executionId]] <- readFileMeta(recordr, executionId=executionId, access="write")
+  }
+  return(list(visitedIds=visitedIds, linkedIds=linkedIds, execMetas=execMetas, 
+              usedFiles=usedFiles, genFiles=genFiles))
+}
