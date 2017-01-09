@@ -32,6 +32,8 @@ package and uploaded to the requested member node.
  \item{\code{\link{viewRuns}}}{: Record relationships of objects in a DataPackage}
  \item{\code{\link{deleteRuns}}}{: Record derivation relationships between objects in a DataPackage}
  \item{\code{\link{publishRun}}}{: Retrieve relationships of package objects}
+ \item{\code{\link{traceRuns}}}{: Trace processing lineage by finding related executions.}
+ \item{\code{\link{plotRuns}}}{: Trace processing lineage for a run and plot it.}
 }
 }
 \seealso{

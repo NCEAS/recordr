@@ -6,12 +6,12 @@
 \alias{initialize-Recordr}
 \title{Initialize a Recorder object}
 \usage{
-\S4method{initialize}{Recordr}(.Object, recordrDir = as.character(NA))
+\S4method{initialize}{Recordr}(.Object)
 }
 \arguments{
 \item{.Object}{The Recordr object}
 
-\item{recordrDir}{The directory to store provenance data in.}
+\item{home}{The directory to store provenance data in.}
 }
 \description{
 Initialize a Recorder object

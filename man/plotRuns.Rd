@@ -4,7 +4,7 @@
 \name{plotRuns}
 \alias{plotRuns}
 \alias{plotRuns,Recordr-method}
-\title{Trace lineage for a run and plot found runs.}
+\title{Trace processing lineage for a run and plot it.}
 \usage{
 plotRuns(recordr, ...)
 
