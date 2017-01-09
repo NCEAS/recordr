@@ -2159,7 +2159,7 @@ traverseExecs <- function(recordr, executionId, direction="both", visitedIds=has
             # Don't check this file if it belongs to the current execution.
             if(thisExecId == executionId) next
             # Don't check this execution if it has been checked previously
-            if(is.element(thisExecId, visitedIds)) next
+            if(is.element(thisExecId, keys(visitedIds))) next
             # If the file was created after this execution started, then it can't be an input.
             if (startTime < fileCreationTime) next
             # Check, by recursion, this execution for connections it has to other executions
