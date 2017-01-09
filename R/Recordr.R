@@ -2128,14 +2128,12 @@ traverseExecs <- function(recordr, executionId, direction="both", visitedIds=has
   # Skip this execution if we have visited it before, i.e. there may be multiple files shared
   # between executions, so only traverse to an execution once.
   if(has.key(executionId, visitedIds)) {
-    message(sprintf('skipping already visited execution: %s', executionId))
     return()
   }
   # Read metadata for this execution.
   execMetaList <- readExecMeta(recordr, executionId=executionId)
   execMeta <- execMetaList[[1]]
   startTime <- as.POSIXct(execMeta@startTime)
-  message(sprintf("Entering execution %s", executionId))
   visitedIds[[executionId]] <- TRUE
   linkedIds[[executionId]] <- TRUE
   execMetas[[executionId]] <- execMeta
