@@ -1143,8 +1143,14 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   
   # See if this execution has been published before
   if (!is.na(thisExecMeta@publishTime)) {
-    msg <- sprintf("The datapackage for this execution was published on %s\n", thisExecMeta@publishTime)
-    stop(msg)
+    if(update) {
+      if(!quiet) {
+         msg <- sprintf("The datapackage for this execution was published on %s\nbut because 'update' was specified this package will be republished now\n", thisExecMeta@publishTime)
+      }
+    } else {
+      msg <- sprintf("The datapackage for this execution was published on %s\n", thisExecMeta@publishTime)
+      stop(msg)
+    }
   }
   
   # Get configuration parameters, use defaults if a value not set
