@@ -33,6 +33,7 @@
 #' @import methods
 #' @import uuid
 #' @import digest
+#' @import rappdirs
 #' @import EML
 #' @import RSQLite
 #' @import XML
@@ -50,6 +51,8 @@
 #'  \item{\code{\link{viewRuns}}}{: Record relationships of objects in a DataPackage}
 #'  \item{\code{\link{deleteRuns}}}{: Record derivation relationships between objects in a DataPackage}
 #'  \item{\code{\link{publishRun}}}{: Retrieve relationships of package objects}
+#'  \item{\code{\link{traceRuns}}}{: Trace processing lineage by finding related executions.}
+#'  \item{\code{\link{plotRuns}}}{: Trace processing lineage for a run and plot it.}
 #' }
 #' @seealso \code{\link{recordr}}{ package description.}
 #' @export
@@ -61,20 +64,37 @@ setClass("Recordr", slots = c(recordrDir = "character",
 #' @rdname initialize-Recordr
 #' @aliases initialize-Recordr
 #' @param .Object The Recordr object
-#' @param recordrDir The directory to store provenance data in.
+#' @param home The directory to store provenance data in.
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
-setMethod("initialize", signature = "Recordr", 
-          definition = function(.Object,
-                                recordrDir = as.character(NA)) {
-  # User didn't specify recordr dir, use ~/.recordr
-  if (is.na(recordrDir)) {
-    recordrDir <- normalizePath(file.path("~", ".recordr"), mustWork=FALSE)
+setMethod("initialize", signature = "Recordr", definition = function(.Object) {
+  
+  # The default recordr home directory is the R session temp direcory. 
+  # If the user has setup a permanent home directory using configHome(), then the
+  # home directory will always be located at the value returned from rappdir::user_data_dir(). 
+  # This location can either be a directory or a link to another directory, for example on
+  # a large disk
+  appDir <- rappdirs::user_data_dir(appname="recordr", appauthor = "NCEAS")
+  symlink <- Sys.readlink(appDir)
+  tmpDir <- sprintf("%s/recordr", tempdir())
+  # Use the default directory if it has been created. This directory will only exist
+  # if the user has previously agreed to have recordr create it.
+  if(file.exists(appDir)) {
+    recordrDir <- appDir
+  } else if(!is.na(symlink) && symlink != "") {
+    # If the directory determined by rappdirs is a symbolic link, then the user has previously
+    # requested that the directory be located in a non-standard location, so don't 
+    # do anything to the link, and just use the location that the link points to.
+    recordrDir <- symlink
+  } else {
+    # Use the temporary directory
+    recordrDir <- tmpDir
   }
-  recordrDir <- normalizePath(recordrDir, mustWork=FALSE)
-  # If recordrDir doesn't exist, create it
-  if(!dir.exists(recordrDir)) {
-    dir.create(recordrDir, recursive=TRUE)
-  }
+  
+  if(recordrDir != tmpDir && !file.exists(recordrDir)) {
+    message(sprintf("Creating a new recordr home at directory at %s", recordrDir))
+    dir.create(recordrDir, recursive = TRUE)
+  } 
+  
   .Object@recordrDir <- recordrDir
   # Open a connection to the database that contains execution metadata,
   .Object@dbFile <- normalizePath(file.path(recordrDir, "recordr.sqlite"), mustWork=FALSE)
