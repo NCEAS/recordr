@@ -180,7 +180,6 @@ setMethod("writeProvRel", signature("Recordr"), function(recordr, provRels, ...)
     }
   }
   insertStatement <- paste("INSERT INTO provenance ", "(", provRelsSlotNamesStr, ")", " VALUES (", slotValuesStr, ")", sep=" ")
-  cat(sprintf("insert provenance: %s\n", insertStatement))
   result <- dbSendQuery(conn=dbConn, statement=insertStatement)
   dbClearResult(result)
   
