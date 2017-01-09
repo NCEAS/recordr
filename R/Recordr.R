@@ -296,7 +296,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
   # Create the run metadata directory for this nrecord()
   # Filename can't have ":" on Windows, so substitute "_". 
   dir.create(normalizePath(file.path(recordr@recordrDir, "runs", 
-             gsub(":", "_", recordrEnv$execMeta@executionId)),  
+             cleanFilename(recordrEnv$execMeta@executionId)),  
              mustWork=FALSE), recursive = TRUE)
   # Put recordr working directory in so masked functions can access it. No information can be saved locally until this
   # variable is defined.
@@ -353,9 +353,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
     return(NULL)
   }
   recordrEnv <- as.environment(".recordr")
-  runDir <- normalizePath(file.path(recordr@recordrDir, "runs", 
-                          gsub(":", "_", recordrEnv$execMeta@executionId)), 
-                          mustWork=FALSE)
+  runDir <- getRunDir(recordr, recordrEnv$execMeta@executionId)
   if (!file.exists(runDir)) {
       dir.create(runDir, recursive = TRUE)
   }
@@ -458,7 +456,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # to the user's .recordr directory.
   metadataTemplateFile <- getOption("package_metadata_template_path")
   if(is.null(metadataTemplateFile) || !file.exists(metadataTemplateFile)) {
-      metadataTemplateFile <- "~/.recordr/package_metadata_template.R"
+      metadataTemplateFile <- sprintf("%s/package_metadata_template.R", recordrEnv$recordrDir)
       # It is possible that the option wasn't set, but the default file already exists
       if(!file.exists(metadataTemplateFile)) {
         file.copy(system.file("extdata/package_metadata_template.R", package="recordr"), metadataTemplateFile)
@@ -471,6 +469,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # These variables should be defined by the metadata template, however, define initial values 
   # here in case they are not found in the template.
   creators <- list()
+  title <- as.character(NA)
   abstract <- as.character(NA)
   methodDescription <- as.character(NA)
   geo_coverage <- geoCoverage("global", west="-180", east="180", north="90", south="-90")
@@ -484,8 +483,10 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   eml <- makeEML(recordr, id=recordrEnv$execMeta@executionId, system, title, creators, abstract, 
                  methodDescription, geo_coverage, temp_coverage)
   # Write the eml file to the execution directory
-  eml_file <- sprintf("%s/%s.xml", runDir, recordrEnv$execMeta@metadataId)
+  eml_file <- sprintf("%s/%s.xml", runDir, cleanFilename(recordrEnv$execMeta@metadataId))
+  message("begin eml write")
   write_eml(eml, file = eml_file)
+  message("done eml write")
   #message(sprintf("Saved EML to file: %s\n", eml_file))
   metaObj <- new("DataObject", id=recordrEnv$execMeta@metadataId, format="eml://ecoinformatics.org/eml-2.1.1", 
                  filename=eml_file)
@@ -503,8 +504,8 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # Save the package relationships to disk so that we can recreate this package
   # at a later date.
   provRels <- getRelationships(recordrEnv$dataPkg)
-  #filePath <- normalizePath(file.path(runDir, paste0(gsub(":", "_", 
-  #                          recordrEnv$execMeta@datapackageId), ".csv")), mustWork=FALSE)
+  #filePath <- normalizePath(file.path(runDir, paste0(
+  # cleanFilename(recordrEnv$execMeta@datapackageId), ".csv")), mustWork=FALSE)
   #write.csv(provRels, file=filePath, row.names=FALSE)
   
   if(nrow(provRels) > 0) {
@@ -708,7 +709,7 @@ setMethod("deleteRuns", signature("Recordr"), function(recordr, id = as.characte
   for(i in 1:length(runs)) {
     row <- runs[[i]]
     thisRunId <- row@executionId
-    thisRunDir <- normalizePath(file.path(recordr@recordrDir, "runs", gsub(":", "_", thisRunId)), mustWork=FALSE)
+    thisRunDir <- normalizePath(file.path(recordr@recordrDir, "runs", cleanFilename(thisRunId)), mustWork=FALSE)
     if (!noop) {
       if(thisRunDir == normalizePath(file.path(recordr@recordrDir, "runs"), mustWork=FALSE) || thisRunDir == "") {
         stop(sprintf("Error determining directory to remove, directory: %s", thisRunDir))
@@ -943,11 +944,11 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     publishNodeId       <- thisRow@publishNodeId
     publishId           <- thisRow@publishId
     seq                 <- thisRow@seq
-    thisRunDir <- normalizePath(file.path(recordr@recordrDir, "runs", gsub(":", "_", executionId)), mustWork=FALSE)
+    thisRunDir <- normalizePath(file.path(recordr@recordrDir, "runs", cleanFilename(executionId)), mustWork=FALSE)
     
     # Read the RDF relationships that were saved to a file. For space considerations, the
     # entire data package is not serialized to disk. 
-    #relations <- read.csv(normalizePath(file.path(thisRunDir, paste0(gsub(":", "_", datapackageId), ".csv"))), stringsAsFactors=FALSE)
+    #relations <- read.csv(normalizePath(file.path(thisRunDir, paste0(cleanFilename(datapackageId), ".csv"))), stringsAsFactors=FALSE)
     provRels <- new("ProvRels")
     relations <- readProvRels(recordr, executionId=thisRow@executionId)
     scriptURL <- relations[relations$predicate == "http://www.w3.org/ns/prov#hadPlan","object"]
@@ -1134,8 +1135,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     thisExecMeta <- thisExecMeta[[1]]
   }
   if(is.na(id)) id <- thisExecMeta@executionId
-  runDir <- normalizePath(file.path(recordr@recordrDir, "runs", 
-                                    gsub(":", "_", id)),  mustWork=FALSE)
+  runDir <- getRunDir(recordr, id)
   if (! file.exists(runDir)) {
     msg <- sprintf("A directory was not found for execution identifier: %s\n", id)
     stop(msg)
@@ -1208,7 +1208,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # TODO: use getMetadata() output when read_eml accepts
   # XMLInternalDocument, as the documentation says it should
   #metadata <- getMetadata(recordr, id=id, as="parsed")
-  metadataFile <- sprintf("%s/%s.xml", runDir, metadataId)
+  metadataFile <- sprintf("%s/%s.xml", runDir, cleanFilename(metadataId))
   emlObj <- read_eml(metadataFile)
   
   # Check options to see if the default DataONE submitter and rightsholder
@@ -1272,7 +1272,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   putMetadata(recordr, id=id, metadata=tempMetadataFile, asText=FALSE)
   # Use windows friendly filenames, i.e. no ":"
   metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=tempMetadataFile,
-                 suggestedFilename=gsub(":", "_", basename(metadataFile)))
+                 suggestedFilename=cleanFilename(basename(metadataFile)))
   if(!is.na(submitter)) metaObj@sysmeta@submitter <- submitter
   if(!is.na(rightsHolder)) metaObj@sysmeta@rightsHolder <- rightsHolder
   addData(pkg, metaObj)
@@ -1353,14 +1353,14 @@ setMethod("getMetadata", signature("Recordr"), function(recordr, id=as.character
   
   # Locate the metadata file
   if(is.na(id)) id <- execMeta@executionId
-  runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
+  runDir <- getRunDir(recordr, id)
   if (! file.exists(runDir)) {
     msg <- sprintf("A directory was not found for execution identifier: %s\n", id)
     stop(msg)
   }
   
   metadataId <- execMeta@metadataId
-  metadataFile <- sprintf("%s/%s.xml", runDir, metadataId)
+  metadataFile <- sprintf("%s/%s.xml", runDir, cleanFilename(metadataId))
   metadata <- readLines(metadataFile, warn=FALSE)
   
   if(as == "text") {
@@ -1417,16 +1417,14 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
   
   # Locate the metadata file
   if(is.na(id)) id <- execMeta@executionId
-  #runDir <- sprintf("%s/runs/%s", recordr@recordrDir, id)
-  runDir <- normalizePath(file.path(recordr@recordrDir, "runs", 
-                          gsub(":", "_", id)), mustWork=FALSE)
+  runDir <- getRunDir(recordr, id)
   if (! file.exists(runDir)) {
     msg <- sprintf("A directory was not found for execution identifier: %s\n", id)
     stop(msg)
   }
   
   metadataId <- execMeta@metadataId
-  metadataFile <- sprintf("%s/%s.xml", runDir, metadataId)
+  metadataFile <- sprintf("%s/%s.xml", runDir, cleanFilename(metadataId))
   metadataFileBackup <- sprintf("%s.bak", metadataFile)
   
   # Either writeout the metadata to the run directory, or copy the user file to that location
@@ -1917,12 +1915,25 @@ unArchiveFile <- function(recordr, fileId) {
       # the recordr 'archive' directory
       if(nchar(relFilePath) > 0) {
         if(grepl("^archive/", relFilePath)) unlink(archivedFilePath, force=TRUE)
+      }
     }
-  }
   }
   invisible(archivedFilePath)
 }
-#' Trace lineage for a run and plot found runs.
+
+# Get the execution specific working directory.
+getRunDir <- function(recordr, id) {
+    runDir <- normalizePath(file.path(recordr@recordrDir, "runs",  cleanFilename(id)), mustWork=FALSE)
+    runDir <- normalizePath(file.path(recordr@recordrDir, "runs",  cleanFilename(id)), mustWork=FALSE)
+    return(runDir)
+}
+
+# Remove characters that are illegal for certain operating systems, i.e. ":" for windows
+cleanFilename <- function(filename) {
+    gsub(":", "_", filename)
+}
+
+#' Trace processing lineage for a run and plot it.
 #' @description A data processing workflow might include multiple processing steps, with
 #' each step being performed by a separate R script. These multiple steps are linked by
 #' the files that one step writes and the next step in the workflow reads. The \code{plotRuns}
