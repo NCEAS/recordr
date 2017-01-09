@@ -19,7 +19,11 @@ Imports:
     datapack,
     digest,
     XML,
-    RSQLite
+    RSQLite,
+    rappdirs,
+    hash,
+    EML,
+    DiagrammeR
 Suggests:
     dataone,
     ggplot2,
