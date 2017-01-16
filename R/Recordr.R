@@ -292,6 +292,10 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
   recordrEnv$readPNG <- recordr::recordr_readPNG
   recordrEnv$writePNG <- recordr::recordr_writePNG
   recordrEnv$scan <- recordr::recordr_scan
+  recordrEnv$raster <- recordr::recordr_raster
+  recordrEnv$writeRaster <- recordr::recordr_writeRaster
+  recordrEnv$readOGR <- recordr::recordr_readOGR
+  recordrEnv$writeOGR <- recordr::recordr_writeOGR
   
   # Create the run metadata directory for this nrecord()
   # Filename can't have ":" on Windows, so substitute "_". 
