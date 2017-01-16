@@ -828,6 +828,320 @@ recordr_writePNG <- function(image, target, ...) {
   return(outImage)
 }
 
+
+#' Provenance wrapper for the raster::raster function 
+#' @description Override the raster::raster function and record a provenance relationship
+#' for the file read. 
+#' @param x The filename or Raster object.
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
+#' @export
+recordr_raster <- function (x, ...) {
+  # Call the original function that we are overriding
+  functionName <- "raster"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next readPNG() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    rasterLayer <- f(x, ...)
+    rm(f)
+  } else {
+    message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
+  }
+  filePath <- x
+  
+  if(class(filePath) != "character") {
+    message("Don't trace raster() if arg is not class(character).")
+    return(rasterLayer) 
+  }
+  
+  # Get the option that controls whether or not file read operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file reads.
+  capture_file_reads <- getOption("capture_file_reads")
+  if(is.null(capture_file_reads)) capture_file_reads <- TRUE
+  
+  # Record the provenance relationship between the user's script and the derived data file
+  if (getProvCapture() && capture_file_reads) {
+    cat(sprintf("Tracing raster with filePath: %s", filePath))
+    recordrEnv <- as.environment(".recordr")
+    setProvCapture(FALSE)
+    datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    # Create a data package object for the derived dataset
+    dataFmt <- "application/octet-stream"
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
+    # TODO: use file argument when file size is greater than a configuration value
+    # Record prov:used relationship between the execution and the input dataset
+    addData(recordrEnv$dataPkg, dataObj)
+    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    # Record the execution inputs that will be used to assert 'prov:wasDerivedFrom' relationships
+    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, datasetId)
+    # Save a copy of this generated file to the recordr archiv
+    archivedFilePath <- archiveFile(file=filePath)
+    message(sprintf("Capturing file data for fileId %s", datasetId))
+    filemeta <- new("FileMetadata", file=filePath, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="read", format="application/octet-stream",
+                    archivedFilePath=archivedFilePath)
+    writeFileMeta(recordrEnv$recordr, filemeta)
+    setProvCapture(TRUE)
+  }
+  invisible(rasterLayer)
+}
+
+#' Provenance wrapper for the raster::writeRaster function
+#' @description Override the raster::writeRaster function and record a provenance relationship
+#' for the file that was written.
+#' @param x Raster* object
+#' @param file Output filename
+#' @param format Output file type.
+#' @param ... additional parameters
+#' @return The name of the output file
+#' @note This function is not intended to be called directly by a user.
+#' @export
+recordr_writeRaster <- function(x, filename, ...) {
+  # Call the original function that we are overriding
+  functionName <- "writeRaster"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next writeRaster() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    xOut <- f(x, filename, ...)
+    rm(f)
+  } else {
+    message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
+  }
+  
+  # Get the option that controls whether or not file write operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file writes.
+  capture_file_writes <- getOption("capture_file_writes")
+  if(is.null(capture_file_writes)) capture_file_writes <- TRUE
+  
+  # Record the provenance relationship between the user's script and the derived data file
+  if (getProvCapture() && capture_file_writes) {
+    filePath <- filename
+    sprintf("Tracing raster with filePath: %s", filePath)
+    recordrEnv <- as.environment(".recordr")
+    setProvCapture(FALSE)
+    datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    # Create a data package object for the derived dataset
+    dataFmt <- "application/octet-stream"
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
+    # TODO: use file argument when file size is greater than a configuration value
+    # Record prov:wasGeneratedBy relationship between the execution and the output dataset
+    addData(recordrEnv$dataPkg, dataObj)
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    # Record the execution outputs that will be used to assert 'prov:wasDerivedFrom' relationships
+    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, datasetId)
+    # Save a copy of this generated file to the recordr archiv
+    archivedFilePath <- archiveFile(file=filePath)
+    filemeta <- new("FileMetadata", file=filePath, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="write", format="application/octet-stream",
+                    archivedFilePath=archivedFilePath)
+    writeFileMeta(recordrEnv$recordr, filemeta)
+    setProvCapture(TRUE)
+  }
+  return(xOut)
+}
+
+#' Provenance wrapper for the rgdal::readOGR function 
+#' @description Override the rgdal::readOGR function and record a provenance relationship
+#' for the file read. 
+#' @param dsn data source name
+#' @param layer layer name
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
+#' @export
+recordr_readOGR <- function (dsn, layer, verbose = TRUE, p4s = NULL, stringsAsFactors = default.stringsAsFactors(), 
+                             drop_unsupported_fields = FALSE, pointDropZ = FALSE, dropNULLGeometries = TRUE, 
+                             useC = TRUE, disambiguateFIDs = FALSE, addCommentsToPolygons = TRUE, 
+                             encoding = NULL, use_iconv = FALSE, swapAxisOrder = FALSE, 
+                             require_geomType = NULL, integer64 = "no.loss", GDAL1_integer64_policy = FALSE) {
+  # Call the original function that we are overriding
+  functionName <- "readOGR"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next readPNG() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    cat(sprintf("calling readOGR..."))
+    obj <- f(dsn, layer, verbose, p4s, stringsAsFactors,
+             drop_unsupported_fields, pointDropZ, dropNULLGeometries, useC, 
+             disambiguateFIDs, addCommentsToPolygons, encoding, use_iconv, 
+             swapAxisOrder, require_geomType, integer64, GDAL1_integer64_policy)
+    cat(sprintf("function called...\n"))
+    rm(f)
+  } else {
+    message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
+  }
+  
+  # The dsn argument can be a file or a directory
+  if(file.exists(dsn)) {
+    fInfo <- file.info(dsn)
+    if (fInfo$isdir) {
+      # dsn is a directory, query rgdal to get the actual dsn, layer
+      dsnInfo <- rgdal::ogrInfo(dsn, layer)
+      filePath <- sprintf("%s/%s.shp", dsnInfo$dsn, dsnInfo$layer)
+      cat(sprintf("dsn is dir, filePath: %s\n", filePath))
+    } else {
+      # File exists and is not a directory, user specified specific file to read
+      filePath <- dsn
+      cat(sprintf("dsn is file, filePath: %s\n", filePath))
+    }
+  } else {
+    # file or dir doesn't exist, return the function results
+    return(obj)
+  }
+  
+  # Get the option that controls whether or not file read operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file reads.
+  capture_file_reads <- getOption("capture_file_reads")
+  if(is.null(capture_file_reads)) capture_file_reads <- TRUE
+  
+  # Record the provenance relationship between the user's script and the derived data file
+  if (getProvCapture() && capture_file_reads) {
+    cat(sprintf("Tracing readOGR with file: %s\n", filePath))
+    recordrEnv <- as.environment(".recordr")
+    setProvCapture(FALSE)
+    datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    # Create a data package object for the derived dataset
+    dataFmt <- "application/octet-stream"
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, filename=filePath)
+    # TODO: use file argument when file size is greater than a configuration value
+    # Record prov:used relationship between the execution and the input dataset
+    addData(recordrEnv$dataPkg, dataObj)
+    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    # Record the execution inputs that will be used to assert 'prov:wasDerivedFrom' relationships
+    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, datasetId)
+    # Save a copy of this generated file to the recordr archiv
+    archivedFilePath <- archiveFile(file=filePath)
+    message(sprintf("Capturing file data for fileId %s", datasetId))
+    filemeta <- new("FileMetadata", file=filePath, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="read", format="application/octet-stream",
+                    archivedFilePath=archivedFilePath)
+    writeFileMeta(recordrEnv$recordr, filemeta)
+    setProvCapture(TRUE)
+  }
+  invisible(obj)
+}
+ 
+#' Provenance wrapper for the rgdal::writeOGR function
+#' @description Override the rgdal::writeOGR function and record a provenance relationship
+#' for the file that was written.
+#' @param obj The image to write out.
+#' @param dsn The data source name.
+#' @param ... additional parameters
+#' @note This function is not intended to be called directly by a user.
+#' @export
+recordr_writeOGR <- function(obj, dsn, layer, driver, dataset_options = NULL, layer_options = NULL, 
+  verbose = FALSE, check_exists = NULL, overwrite_layer = FALSE, 
+  delete_dsn = FALSE, morphToESRI = NULL, encoding = NULL) {
+  # Call the original function that we are overriding
+  status <- rgdal::writeOGR(obj, dsn, layer, driver, dataset_options, layer_options, 
+              verbose, check_exists, overwrite_layer, delete_dsn, morphToESRI, encoding)
+  functionName <- "writeOGR"
+  # See comments for function 'recordr_read.csv' for an explaination of how the
+  # overridden function (the one recordr is overriding) is called.
+  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
+  if(!is.null(functionEnv)) {
+    cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    f <- get(functionName, envir=as.environment(functionEnv))
+    # Now call the next writePNG() fuction in the search path with our bound function. 
+    # Note: do.call doesn't work if you give it the qualified function name, 
+    # so we have to do this rebinding.
+    status <- f(obj, dsn, layer, driver, dataset_options, layer_options, 
+      verbose, check_exists, overwrite_layer, delete_dsn, morphToESRI, encoding)
+    rm(f)
+  } else {
+    message(sprintf("Unable to find function %s on search path", functionName))
+    return(NULL)
+  }
+  
+  # The dsn argument can be a file or a directory
+  filePath <- ""
+  if(file.exists(dsn)) {
+    fInfo <- file.info(dsn)
+    if (fInfo$isdir) {
+      # dsn is a directory, query rgdal to get the actual dsn, layer
+      dsnInfo <- rgdal::ogrInfo(dsn, layer)
+      filePath <- sprintf("%s/%s.shp", dsnInfo$dsn, dsnInfo$layer)
+      cat(sprintf("writeOGR, dsn is dir, filePath: %s\n", filePath))
+    } else {
+      # File exists and is not a directory, user specified specific file to read
+      filePath <- dsn
+      cat(sprintf("writeOGR, dsn is file, filePath: %s\n", filePath))
+    }
+  } else {
+    # file or dir doesn't exist, return the function results (NULL for writeOGR)
+    return(status)
+  }
+  
+  # Get the option that controls whether or not file write operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file writes.
+  capture_file_writes <- getOption("capture_file_writes")
+  if(is.null(capture_file_writes)) capture_file_writes <- TRUE
+  
+  # Record the provenance relationship between the user's script and the derived data file
+  if (getProvCapture() && capture_file_writes) {
+    cat(sprintf("Tracing writeOGR with file: %s from package %s\n", filePath, environmentName(functionEnv)))
+    recordrEnv <- as.environment(".recordr")
+    setProvCapture(FALSE)
+    datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    # Create a data package object for the derived dataset
+    dataFmt <- "application/octet-stream"
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
+    # TODO: use file argument when file size is greater than a configuration value
+    # Record prov:wasGeneratedBy relationship between the execution and the output dataset
+    addData(recordrEnv$dataPkg, dataObj)
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    # Record the execution outputs that will be used to assert 'prov:wasDerivedFrom' relationships
+    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, datasetId)
+    # Save a copy of this generated file to the recordr archiv
+    archivedFilePath <- archiveFile(file=filePath)
+    filemeta <- new("FileMetadata", file=filePath, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="write", format="application/octet-stream",
+                    archivedFilePath=archivedFilePath)
+    writeFileMeta(recordrEnv$recordr, filemeta)
+    setProvCapture(TRUE)
+  }
+  return(status)
+}
+
 # Disable or enable provenance capture temporarily
 # It may be necessary to disable provenance capture temporarily, for example when
 # record() is writting out a housekeeping file.
