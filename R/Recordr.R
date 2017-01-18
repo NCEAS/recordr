@@ -589,8 +589,16 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
     # for 'source' will not be called, and a provenance entry for this 'source' will not be
     # recorded.
     # Note: ellipse argument is passed from method call so user can pass args to source, if desired.
-    #base::source(file, local=FALSE, ...)
-    base::source(file, ...)
+    # Check the warning level so that the user's script isn't terminated early due to 
+    # a warning - i.e. because we are in a tryCatch, a warning in the user's script will cause
+    # the script to terminate as soon as a warning is encountered. If the user warn level is set
+    # to 1 or lower, disable this behavour for the user's script, to allow the same
+    # warning behaviour that the user would have if they sourced the script manually.. 
+    if(getOption("warn") < 2) {
+      suppressWarnings(base::source(file, ...))
+    } else {
+      base::source(file, ...)
+    }
   }, warning = function(warningCond) {
     if(exists(recordrEnv$execMeta)) {
     slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
