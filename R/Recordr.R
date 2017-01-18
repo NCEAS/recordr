@@ -2016,26 +2016,45 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
   genFiles <- retVals[[4]]
   nodes <- hash()
   
-  graph <- create_graph(graph_attrs = "layout = dot", node_attrs = "fontname = Helvetica", edge_attrs = "color = gray20")
+  # DiagrammeR has changed it's API in version 0.9.0, so it is no longer possible
+  # to specify the node id for a node. It is therefor required to keep a lookup
+  # table between the node values that DiagrammeR gives a node and the corresponding
+  # value for the recordr object, i.e. executionId.
+  idsToDgrmR <- hash()
+  
+  graph <- create_graph()
+  graph <- set_global_graph_attrs(graph, attr = "layout", value = "dot", attr_type="graph") 
+  graph <- set_global_graph_attrs(graph, attr = "fontname", value = "Helvetica", attr_type="node")
+  graph <- set_global_graph_attrs(graph, attr = "color", value = "gray20", attr_type="edge")
   
   # Loop through the list of executions, adding nodes for each execution
   for (execId in keys(linkedIds)) {
     em <- execMetas[[execId]]
     ufs <- usedFiles[[execId]]
     gfs <- genFiles[[execId]]
-    scriptName <- basename(em@softwareApplication)
-    graph <- add_node(graph, label=scriptName, node=execId)
-    graph <- set_node_attrs(graph, node_attr= "shape", values="rectangle", nodes=execId)
+    if(em@softwareApplication == "") {
+      execLabel <- execId
+    } else {
+      execLabel <- basename(em@softwareApplication)
+    }
+    # Add node if it hasn't been added to the lookup table or it hasn't been added to the graph.
+    if(!has.key(execId, idsToDgrmR) || !node_present(graph, node=idsToDgrmR[[execId]])) {
+      graph <- add_node_with_id(graph, id=execId, label=execLabel, idLookup=idsToDgrmR)
+      graph <- set_node_attrs(graph, node_attr= "shape", values="rectangle", nodes=idsToDgrmR[[execId]])
+    }
     # Create nodes and links for input files
     if(nrow(ufs) > 0) {
       for(iFile in 1:nrow(ufs)) {
         fileName <- basename(ufs[iFile, 'filePath'])
         sha256 <- ufs[iFile, 'sha256']
+        # Has the node accessed this file?
         if(!has.key(sha256, nodes)) {
-          graph <- add_node(graph, label=fileName, node=sha256)
+          graph <- add_node_with_id(graph, id=sha256, label=fileName, idLookup=idsToDgrmR)
           nodes[[sha256]] <- TRUE
-        } 
-        graph <- add_edge(graph, from=sha256, to=execId)
+        }
+        if(!edge_present(graph, from=idsToDgrmR[[sha256]], to=idsToDgrmR[[execId]])) {
+          graph <- add_edge_with_ids(graph, from=sha256, to=execId, idLookup=idsToDgrmR)
+        }
       }
     }
     # Create nodes and links for the output files
@@ -2043,11 +2062,15 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
       for(iFile in 1:nrow(gfs)) {
         fileName <- basename(gfs[iFile, 'filePath'])
         sha256 <- gfs[iFile, 'sha256']
+        # Has the node created this file?
         if(!has.key(sha256, nodes)) {
-          graph <- add_node(graph, label=fileName, node=sha256)
+          graph <- add_node_with_id(graph, id=sha256, label=fileName, idLookup=idsToDgrmR)
+          graph <- set_node_attrs(graph, node_attr= "shape", values="ellipse", nodes=idsToDgrmR[[sha256]])
           nodes[[sha256]] <- TRUE
         } 
-        graph <- add_edge(graph, from=execId, to=sha256)
+        if(!edge_present(graph, from=idsToDgrmR[[sha256]], to=idsToDgrmR[[execId]])) {
+          graph <- add_edge_with_ids(graph, from=execId, to=sha256, idLookup=idsToDgrmR)
+        }
       }
     }
   }
