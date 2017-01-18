@@ -573,18 +573,17 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
   
   # Execute the script specified by the user, making sure to catch any error encountered.
   result = tryCatch ({
-  if ( is.element(".recordr", base::search())) {
-    detach(".recordr")
-  }
+    if ( is.element(".recordr", base::search())) {
+      detach(".recordr")
+    }
     file <- normalizePath(file, mustWork=TRUE)
-  if(!file.exists(file)) {
-    stop(sprintf("Error, file \"%s\" does not exist\n", file))
-  }
-  execId <- startRecord(recordr, tag, .file=file, .console=FALSE)
-  recordrEnv <- as.environment(".recordr")
-  setProvCapture(TRUE)
-  # Source the user's script, passing in arguments that they intended for the 'source' call.  
-    #cat(sprintf("Sourcing file %s\n", filePath))
+    if(!file.exists(file)) {
+      stop(sprintf("Error, file \"%s\" does not exist\n", file))
+    }
+    execId <- startRecord(recordr, tag, .file=file, .console=FALSE)
+    recordrEnv <- as.environment(".recordr")
+    setProvCapture(TRUE)
+    # Source the user's script, passing in arguments that they intended for the 'source' call.  
     # Because we are calling the 'source' function with the packageId, the overridden function
     # for 'source' will not be called, and a provenance entry for this 'source' will not be
     # recorded.
@@ -600,13 +599,12 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
       base::source(file, ...)
     }
   }, warning = function(warningCond) {
-    if(exists(recordrEnv$execMeta)) {
-    slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
+    if(exists("recordrEnv") && !is.na(recordrEnv$execMeta@executionId)) {
+      slot(recordrEnv$execMeta, "errorMessage") <- warningCond$message
     }
     cat(sprintf("Warning:: %s\n", warningCond$message))
   }, error = function(errorCond) {
     slot(recordrEnv$execMeta, "errorMessage") <- errorCond$message
-    cat(sprintf("Error:: %s\n", recordrEnv$execMeta@errorMessage))
   }, finally = {
     # Disable provenance capture while some housekeeping is done
     setProvCapture(FALSE)
