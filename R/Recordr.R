@@ -818,7 +818,7 @@ setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA
 printRun <- function(run=NA, headerOnly = FALSE)  {
   
   tagLength = 20
-  scriptNameLength = 30
+  scriptNameLength = 70
   errorMsgLength = 30
  
   #fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
@@ -965,7 +965,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
     # Clear screen before showing results if we are paging the results
     if (i == 1 && page) cat("\014")
     # Print out [DETAILS] section
-    scriptNameLength=50
+    scriptNameLength=70
     if (is.element("details", sections)) {
       cat(sprintf("[details]: Run details\n"))
       cat(sprintf("----------------------\n"))
@@ -973,7 +973,7 @@ setMethod("viewRuns", signature("Recordr"), function(recordr, id=as.character(NA
       if(console) {
         cat(sprintf("Started recording console input at %s\n", startTime))
       } else {      
-        cat(sprintf("%s was executed on %s\n", dQuote(condenseStr(thisScript, 30)), startTime))
+        cat(sprintf("%s was executed on %s\n", dQuote(condenseStr(thisScript, scriptNameLength)), startTime))
       }
       cat(sprintf("Tag: %s\n", dQuote(paste(tag, collapse=","))))
       cat(sprintf("Run sequence #: %d\n", seq))
