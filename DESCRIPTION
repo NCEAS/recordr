@@ -1,6 +1,6 @@
 Package: recordr
 Title: R Provenance Tracking
-Version: 1.0.3
+Version: 1.0.3.9000
 Authors@R: c( person("Peter", "Slaughter", role = c("aut", "cre"), email = "slaughter@nceas.ucsb.edu"),
     person("Matthew", "Jones", role = "aut", email = "jones@nceas.ucsb.edu"),
     person("Chris", "Jones", role = "ctb", email = "cjones@nceas.ucsb.edu"),
