@@ -61,38 +61,43 @@ setClass("Recordr", slots = c(recordrDir = "character",
                               dbFile = "character"))
 
 #' Initialize a Recorder object
+#' @details A recordr object is returned that can be used with other \code{recordr} package
+#' methods. When the optional \code{newDir} argument is used, the recordr home directory is
+#' changed to the new value. The default behaviour is to have data copied from the old
+#' home directory to the new one, but this can be changed by using the \code{copy} argument, i.e.
+#' See the recordr vignette \code{'recordr Package Introduction'} for more information about 
+#' information that recordr stores in the recordr home directory.
 #' @rdname initialize-Recordr
 #' @aliases initialize-Recordr
 #' @param .Object The Recordr object
-#' @param home The directory to store provenance data in.
+#' @param newDir The recordr home directory is changed to the new location.
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
-setMethod("initialize", signature = "Recordr", definition = function(.Object) {
+setMethod("initialize", signature = "Recordr", definition = function(.Object, newDir=as.character(NA), 
+                                                                     copy=T, ...) {
   
-  # The default recordr home directory is the R session temp direcory. 
-  # If the user has setup a permanent home directory using configHome(), then the
-  # home directory will always be located at the value returned from rappdir::user_data_dir(). 
-  # This location can either be a directory or a link to another directory, for example on
-  # a large disk
-  appDir <- rappdirs::user_data_dir(appname="recordr", appauthor = "NCEAS")
-  symlink <- Sys.readlink(appDir)
-  tmpDir <- sprintf("%s/recordr", tempdir())
-  # Use the default directory if it has been created. This directory will only exist
-  # if the user has previously agreed to have recordr create it.
-  if(file.exists(appDir)) {
-    recordrDir <- appDir
-  } else if(!is.na(symlink) && symlink != "") {
-    # If the directory determined by rappdirs is a symbolic link, then the user has previously
-    # requested that the directory be located in a non-standard location, so don't 
-    # do anything to the link, and just use the location that the link points to.
-    recordrDir <- symlink
-  } else {
-    # Use the temporary directory
-    recordrDir <- tmpDir
+  # Get the current recordr home directory. If this is the first time that this function
+  # has been callled, then the default initial directory is selected.
+  recordrDir <- getRecordrDir()
+  
+  # The user has specified the recordr directory, which may be a new location from
+  # the previously used directory.
+  if(!is.na(newDir)) {
+    recordrDir <- changeHome(.Object, recordrDir, newDir=newDir, copy, ...) 
+    message(sprintf("The recordr home directory has been chagned to \"%s\".", recordrDir))
   }
   
-  if(recordrDir != tmpDir && !file.exists(recordrDir)) {
-    message(sprintf("Creating a new recordr home at directory at %s", recordrDir))
+  # When creating a new home directory, don't print the msg if it is a temp directory
+  if(!file.exists(recordrDir)) {
     dir.create(recordrDir, recursive = TRUE)
+    message(sprintf("A new recordr home directory has been created at:\n\n\t%s\n", recordrDir))
+    if(grepl(tempdir(), recordrDir)) {
+      message("The recordr package will save run information to this directory, which is under")
+      message("the R session temporary directory. Therefore the information that recordr collects")
+      message("will be removed by R when the current R session ends.")
+      message("\nIf you wish to change the recordr home directory so that information is saved to a")
+      message("permanent location please use the \"newDir\" argument, for example")
+      message("\n\t\"rc <- new(\"Recordr\", newDir=\"/Users/bobsmith/recordr\")")
+    }
   } 
   
   .Object@recordrDir <- recordrDir
@@ -133,6 +138,141 @@ setMethod("initialize", signature = "Recordr", definition = function(.Object) {
    
   return(.Object)
 })
+
+# Get the recordr home directory, which may be in one of several different
+# locations, depending on user choice.
+getRecordrDir <- function() {
+  
+  recordrDir <- ""
+  # The default recordr home directory is the R session temp direcory. 
+  # If the user has setup a permanent home directory using configHome(), then the
+  # home directory will always be located at the value returned from rappdir::user_data_dir(). 
+  # This location can either be a directory or a link to another directory, for example on
+  # a large disk
+  appDir <- rappdirs::user_data_dir(appname="recordr", appauthor = "NCEAS")
+  appDirBase <- rappdirs::user_data_dir(appauthor = "NCEAS")
+  defaultDir <- sprintf("%s/recordr", appDirBase)
+  symlink <- Sys.readlink(sprintf("%s/recordr", appDirBase))
+  isTmp <- FALSE
+  # Directory location if we are in demo mode (required by CRAN, i.e. can't write to home dir 
+  # unless user has explicitly consented to it.)
+  tmpDir <- sprintf("%s/recordr", tempdir())
+  # If the default directory, as determined by rappdirs, has been symbolically 
+  # linked to another directory, then rappdis will return the directory being
+  # linked to. This link is created when 'changeHome()' is called and the user
+  # specifies a customer directory location.
+  if (file.exists(appDir)) {
+    # Use the default directory if it has been created. This directory will only exist
+    # if the user has previously agreed to have recordr create it.
+    recordrDir <- appDir
+    # Now do an additional check to see if the defaultDir is a link
+    symlink <- Sys.readlink(defaultDir)
+    
+    if(symlink != "") {
+      attr(recordrDir, "isDefault") <- FALSE
+      attr(recordrDir, "linkedTo") <- symlink
+    } else {
+      attr(recordrDir, "isSymlink") <- FALSE
+      attr(recordrDir, "isDefault") <- TRUE
+      attr(recordrDir, "linkedTo") <- as.character(NA)
+    }
+  } else {
+    # Use the temporary directory
+    recordrDir <- tmpDir
+    attr(recordrDir, "isDefault") <- FALSE
+    attr(recordrDir, "linkedTo") <- as.character(NA)
+    isTmp <- TRUE
+  }
+  
+  attr(recordrDir, "default") <- defaultDir
+  attr(recordrDir, "isTmp") <- isTmp
+  return(recordrDir)
+}
+
+#' Change the recordr home directory
+#' @param recordr A recordr object
+#' @param currentDir A character value specifying the current recordr home directory
+#' @param newDir A character value, specifying the new recordr home directory
+#' @param copy A logical value. A value of TRUE causes data to be copied from the old
+#' directory to the new one. A default value is not set.
+changeHome <- function(recordr, currentDir, newDir=as.character(NA), copy, ...) {
+  
+  saveToDir <- currentDir
+  makeLink <- FALSE
+  
+  # Get info about the current directory. This directory may not have been used by
+  # recordr yet, if this is the first time that recordr is being initialized and the
+  # user has specified a home directory location.
+  defaultDir <- attr(currentDir, "default")
+  isDefault <- attr(currentDir, "isDefault")
+  linkedTo <- attr(currentDir, "linkedTo") 
+  isTmp <- attr(currentDir, "isTmp")
+  
+  # The previous dir is a symlink from the OS dependant default dir. This needs to be
+  # removed so we can use the new location.
+  if(!is.na(linkedTo)) {
+    file.remove(defaultDir) 
+    fromDir <- linkedTo
+    # Don't need to move the previous dir to save it - just get it out of the way for the 
+    # new one.
+    saveToDir <- as.character(NA)
+  } else {
+    fromDir <- currentDir
+    # The previous dir is the R session temp dir
+    if(isTmp) {
+      saveToDir <- as.character(NA)
+    } else {
+      # The previous dir is the OS default dir, not linked
+      saveToDir <- sprintf("%s.save", fromDir)
+      if(file.exists(saveToDir)) {
+        tmp <- gsub(" ", "", Sys.time())
+        saveToDir <- sprintf("%s.%s", saveToDir, gsub(":", "", tmp))
+      }
+    }
+  }
+  
+  # User has specified that the OS dependent default dir be used.
+  if(newDir == "default") {
+    recordrDir <- defaultDir
+    toDir <- dirname(defaultDir)
+  } else {
+    # Use the user specified new directory
+    recordrDir <- newDir
+    if(basename(recordrDir) != "recordr") {
+      recordrDir <- sprintf("%s/recordr", newDir)
+      # For the copy, have to have the 'recordr' parent dir, otherwise 'recordr/record' gets created.
+      makeLink <- TRUE
+      #file.symlink(attr(currentDir, "default"), recordrDir)
+    }
+    toDir <- dirname(recordrDir)
+  }
+
+  # Don't need to copy if the recordr db was never created, i.e. this is the first time init has
+  # been called.
+  if(file.exists(sprintf("%s/recordr.sqlite", fromDir))) {
+    # Default is to copy the old dir, user can specify not to.
+    if(copy) {
+      if(!file.exists(toDir)) dir.create(toDir, recursive=T)
+      file.copy(from=fromDir, to=toDir, overwrite = T, recursive = T, copy.mode = T, copy.date = T) 
+      message(sprintf("The recordr data has been copied to the new directory at %s", recordrDir))
+    } else {
+      message(sprintf("No data to copy from the previous recordr directory %s", fromDir))
+    }
+  }
+  
+  # Do we need to move the old dir?
+  if(!is.na(saveToDir)) {
+    file.rename(fromDir, saveToDir)
+    message(sprintf("The old recordr directory is located at %s, \nwhich you may remove if desired.", saveToDir))
+  } else {
+    message(sprintf("The old recordr directory is located at %s, \nwhich you may remove if desired.", fromDir))
+  }
+    
+  if(!file.exists(recordrDir)) dir.create(recordrDir, recursive = T)
+  # Can't make the link until the linked to dir exists.
+  if(makeLink) file.symlink(recordrDir, attr(currentDir, "default"))
+  return(recordrDir)
+}
 
 ##########################
 ## Methods
