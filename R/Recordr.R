@@ -2148,7 +2148,8 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
   # The user can search for a run by using any run attribute, but only the first run returned will be traced.
   # The user can specify a sort order to control which run is first, for example, the latest run of a particular
   # script could be selected.
-  retVals <- traceRuns(recordr, id, file, start, end, tag, error, seq, orderBy, direction, quiet=quiet)
+  retVals <- traceRuns(recordr, id=id, file=file, start=start, end=end, tag=tag, error=error, seq=seq, 
+                       orderBy=orderBy, direction=direction, quiet=quiet)
   
   linkedIds <- retVals[[1]]
   execMetas <- retVals[[2]]
@@ -2220,7 +2221,8 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
   # be added.
   render_graph(graph)
 })
-#' Trace processing lineage by finding related executions.
+
+#' Trace processing lineage by finding related executions
 #' @description A data processing workflow might include multiple processing steps, with
 #' each step being performed by a separate R script. These multiple steps are linked by
 #' the files that one step writes and the next step in the workflow reads. The \code{traceRuns}
@@ -2291,7 +2293,7 @@ setMethod("traceRuns", signature("Recordr"), function(recordr, id=as.character(N
   execMetas <- retVals[[3]]
   usedFiles <- retVals[[4]]
   genFiles <- retVals[[5]]
-  return (list(linkedIds, execMetas=execMetas, usedFiles=usedFiles, genFiles=genFiles))
+  invisible(list(linkedIds=linkedIds, execMetas=execMetas, usedFiles=usedFiles, genFiles=genFiles))
 })
 
 traverseExecs <- function(recordr, executionId, direction="both", visitedIds=hash(), 
@@ -2301,9 +2303,10 @@ traverseExecs <- function(recordr, executionId, direction="both", visitedIds=has
   # Skip this execution if we have visited it before, i.e. there may be multiple files shared
   # between executions, so only traverse to an execution once.
   if(has.key(executionId, visitedIds)) {
-    return()
+    return(list(visitedIds=visitedIds, linkedIds=linkedIds, execMetas=execMetas, 
+                usedFiles=usedFiles, genFiles=genFiles))
   }
-  # Read metadata for this execution.
+  # Read metadata for this execution. The function readExecMeta returns a list.
   execMetaList <- readExecMeta(recordr, executionId=executionId)
   execMeta <- execMetaList[[1]]
   startTime <- as.POSIXct(execMeta@startTime)
@@ -2314,7 +2317,7 @@ traverseExecs <- function(recordr, executionId, direction="both", visitedIds=has
   haveWriteFiles <- FALSE
   
   # Traverse backward.
-  if(direction =="backward" || direction =="both") {
+  if(direction == "backward" || direction == "both") {
     # get all files that were read by an execution
     filesRead <- readFileMeta(recordr, executionId=executionId, access="read")
     usedFiles[[executionId]] <- filesRead
@@ -2322,70 +2325,149 @@ traverseExecs <- function(recordr, executionId, direction="both", visitedIds=has
     # Check each file that was read, for connections to ancestor executions
     if(nrow(filesRead) > 0) {
       for (irow in 1:nrow(filesRead)) {
-        thisChecksum <- filesRead[irow,'sha256']
-        # get files with the same sha256 that were written by an execution
-        filesToCheck <- readFileMeta(recordr, sha256=thisChecksum, access="write")
-        if(nrow(filesToCheck) > 0) {
-          for (iFile in 1:nrow(filesToCheck)) {
-            thisExecId <- filesToCheck[iFile, 'executionId']
-            fileCreationTime <- as.POSIXct(filesToCheck[iFile, 'createTime'])
-            # Don't check this file if it belongs to the current execution.
-            if(thisExecId == executionId) next
-            # Don't check this execution if it has been checked previously
-            if(is.element(thisExecId, keys(visitedIds))) next
-            # If the file was created after this execution started, then it can't be an input.
-            if (startTime < fileCreationTime) next
-            # Check, by recursion, this execution for connections it has to other executions
-            # Recursion stops when an execution is reached that is not 'connected' to another execution that has
-            # not already been visited.
-            traverseExecs(recordr, thisExecId, direction="backward", visitedIds, linkedIds,
-                          execMetas, usedFiles, genFiles, quiet, ...)
+        thisFile <- as.list(filesRead[irow,])
+        # Get all file access entries for a file with this checksum
+        nextExecs <- getLinkedExecs(recordr, fromFileAccess=thisFile, visitedIds=visitedIds, direction="backward")
+        if (length(nextExecs) > 0) {
+          for (iExec in 1:length(nextExecs)) {
+            thisExec <- nextExecs[[iExec]]
+            traverseExecs(recordr, executionId=thisExec@executionId, direction=direction, visitedIds=visitedIds, 
+                          linkedIds=linkedIds,  execMetas=execMetas, usedFiles=usedFiles, genFiles=genFiles, 
+                          quiet, ...)
           }
         }
-      }
+      } 
     }
   }
   
   # Traverse forward
-  if(direction=="forward" || direction =="both") {
+  if(direction == "forward" || direction == "both") {
     # get all files that were read by an execution
     filesWritten <- readFileMeta(recordr, executionId=executionId, access="write")
     # Store all files written by this execution id to return to the calling program.
     genFiles[[executionId]] <- filesWritten
     haveWriteFiles <- TRUE
-    # Check each file that was read, for connections to ancestor executions
+    # For each file that was written by this execution, use the checksum to
+    # lookup which executions read a file with the same checksum (i.e. one step
+    # later in the lineage chain.).
     if(nrow(filesWritten) > 0) {
       for (irow in 1:nrow(filesWritten)) {
-        thisChecksum <- filesWritten[irow,'sha256']
-        # get files with the same sha256 that were written by an execution
-        filesToCheck <- readFileMeta(recordr, sha256=thisChecksum, access="read")
-        if(nrow(filesToCheck) > 0) {
-          for (iFile in 1:nrow(filesToCheck)) {
-            thisExecId <- filesToCheck[iFile, 'executionId']
-            fileCreationTime <- as.POSIXct(filesToCheck[iFile, 'createTime'])
-            # Don't check this file if it belongs to the current execution.
-            if(thisExecId == executionId) next
-            # Don't check this execution if it has been checked previously
-            if(has.key(thisExecId, visitedIds)) next
-            # If the file was created before this execution started, then it can't be an output.
-            if (startTime > fileCreationTime) next
-            # Check, by recursion, this execution for connections it has to other executions
-            # Recursion stops when an execution is reached that is not 'connected' to another execution that has
-            # not already been visited.
-            traverseExecs(recordr, thisExecId, direction="forward", visitedIds=visitedIds, linkedIds=linkedIds, 
-                          execMetas=execMetas, usedFiles=usedFiles, genFiles=genFiles, quiet, ...)
+        thisFile <- as.list(filesWritten[irow,])
+        # Get all file access entries for a file with this checksum
+        nextExecs <- getLinkedExecs(recordr, fromFileAccess=thisFile, visitedIds=visitedIds, direction="forward")
+        if (length(nextExecs) > 0) {
+          for (iExec in 1:length(nextExecs)) {
+            thisExec <- nextExecs[[iExec]]
+            traverseExecs(recordr, executionId=thisExec@executionId, direction=direction, visitedIds=visitedIds, 
+                          linkedIds=linkedIds,  execMetas=execMetas, usedFiles=usedFiles, genFiles=genFiles, 
+                          quiet, ...)
           }
         }
       }
     }
   }
   
+  # Read file metadata for all 'read' files for this execution, if they have not been read
+  # already. The traversal may not have included any input links from this exec, so read them
+  # now so that they will be available for display in plotRuns, etc.
   if(!haveReadFiles) {
     usedFiles[[executionId]] <- readFileMeta(recordr, executionId=executionId, access="read")
   }
+  # Read file metadata for all 'written' files for this execution.
   if(!haveWriteFiles) {
     genFiles[[executionId]] <- readFileMeta(recordr, executionId=executionId, access="write")
   }
   return(list(visitedIds=visitedIds, linkedIds=linkedIds, execMetas=execMetas, 
               usedFiles=usedFiles, genFiles=genFiles))
+}
+
+getLinkedExecs <- function (recordr, fromFileAccess, visitedIds, direction=as.character(NA)) {
+  linkedExecs <- list()
+  
+  if(is.na(direction)) {
+    stop("A direction must be specified.")
+  }
+  if (direction=="backward") {
+    fileWritesToCheck <- readFileMeta(recordr, sha256=fromFileAccess$sha256, access="write")
+    if(nrow(fileWritesToCheck) > 0) {
+      for (iFile in 1:nrow(fileWritesToCheck)) {
+        # Don't check this execution if it has been checked previously, i.e. the execution
+        # has multiple links to this file (shouldn't happen).
+        thisFileAccess <- as.list(fileWritesToCheck[iFile,])
+        # Get the execution info for the candidate execution to link to
+        thisExecMeta <- readExecMeta(recordr, executionId=thisFileAccess$executionId)[[1]]
+        # Skip this execution if we have already traversed to it
+        if(has.key(thisExecMeta@executionId, visitedIds)) {
+          next
+        }
+        # Are we trying to traverse to the same execution?
+        if(thisFileAccess$executionId == fromFileAccess$executionId) {
+          next
+        }
+        # Have we seen this softwareApplication or checksum before?
+        
+        # If the read and write access both accessed the same file, then the checksum
+        # and the file creation time should match.
+        # the read access, so they aren't the same file
+        # TODO: use this only if in 'strict' mode
+        # Last check 
+        if(as.POSIXct(thisFileAccess$createTime) != as.POSIXct(fromFileAccess$createTime)) {
+          next
+        }
+        # Passed all checks, add this exec to the list of execs to traverse to.
+        linkedExecs[[length(linkedExecs)+1]] <- thisExecMeta
+      }
+    }
+  } 
+  # Get next exec ids in the forward direction
+  
+  if (direction=="forward") {
+    fileReadsToCheck <- readFileMeta(recordr, sha256=fromFileAccess$sha256, access="read")
+    if(nrow(fileReadsToCheck) > 0) {
+      for (iFile in 1:nrow(fileReadsToCheck)) {
+        # Don't check this execution if it has been checked previously, i.e. the execution
+        # has multiple links to this file (shouldn't happen).
+        thisFileAccess <- as.list(fileReadsToCheck[iFile,])
+        # Get the execution info for the candidate execution to link to
+        thisExecMeta <- readExecMeta(recordr, executionId=thisFileAccess$executionId)[[1]]
+        # Skip this execution if we have already traversed to it
+        if(has.key(thisExecMeta@executionId, visitedIds)) {
+          next
+        }
+        # Are we trying to traverse to the same execution?
+        if(thisFileAccess$executionId == fromFileAccess$executionId) {
+          next
+        }
+        # Have we seen this softwareApplication or checksum before?
+        
+        # If the read and write access both accessed the same file, then the checksum
+        # and the file creation time should match.
+        # the read access, so they aren't the same file
+        # TODO: use this only if in 'strict' mode
+        # Last check
+        if(as.POSIXct(thisFileAccess$createTime) != as.POSIXct(fromFileAccess$createTime)) {
+          next
+        }
+        # Passed all checks, add this exec to the list of execs to traverse to.
+        linkedExecs[[length(linkedExecs)+1]] <- thisExecMeta
+      }
+    }
+  } 
+  return(linkedExecs)
+}
+
+add_node_with_id <- function(graph, id, type=NULL, label=NULL, idLookup) {
+  orig_node_ids <- get_node_ids(graph)
+  graph <- add_node(graph, type=type, label=label)
+  new_node_ids <- get_node_ids(graph)
+  node_id <- base::setdiff(new_node_ids, orig_node_ids)
+  idLookup[[id]] <- node_id
+  return(graph)
+}
+
+add_edge_with_ids <- function(graph, from, to, idLookup) {
+  fromId <- idLookup[[from]]
+  toId <- idLookup[[to]]
+  graph <-add_edge(graph, from=fromId, to=toId)
+  return(graph)
 }
