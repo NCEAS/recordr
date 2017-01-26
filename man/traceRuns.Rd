@@ -4,7 +4,7 @@
 \name{traceRuns}
 \alias{traceRuns}
 \alias{traceRuns,Recordr-method}
-\title{Trace processing lineage by finding related executions.}
+\title{Trace processing lineage by finding related executions}
 \usage{
 traceRuns(recordr, ...)
 

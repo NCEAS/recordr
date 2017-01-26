@@ -21,7 +21,7 @@ seealso \code{\link[=Recordr-class]{Recordr}} { class description}}
 
 \item{seq}{The sequence number for a run}
 
-\item{as}{Form to return the metadata as. Possible values are: "text", "parsed" (for parsed XML)}
+\item{as}{Form to return the metadata as. Possible values are: "text", "parsed" (for parsed XML), or "EML" (for an EML R package S4 object)}
 }
 \value{
 A character vector containing the metadata
