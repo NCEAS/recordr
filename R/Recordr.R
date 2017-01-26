@@ -1687,8 +1687,8 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
     }
   }
   
-  titleObj <- new("title", value=title)
-  titleList <- as(list(titleObj), "ListOftitle")
+  #titleObj <- new("title", value=title)
+  #titleList <- as(list(titleObj), "ListOftitle")
   coverage <- coverageElement(geo_coverage, temp_coverage)
   #rg <- new("ResourceGroup", title = titleList, creator = as(creatorList, "ListOfcreator"), 
   #pubDate = as.character(Sys.Date()), abstract = abstract, coverage = coverage)
@@ -1708,7 +1708,7 @@ makeEML <- function(recordr, id, system, title, creators, abstract=NA, methodDes
   }
   
   ds <- new("dataset",
-            title = titleList,
+            title = title,
             creator = as(creatorList, "ListOfcreator"),
             pubDate = as.character(Sys.Date()), 
             abstract = abstract, 
