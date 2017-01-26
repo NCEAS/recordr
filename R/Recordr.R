@@ -1206,6 +1206,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
                                                        seq=as.character(NA), 
                                                        assignDOI=FALSE, update=FALSE, quiet=TRUE) {
   
+  executionId <- id
   if (!requireNamespace("dataone", quietly = TRUE)) {
     stop("Package \"dataone\" needed for function \"publishRun\" to work. Please install it.",
          call. = FALSE)
@@ -1214,16 +1215,16 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     stop("Package EML needed for function \"publishRun\" to work. Please install it.",
          call. = FALSE)
   }
-  if(is.na(id) && is.na(seq) ||
-     !is.na(id) && !is.na(seq)) {
+  if(is.na(executionId) && is.na(seq) ||
+     !is.na(executionId) && !is.na(seq)) {
     stop("Please specify either \"seq\" or \"id\" parameter")
   }
   
   # readExecMeta returns a list of ExecMetadata objects
   if(!is.na(seq)) {
     thisExecMeta <- readExecMeta(recordr, seq=seq)
-  } else if (!is.na(id)) {
-    thisExecMeta <- readExecMeta(recordr, id=id)
+  } else if (!is.na(executionId)) {
+    thisExecMeta <- readExecMeta(recordr, executionId=executionId)
   }
   
   if(length(thisExecMeta) == 0) {
@@ -1232,10 +1233,10 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     # Get the first (and only) ExecMetadata object
     thisExecMeta <- thisExecMeta[[1]]
   }
-  if(is.na(id)) id <- thisExecMeta@executionId
-  runDir <- getRunDir(recordr, id)
+  if(is.na(executionId)) executionId <- thisExecMeta@executionId
+  runDir <- getRunDir(recordr, executionId)
   if (! file.exists(runDir)) {
-    msg <- sprintf("A directory was not found for execution identifier: %s\n", id)
+    msg <- sprintf("A directory was not found for execution identifier: %s\n", executionId)
     stop(msg)
   }
   
@@ -1287,7 +1288,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   }
   
   subject <- dataone:::getAuthSubject(am, d1c@mn)
-  if (!quiet) cat(sprintf("Publishing execution %s to %s\n", id, mnId))
+  if (!quiet) cat(sprintf("Publishing execution %s to %s\n", executionId, mnId))
  
   packageId <- thisExecMeta@datapackageId
   pkg <- new("DataPackage", packageId=packageId)
@@ -1317,8 +1318,8 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   if(is.null(submitter)) submitter <- as.character(NA)
   
   # Upload each data object that was used or geneated by the datapackage
-  if(!quiet) cat(sprintf("Getting file info for execution %s\n", id))
-  files <- readFileMeta(recordr, executionId=id)
+  if(!quiet) cat(sprintf("Getting file info for execution %s\n", executionId))
+  files <- readFileMeta(recordr, executionId=executionId)
   if(nrow(files) > 0) {
     for (iRow in 1:nrow(files)) {
       thisFile <- files[iRow,]
