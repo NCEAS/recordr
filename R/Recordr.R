@@ -1392,7 +1392,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
       thisSubjectType <- thisRelationship[["subjectType"]]
       thisObjectType <- thisRelationship[["objectType"]]
       thisDataTypeURI <- thisRelationship[["dataTypeURI"]]
-      insertRelationship(pkg, subjectID=thisSubject, objectIDs=thisObject, predicate=thisPredicate, 
+      pkg <- insertRelationship(pkg, subjectID=thisSubject, objectIDs=thisObject, predicate=thisPredicate, 
                          subjectType=thisSubjectType, objectTypes=thisObjectType, dataTypeURIs=thisDataTypeURI)
     }
   }
