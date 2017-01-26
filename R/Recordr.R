@@ -458,10 +458,9 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
     # The result of this is that recordr will not be able to mark the history file
     # and include the relevant history in a console log with the script.
     if(.Platform$OS.type != "windows") {
-    timestamp (stamp = c(date(), startMarker), quiet = TRUE)
+      timestamp (stamp = c(date(), startMarker), quiet = TRUE)
+    }
   }
-  }
-  
   setProvCapture(TRUE)
   # The Recordr provenance capture capability is now setup and when startRecord() returns, the
   # user can continue to work in the calling context, i.e. the console and provenance will be
@@ -594,57 +593,6 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   programD1Obj <- new("DataObject", id=recordrEnv$programId, dataobj=script, format=scriptFmt, user=recordrEnv$execMeta@user, mnNodeId=recordrEnv$mnNodeId)    
   # TODO: Set access control on the action object to be public
   addData(recordrEnv$dataPkg, programD1Obj)
-  # Serialize/Save the entire package object to the run directory
-  
-  # Check if the metadata template file exists, if no, then copy the initial version
-  # to the user's .recordr directory.
-  metadataTemplateFile <- getOption("package_metadata_template_path")
-  if(is.null(metadataTemplateFile) || !file.exists(metadataTemplateFile)) {
-      metadataTemplateFile <- sprintf("%s/package_metadata_template.R", recordrEnv$recordrDir)
-      # It is possible that the option wasn't set, but the default file already exists
-      if(!file.exists(metadataTemplateFile)) {
-        file.copy(system.file("extdata/package_metadata_template.R", package="recordr"), metadataTemplateFile)
-        message(sprintf("An initial package metadata template file has been copied to \"%s\"", metadataTemplateFile))
-        message("Please review the \"recordr\" package documentation section 'Configuring recordr'")
-        message("and then set the options parameters with values appropriate for your installation.")
-      }
-  }
-    
-  # These variables should be defined by the metadata template, however, define initial values 
-  # here in case they are not found in the template.
-  creators <- list()
-  title <- as.character(NA)
-  abstract <- as.character(NA)
-  methodDescription <- as.character(NA)
-  geo_coverage <- geoCoverage("global", west="-180", east="180", north="90", south="-90")
-  currentYear <- format(Sys.Date(), "%Y")
-  temp_coverage <- temporalCoverage(currentYear, currentYear)
-  #mdfile <- sprintf("%s/metadata.R", path.expand("~"), recordr@recordrDir)
-  success <- source(metadataTemplateFile, local=TRUE)
-  # Set the identifier scheme to "uuid" for now, the user might specify "doi" during the
-  # publish step.
-  system <- "uuid"
-  eml <- makeEML(recordr, id=recordrEnv$execMeta@executionId, system, title, creators, abstract, 
-                 methodDescription, geo_coverage, temp_coverage)
-  # Write the eml file to the execution directory
-  eml_file <- sprintf("%s/%s.xml", runDir, cleanFilename(recordrEnv$execMeta@metadataId))
-  message("begin eml write")
-  write_eml(eml, file = eml_file)
-  message("done eml write")
-  #message(sprintf("Saved EML to file: %s\n", eml_file))
-  metaObj <- new("DataObject", id=recordrEnv$execMeta@metadataId, format="eml://ecoinformatics.org/eml-2.1.1", 
-                 filename=eml_file)
-  addData(recordrEnv$dataPkg, metaObj)
-  metaObjId <- getIdentifier(metaObj)
-  # Now add the relationships between the science objects in the package and the metadata object
-  # "metaObj documents sciObj"
-  sciObjIds <- as.character(list())
-  for (id in getIdentifiers(recordrEnv$dataPkg)) {
-    if(id == metaObjId) next()
-    sciObjIds <- c(sciObjIds, id)
-  }
-  
-  if (length(sciObjIds) > 0) insertRelationship(recordrEnv$dataPkg, metaObjId, sciObjIds)
   # Save the package relationships to disk so that we can recreate this package
   # at a later date.
   provRels <- getRelationships(recordrEnv$dataPkg)
@@ -1358,14 +1306,8 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
 #   
 
   # Retrieve metadata that was created for this run and create a DataObject with it.
-  # TODO: use the in-memory object when datapackage can upload it
-  #metadata <- getMetadata(recordr, id=id)
   metadataId <- thisExecMeta@metadataId
-  # TODO: use getMetadata() output when read_eml accepts
-  # XMLInternalDocument, as the documentation says it should
-  #metadata <- getMetadata(recordr, id=id, as="parsed")
-  metadataFile <- sprintf("%s/%s.xml", runDir, cleanFilename(metadataId))
-  emlObj <- read_eml(metadataFile)
+  emlObj <- getMetadata(recordr, id=executionId, as="EML")
   
   # Check options to see if the default DataONE submitter and rightsholder
   # should be overriden by user supplied values.
@@ -1391,10 +1333,6 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
       if(!is.na(submitter)) sciObj@sysmeta@submitter <- submitter
       if(!is.na(rightsHolder)) sciObj@sysmeta@rightsHolder <- rightsHolder
       if (public) sciObj <- setPublicAccess(sciObj)
-      # During endRecord(), each science object was associated with the metadata object
-      # via insertRelationship() with the 'documetns' relationship. These relationships
-      # were stored with the rest of the package relationships, so we don't have to add them
-      # in again.
       if(!quiet) cat(sprintf("Adding science object with id: %s, file: %s\n", 
                              getIdentifier(sciObj), basename(thisFile[['filePath']])))
       addData(pkg, sciObj)
@@ -1425,20 +1363,25 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   # can't read eml objects yet, so have to write it to a file.
   tempMetadataFile <- tempfile()
   write_eml(emlObj, tempMetadataFile)
-  putMetadata(recordr, id=id, metadata=tempMetadataFile, asText=FALSE)
+  putMetadata(recordr, id=executionId, metadata=tempMetadataFile, asText=FALSE)
   # Use windows friendly filenames, i.e. no ":"
-  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=tempMetadataFile,
-                 suggestedFilename=cleanFilename(basename(metadataFile)))
+  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=tempMetadataFile)
   if(!is.na(submitter)) metaObj@sysmeta@submitter <- submitter
   if(!is.na(rightsHolder)) metaObj@sysmeta@rightsHolder <- rightsHolder
   addData(pkg, metaObj)
+  # Now add the relationships between the science objects in the package and the metadata object
+  # "metaObj documents sciObj"
+  sciObjIds <- as.character(list())
+  for (thisId in getIdentifiers(pkg)) {
+    if(thisId == metadataId) next()
+    sciObjIds <- c(sciObjIds, thisId)
+  }
+  
+  if (length(sciObjIds) > 0) insertRelationship(pkg, metadataId, sciObjIds)
   
   #
   # Add the saved relationships back in the data package
-  #relationshipFile <- sprintf("%s/%s.csv", runDir, packageId)
-  #relationships <- read.csv(relationshipFile, stringsAsFactors=FALSE)
-  provRels <- new("ProvRels")
-  relationships <- readProvRels(recordr, id)
+  relationships <- readProvRels(recordr, executionId=executionId)
   if (nrow(relationships) > 0) {
     for(i in 1:nrow(relationships)) {
       thisRelationship <- relationships[i,]
@@ -1483,7 +1426,7 @@ setGeneric("getMetadata", function(recordr, ...) {
 #' @rdname getMetadata
 #' @param id The identifier for a run
 #' @param seq The sequence number for a run
-#' @param as Form to return the metadata as. Possible values are: "text", "parsed" (for parsed XML)
+#' @param as Form to return the metadata as. Possible values are: "text", "parsed" (for parsed XML), or "EML" (for an EML R package S4 object)
 #' @return A character vector containing the metadata
 setMethod("getMetadata", signature("Recordr"), function(recordr, id=as.character(NA), 
                                                        seq=as.character(NA), 
@@ -1515,14 +1458,52 @@ setMethod("getMetadata", signature("Recordr"), function(recordr, id=as.character
     stop(msg)
   }
   
-  metadataId <- execMeta@metadataId
-  metadataFile <- sprintf("%s/%s.xml", runDir, cleanFilename(metadataId))
-  metadata <- readLines(metadataFile, warn=FALSE)
+  metadataFile <- sprintf("%s/%s.xml", runDir, cleanFilename(execMeta@metadataId))
+  
+  if(!file.exists(metadataFile)) {
+    # Check if the metadata template file exists, if no, then copy the initial version
+    # to the user's .recordr directory.
+    metadataTemplateFile <- getOption("package_metadata_template_path")
+    if(is.null(metadataTemplateFile) || !file.exists(metadataTemplateFile)) {
+      metadataTemplateFile <- sprintf("%s/package_metadata_template.R", recordr@recordrDir)
+      # It is possible that the option wasn't set, but the default file already exists
+      if(!file.exists(metadataTemplateFile)) {
+        file.copy(system.file("extdata/package_metadata_template.R", package="recordr"), metadataTemplateFile)
+        message(sprintf("An initial package metadata template file has been copied to \"%s\"", metadataTemplateFile))
+        message("Please review the \"recordr\" package documentation section 'Configuring recordr'")
+        message("and then set the options parameters with values appropriate for your installation.")
+      }
+    }
+    
+    # These variables should be defined by the metadata template, however, define initial values 
+    # here in case they are not found in the template.
+    creators <- list()
+    title <- as.character(NA)
+    abstract <- as.character(NA)
+    methodDescription <- as.character(NA)
+    geo_coverage <- geoCoverage("global", west="-180", east="180", north="90", south="-90")
+    currentYear <- format(Sys.Date(), "%Y")
+    temp_coverage <- temporalCoverage(currentYear, currentYear)
+    #mdfile <- sprintf("%s/metadata.R", path.expand("~"), recordr@recordrDir)
+    success <- source(metadataTemplateFile, local=TRUE)
+    # Set the identifier scheme to "uuid" for now, the user might specify "doi" during the
+    # publish step.
+    system <- "uuid"
+    eml <- makeEML(recordr, id=id, system, title, creators, abstract, 
+                   methodDescription, geo_coverage, temp_coverage)
+    # Write the eml file to the execution directory
+    eml_file <- sprintf("%s/%s.xml", runDir, cleanFilename(execMeta@metadataId))
+    write_eml(eml, file = eml_file)
+  } 
   
   if(as == "text") {
+    metadata <- readLines(metadataFile, warn=FALSE)
     return(metadata)
   } else if (as == "parsed") {
+    metadata <- readLines(metadataFile, warn=FALSE)
     return(xmlInternalTreeParse(metadata, asText=TRUE))
+  } else if (as == "EML") {
+    return(read_eml(metadataFile))
   }
 })
 
