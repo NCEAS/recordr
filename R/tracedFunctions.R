@@ -993,7 +993,6 @@ recordr_readOGR <- function (dsn, layer, verbose = TRUE, p4s = NULL, stringsAsFa
              drop_unsupported_fields, pointDropZ, dropNULLGeometries, useC, 
              disambiguateFIDs, addCommentsToPolygons, encoding, use_iconv, 
              swapAxisOrder, require_geomType, integer64, GDAL1_integer64_policy)
-    cat(sprintf("function called...\n"))
     rm(f)
   } else {
     message(sprintf("Unable to find function %s on search path", functionName))
@@ -1007,11 +1006,11 @@ recordr_readOGR <- function (dsn, layer, verbose = TRUE, p4s = NULL, stringsAsFa
       # dsn is a directory, query rgdal to get the actual dsn, layer
       dsnInfo <- rgdal::ogrInfo(dsn, layer)
       filePath <- sprintf("%s/%s.shp", dsnInfo$dsn, dsnInfo$layer)
-      cat(sprintf("dsn is dir, filePath: %s\n", filePath))
+      #cat(sprintf("dsn is dir, filePath: %s\n", filePath))
     } else {
       # File exists and is not a directory, user specified specific file to read
       filePath <- dsn
-      cat(sprintf("dsn is file, filePath: %s\n", filePath))
+      #cat(sprintf("dsn is file, filePath: %s\n", filePath))
     }
   } else {
     # file or dir doesn't exist, return the function results
@@ -1067,14 +1066,14 @@ recordr_writeOGR <- function(obj, dsn, layer, driver, dataset_options = NULL, la
   verbose = FALSE, check_exists = NULL, overwrite_layer = FALSE, 
   delete_dsn = FALSE, morphToESRI = NULL, encoding = NULL) {
   # Call the original function that we are overriding
-  status <- rgdal::writeOGR(obj, dsn, layer, driver, dataset_options, layer_options, 
-              verbose, check_exists, overwrite_layer, delete_dsn, morphToESRI, encoding)
+  #status <- rgdal::writeOGR(obj, dsn, layer, driver, dataset_options, layer_options, 
+              #verbose, check_exists, overwrite_layer, delete_dsn, morphToESRI, encoding)
   functionName <- "writeOGR"
   # See comments for function 'recordr_read.csv' for an explaination of how the
   # overridden function (the one recordr is overriding) is called.
   functionEnv <- findOnSearchPath(functionName, env=parent.frame())
   if(!is.null(functionEnv)) {
-    cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
+    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
     f <- get(functionName, envir=as.environment(functionEnv))
     # Now call the next writePNG() fuction in the search path with our bound function. 
     # Note: do.call doesn't work if you give it the qualified function name, 
@@ -1095,11 +1094,11 @@ recordr_writeOGR <- function(obj, dsn, layer, driver, dataset_options = NULL, la
       # dsn is a directory, query rgdal to get the actual dsn, layer
       dsnInfo <- rgdal::ogrInfo(dsn, layer)
       filePath <- sprintf("%s/%s.shp", dsnInfo$dsn, dsnInfo$layer)
-      cat(sprintf("writeOGR, dsn is dir, filePath: %s\n", filePath))
+      #cat(sprintf("writeOGR, dsn is dir, filePath: %s\n", filePath))
     } else {
       # File exists and is not a directory, user specified specific file to read
       filePath <- dsn
-      cat(sprintf("writeOGR, dsn is file, filePath: %s\n", filePath))
+      #cat(sprintf("writeOGR, dsn is file, filePath: %s\n", filePath))
     }
   } else {
     # file or dir doesn't exist, return the function results (NULL for writeOGR)
@@ -1114,7 +1113,7 @@ recordr_writeOGR <- function(obj, dsn, layer, driver, dataset_options = NULL, la
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_writes) {
-    cat(sprintf("Tracing writeOGR with file: %s from package %s\n", filePath, environmentName(functionEnv)))
+    #cat(sprintf("Tracing writeOGR with file: %s from package %s\n", filePath, environmentName(functionEnv)))
     recordrEnv <- as.environment(".recordr")
     setProvCapture(FALSE)
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
@@ -1142,7 +1141,7 @@ recordr_writeOGR <- function(obj, dsn, layer, driver, dataset_options = NULL, la
   return(status)
 }
 
-# Disable or enable provenance capture temporarily
+  # Disable or enable provenance capture temporarily
 # It may be necessary to disable provenance capture temporarily, for example when
 # record() is writting out a housekeeping file.
 # A state variable in the ".recordr" environment is used to
