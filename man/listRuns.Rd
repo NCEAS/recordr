@@ -12,7 +12,7 @@ listRuns(recordr, ...)
   script = as.character(NA), start = as.character(NA),
   end = as.character(NA), tag = as.character(NA),
   error = as.character(NA), seq = as.character(NA),
-  orderBy = "-startTime", quiet = FALSE)
+  orderBy = "-startTime", quiet = FALSE, full = FALSE)
 }
 \arguments{
 \item{recordr}{A Recordr instance}
@@ -38,6 +38,8 @@ Times must be entered in the form 'YYYY-MM-DD HH:MM:SS' but can be shortened to 
 \item{orderBy}{The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime}
 
 \item{quiet}{A \code{logical}, if TRUE then output is not printed to the console. Default is FALSE.}
+
+\item{full}{A \code{logical}, if TRUE then all output columns are printed, regardless of console width.}
 }
 \value{
 data frame containing information for each run

@@ -869,6 +869,7 @@ setGeneric("listRuns", function(recordr, ...) {
 #' @param seq \code{"integer"} A run sequence number (can be a range, e.g \code{seq=1:10})
 #' @param orderBy The column that will be used to sort the output. This can include a minus sign before the name, e.g. -startTime
 #' @param quiet A \code{logical}, if TRUE then output is not printed to the console. Default is FALSE.
+#' @param full A \code{logical}, if TRUE then all output columns are printed, regardless of console width.
 #' @return data frame containing information for each run
 #' @examples \dontrun{
 #' rc <- new("Recordr")
@@ -881,7 +882,7 @@ setGeneric("listRuns", function(recordr, ...) {
 #' }
 #
 setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA), script=as.character(NA), start = as.character(NA), end=as.character(NA), tag=as.character(NA), 
-                                                     error=as.character(NA), seq=as.character(NA), orderBy = "-startTime", quiet=FALSE) {
+                                                     error=as.character(NA), seq=as.character(NA), orderBy = "-startTime", quiet=FALSE, full=FALSE) {
   
   runs <- selectRuns(recordr, runId=id, script=script, startTime=start, endTime=end, tag=tag, errorMessage=error, seq=as.character(seq), orderBy=orderBy)
   if (length(runs) == 0) {
@@ -890,11 +891,11 @@ setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA
   }
   
   # Print header line
-  if (!quiet) printRun(headerOnly = TRUE)
+  if (!quiet) printRun(headerOnly = TRUE, full=full)
   # Loop through selected runs
   if(!quiet) {
   for(i in 1:length(runs)) {
-    printRun(runs[[i]])
+    printRun(runs[[i]], full=full)
   }
   }
   
@@ -909,18 +910,57 @@ setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA
 # @param headerOnly if TRUE then only the header line is printed, if FALSE then only the row is printed
 # authoer: slaughter
 
-printRun <- function(run=NA, headerOnly = FALSE)  {
+printRun <- function(run=NA, headerOnly = FALSE, full=FALSE)  {
   
   tagLength = 20
   scriptNameLength = 30
   errorMsgLength = 30
- 
+  consoleWidth <- getOption("width")
+  if(full) {
+    # fields widths: 6 + 30 + 20 + 23 + 23 + 13 + 19 + 30 
+    # fields: "Seq", "Script", "Tag", "Start Time", "End Time", "Run Id", "Published Time", "Error Message"), sep = " ")
+    listingWidth <- "wide"
+    fmt <- paste("%-6s", "%-", sprintf("%2d", scriptNameLength), "s",  " %-", sprintf("%2d", tagLength), "s",
+                 " %-23s %-23s %-13s %-19s", " %-", sprintf("%2d", errorMsgLength), "s", "\n", sep="")
+    headerLine <- sprintf(fmt, "Seq", "Script", "Tag", "Start Time", "End Time", "Run Id", "Published Time", "Error Message")
+  } else if (is.null(consoleWidth)) {
+    # Screen width <= 80 (80 is as narrow as we go)
+    # fields widths: 6 + 30 + 20 + 23
+    # fields: "Seq", "Script", "Tag", "Start Time"
+    listingWidth <- "narrow"
+    fmt <- paste("%-6s", "%-", sprintf("%2d", scriptNameLength), "s",  " %-", sprintf("%2d", tagLength), "s",
+                 " %-23s ", "\n", sep="")
+    headerLine <- sprintf(fmt, "Seq", "Script", "Tag", "Start Time")
+  } else if (consoleWidth >= 158) {
+    # Screen width >= 158 
+    # fields widths: 6 + 30 + 20 + 23 + 23 + 13 + 19 + 30 
+    # fields: "Seq", "Script", "Tag", "Start Time", "End Time", "Run Id", "Published Time", "Error Message"), sep = " ")
+    listingWidth <- "wide"
+    fmt <- paste("%-6s", "%-", sprintf("%2d", scriptNameLength), "s",  " %-", sprintf("%2d", tagLength), "s",
+                 " %-23s %-23s %-13s %-19s", " %-", sprintf("%2d", errorMsgLength), "s", "\n", sep="")
+    headerLine <- sprintf(fmt, "Seq", "Script", "Tag", "Start Time", "End Time", "Run Id", "Published Time", "Error Message")
+  } else if (consoleWidth >= 115) {
+    # Screen width >= 120, <= 158
+    # fields widths: 6 + 30 + 20 + 23 + 23 + 13 = 115
+    # fields: "Seq", "Script", "Tag", "Start Time", "End Time", "Run Id"
+    listingWidth <- "medium"
+    fmt <- paste("%-6s", "%-", sprintf("%2d", scriptNameLength), "s",  " %-", sprintf("%2d", tagLength), "s",
+                 " %-23s %-23s %-13s ", "\n", sep="")
+    headerLine <- sprintf(fmt, "Seq", "Script", "Tag", "Start Time", "End Time", "Run Id")
+  } else {
+    # Screen width < 115 
+    # fields widths: 6 + 30 + 20 + 23 = 79
+    # fields: "Seq", "Script", "Tag", "Start Time"
+    listingWidth <- "narrow"
+    fmt <- paste("%-6s", "%-", sprintf("%2d", scriptNameLength), "s",  " %-", sprintf("%2d", tagLength), "s",
+                 " %-23s ", "\n", sep="")
+    headerLine <- sprintf(fmt, "Seq", "Script", "Tag", "Start Time")
+  }
+  
   #fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
-  fmt <- paste("%-6s", "%-", sprintf("%2d", scriptNameLength), "s", 
-               " %-", sprintf("%2d", tagLength), "s",
-               # " %-19s %-19s %-45s %-19s",
-               " %-19s %-19s %-13s %-19s",
-               " %-", sprintf("%2d", errorMsgLength), "s", "\n", sep="")
+  #fmt <- paste("%-6s", "%-", sprintf("%2d", scriptNameLength), "s",  " %-", sprintf("%2d", tagLength), "s",
+               #" %-19s %-19s %-13s %-19s", " %-", sprintf("%2d", errorMsgLength), "s", "\n", sep="")
+  
   # Padding for blank values for seq & script name
   paddingLength <- 6 + scriptNameLength 
   padding <- paste(character(paddingLength), collapse=" ") 
@@ -929,16 +969,16 @@ printRun <- function(run=NA, headerOnly = FALSE)  {
   
   # Print only the column headings
   if (headerOnly) {
-    cat(sprintf(fmt, "Seq", "Script", "Tag", "Start Time", "End Time", "Run Id", "Published Time", "Error Message"), sep = " ")
+    cat(headerLine)
     # Print additional lines, i.e. column values from child tables
   } else {
     console <- run@console
     if(console) {
-      thisScript <- condenseStr(sprintf("Console log: %s", basename(run@softwareApplication)), 30)
+      thisScript <- condenseStr(sprintf("Console log: %s", basename(run@softwareApplication)), scriptNameLength)
     } else {
-      thisScript <- run@softwareApplication
+      thisScript <- condenseStr(run@softwareApplication, scriptNameLength)
       # Print shortened form of script name, e.g. "/home/slaugh...ocalReadWrite.R"
-      thisScript <- condenseStr(run@softwareApplication, 30)
+      thisScript <- condenseStr(run@softwareApplication, scriptNameLength)
     }
     thisStartTime    <- run@startTime
     thisEndTime      <- run@endTime
@@ -951,9 +991,17 @@ printRun <- function(run=NA, headerOnly = FALSE)  {
     thisErrorMessage <- run@errorMessage
     thisTag         <- run@tag[[1]]
     thisSeq         <- run@seq
-    cat(sprintf(fmt, thisSeq, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime, 
+    if(listingWidth == "narrow") {
+      cat(sprintf(fmt, thisSeq, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime), sep = " ")
+    } else if (listingWidth == "medium") {
+      cat(sprintf(fmt, thisSeq, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime, 
+                thisEndTime, thisRunId), sep = " ")
+    } else if (listingWidth == "wide") {
+      cat(sprintf(fmt, thisSeq, strtrim(thisScript, scriptNameLength), strtrim(thisTag, tagLength), thisStartTime, 
                 thisEndTime, thisRunId, thisPublishTime, strtrim(thisErrorMessage, errorMsgLength)), sep = " ")
+    }
     # Print additional tag values for this executionId, with only the tag displayed on the line (which is beneath the .
+    # This is the same for all console widths
     if(length(run@tag) > 1) {
       for(iTag in 2:length(run@tag)) {
         thisTag <- run@tag[[iTag]]
