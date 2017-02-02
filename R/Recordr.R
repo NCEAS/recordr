@@ -296,6 +296,7 @@ setGeneric("startRecord", function(recordr, ...) {
 #' @param tag a string that is associated with this run
 #' @param .file the filename for the script to run (only used internally when startRecord() is called from record())
 #' @param .console a logical argument that is used internally by the recordr package
+#' @param log A character string. If .console=TRUE, the file to log console commands to. The default is 'console.log'.
 
 #' @return execution identifier that uniquely identifies this recorded session
 #' @examples 
@@ -305,7 +306,8 @@ setGeneric("startRecord", function(recordr, ...) {
 #' x <- read.csv(file="./test.csv")
 #' runIdentifier <- endRecord(rc)
 #' }
-setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .file=as.character(NA), .console=TRUE) {
+setMethod("startRecord", signature("Recordr"), function(recordr, tag=as.character(NA), .file=as.character(NA), .console=TRUE,
+                                                        log=as.character(NA)) {
   
   # Check if a recording session has already been started.
   if (is.element(".recordr", base::search())) {
@@ -345,8 +347,18 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
       recordrEnv$scriptPath <- normalizePath(.file, mustWork=TRUE)
     }
   }
-
-  recordrEnv$execMeta <- new("ExecMetadata", programName=recordrEnv$scriptPath, tag=tag)
+  
+  if(.console) {
+    if(!is.na(log)) {
+      recordrEnv$log <- basename(log)
+    } else {
+      recordrEnv$log <- "console.log"
+    }
+    recordrEnv$execMeta <- new("ExecMetadata", programName=recordrEnv$log, tag=tag)
+  } else {
+    recordrEnv$execMeta <- new("ExecMetadata", programName=recordrEnv$scriptPath, tag=tag)
+  }
+  
   recordrEnv$execMeta@console <- .console
   # Write out execution metadata now, and update the metadata during endRecord()
   # and possibly publish().
@@ -437,14 +449,13 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=list(), .fi
   recordrEnv$readOGR <- recordr::recordr_readOGR
   recordrEnv$writeOGR <- recordr::recordr_writeOGR
   
-  # Create the run metadata directory for this nrecord()
-  # Filename can't have ":" on Windows, so substitute "_". 
-  dir.create(normalizePath(file.path(recordr@recordrDir, "runs", 
-             cleanFilename(recordrEnv$execMeta@executionId)),  
-             mustWork=FALSE), recursive = TRUE)
+  # Create the run metadata directory for this execution
+  runDir <- getRunDir(recordr, recordrEnv$execMeta@executionId)
+  dir.create(runDir, recursive = TRUE)
   # Put recordr working directory in so masked functions can access it. No information can be saved locally until this
   # variable is defined.
   recordrEnv$recordrDir <- recordr@recordrDir
+  
   #cat(sprintf("filePath: %s\n", recordrEnv$scriptPath))
   # Record relationship identifying this id as a provone:Execution
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=provONEexecution, predicate=rdfType, objectType="uri")
@@ -535,7 +546,11 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
     allHistory <- ""
     foundStart <- FALSE
     foundEnd <- FALSE
-    consoleLogFile <-  normalizePath(file.path(runDir, "console.log"), mustWork=FALSE)
+    # If recording console input, the default name will be "console.log". The user can
+    # override this using the 'log' parameter. The scriptPath will be set to this value,
+    # so that the commands typed in by the user are saved to this file.
+    consoleLogFile <- file.path(runDir, recordrEnv$log)
+    recordrEnv$scriptPath <- consoleLogFile
     
     # Loop through the history, extracting everything between the start and end markers
     # Handle special case of start marker not being in the history, i.e. exceeded max
@@ -565,7 +580,6 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
         allHistory <- c(headerLine, recordrHistory)
         writeLines(recordrHistory, consoleLogFile)
     }
-    recordrEnv$scriptPath = consoleLogFile
   }
   
   # Archive the script that was executed, or the console log if we
@@ -589,7 +603,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   # Save the executed file or console log to the data package
   script <- charToRaw(paste(readLines(recordrEnv$scriptPath), collapse = '\n'))
   # Create a data package object for the program that we are running and store it.
-  scriptFmt <- "text/plain"
+  scriptFmt <- "application/R"
   programD1Obj <- new("DataObject", id=recordrEnv$programId, dataobj=script, format=scriptFmt, user=recordrEnv$execMeta@user, mnNodeId=recordrEnv$mnNodeId)    
   # TODO: Set access control on the action object to be public
   addData(recordrEnv$dataPkg, programD1Obj)
@@ -614,15 +628,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
     }
   }
   
-  # Use the datapackage id as the resourceMap id
-  #serializationId = recordrEnv$execMeta@datapackageId
-  #filePath <- sprintf("%s/%s.rdf", runDir, serializationId)
-  #status <- serializePackage(recordrEnv$dataPkg, file=filePath, id=serializationId)
-  #filePath <- sprintf("%s/%s.pkg", runDir, recordrEnv$execMeta@datapackageId)
-  #saveRDS(recordrEnv$dataPkg, file=filePath)
-  #dataPkg <- recordrEnv$dataPkg
-  
-  # Save execution metadata to a file in the run directory
+  # Save execution metadata to the recordr database
   updateExecMeta(recordr, executionId=recordrEnv$execMeta@executionId, endTime=recordrEnv$execMeta@endTime, errorMessage=recordrEnv$execMeta@errorMessage)
   # Don't print this object if startRecord()/endRecord() was called
   if(recordrEnv$execMeta@console) {
