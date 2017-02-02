@@ -533,7 +533,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
     # The result of this is that recordr will not be able to mark the history file
     # and include the relevant history in a console log with the script.
     if(.Platform$OS.type != "windows") {
-    timestamp (stamp = c(date(), endMarker), quiet = TRUE)
+      timestamp (stamp = c(date(), endMarker), quiet = TRUE)
     }
     tmpFile <- normalizePath(tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".log"), 
                              mustWork=FALSE)
@@ -912,7 +912,7 @@ setMethod("listRuns", signature("Recordr"), function(recordr, id=as.character(NA
 printRun <- function(run=NA, headerOnly = FALSE)  {
   
   tagLength = 20
-  scriptNameLength = 70
+  scriptNameLength = 30
   errorMsgLength = 30
  
   #fmt <- "%-20s %-20s %-19s %-19s %-36s %-36s %-19s %-30s\n"
@@ -934,7 +934,7 @@ printRun <- function(run=NA, headerOnly = FALSE)  {
   } else {
     console <- run@console
     if(console) {
-      thisScript <- "Console log"
+      thisScript <- condenseStr(sprintf("Console log: %s", basename(run@softwareApplication)), 30)
     } else {
       thisScript <- run@softwareApplication
       # Print shortened form of script name, e.g. "/home/slaugh...ocalReadWrite.R"
@@ -2067,7 +2067,6 @@ unArchiveFile <- function(recordr, fileId) {
 
 # Get the execution specific working directory.
 getRunDir <- function(recordr, id) {
-    runDir <- normalizePath(file.path(recordr@recordrDir, "runs",  cleanFilename(id)), mustWork=FALSE)
     runDir <- normalizePath(file.path(recordr@recordrDir, "runs",  cleanFilename(id)), mustWork=FALSE)
     return(runDir)
 }
