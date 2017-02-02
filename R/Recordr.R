@@ -2176,13 +2176,15 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
       for(iFile in 1:nrow(ufs)) {
         fileName <- basename(ufs[iFile, 'filePath'])
         sha256 <- ufs[iFile, 'sha256']
-        # Has the node accessed this file?
-        if(!has.key(sha256, nodes)) {
-          graph <- add_node_with_id(graph, id=sha256, label=fileName, idLookup=idsToDgrmR)
-          nodes[[sha256]] <- TRUE
+        ctime <- ufs[iFile, 'createTime']
+        fileKey <- sprintf("%s-%s", sha256, ctime)
+        # Has a node in the graph been created for this file already?
+        if(!has.key(fileKey, nodes)) {
+          graph <- add_node_with_id(graph, id=fileKey, label=fileName, idLookup=idsToDgrmR)
+          nodes[[fileKey]] <- TRUE
         }
-        if(!edge_present(graph, from=idsToDgrmR[[sha256]], to=idsToDgrmR[[execId]])) {
-          graph <- add_edge_with_ids(graph, from=sha256, to=execId, idLookup=idsToDgrmR)
+        if(!edge_present(graph, from=idsToDgrmR[[fileKey]], to=idsToDgrmR[[execId]])) {
+          graph <- add_edge_with_ids(graph, from=fileKey, to=execId, idLookup=idsToDgrmR)
         }
       }
     }
@@ -2191,14 +2193,17 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
       for(iFile in 1:nrow(gfs)) {
         fileName <- basename(gfs[iFile, 'filePath'])
         sha256 <- gfs[iFile, 'sha256']
-        # Has the node created this file?
-        if(!has.key(sha256, nodes)) {
-          graph <- add_node_with_id(graph, id=sha256, label=fileName, idLookup=idsToDgrmR)
-          graph <- set_node_attrs(graph, node_attr= "shape", values="ellipse", nodes=idsToDgrmR[[sha256]])
-          nodes[[sha256]] <- TRUE
+        ctime <- gfs[iFile, 'createTime']
+        fileKey <- sprintf("%s-%s", sha256, ctime)
+        # Has a node in the graph been created fo
+        # Has a node in the graph been created for this file already?
+        if(!has.key(fileKey, nodes)) {
+          graph <- add_node_with_id(graph, id=fileKey, label=fileName, idLookup=idsToDgrmR)
+          graph <- set_node_attrs(graph, node_attr= "shape", values="ellipse", nodes=idsToDgrmR[[fileKey]])
+          nodes[[fileKey]] <- TRUE
         } 
-        if(!edge_present(graph, from=idsToDgrmR[[sha256]], to=idsToDgrmR[[execId]])) {
-          graph <- add_edge_with_ids(graph, from=execId, to=sha256, idLookup=idsToDgrmR)
+        if(!edge_present(graph, from=idsToDgrmR[[fileKey]], to=idsToDgrmR[[execId]])) {
+          graph <- add_edge_with_ids(graph, from=execId, to=fileKey, idLookup=idsToDgrmR)
         }
       }
     }
@@ -2445,6 +2450,9 @@ getLinkedExecs <- function (recordr, fromFileAccess, visitedIds, direction=as.ch
 }
 
 add_node_with_id <- function(graph, id, type=NULL, label=NULL, idLookup) {
+  # DiagrammeR won't let you assign id values to a node, so you have
+  # to see what id is given to a node, and then remember that so we
+  # can map the DiagrammeR node ids to our fileIds
   orig_node_ids <- get_node_ids(graph)
   graph <- add_node(graph, type=type, label=label)
   new_node_ids <- get_node_ids(graph)
