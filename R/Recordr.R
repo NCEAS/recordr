@@ -1420,7 +1420,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   write_eml(emlObj, tempMetadataFile)
   putMetadata(recordr, id=executionId, metadata=tempMetadataFile, asText=FALSE)
   # Use windows friendly filenames, i.e. no ":"
-  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=tempMetadataFile)
+  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=tempMetadataFile, suggestedFilename="metadata.xml")
   if(!is.na(submitter)) metaObj@sysmeta@submitter <- submitter
   if(!is.na(rightsHolder)) metaObj@sysmeta@rightsHolder <- rightsHolder
   addData(pkg, metaObj)
