@@ -47,10 +47,10 @@
 #'  \item{\code{\link{startRecord}}}{: Begin recording provenance for an R session}
 #'  \item{\code{\link{endRecord}}}{: Get the Identifiers of Package Members}
 #'  \item{\code{\link{record}}}{: Get the data content of a specified data object}
-#'  \item{\code{\link{listRuns}}}{: Add a DataObject to the DataPackage}
+#'  \item{\code{\link{listRuns}}}{: Output a list of recorded runs to the console}
 #'  \item{\code{\link{viewRuns}}}{: Record relationships of objects in a DataPackage}
 #'  \item{\code{\link{deleteRuns}}}{: Record derivation relationships between objects in a DataPackage}
-#'  \item{\code{\link{publishRun}}}{: Retrieve relationships of package objects}
+#'  \item{\code{\link{publishRun}}}{: Upload all objects associated with a run to a repository}
 #'  \item{\code{\link{traceRuns}}}{: Trace processing lineage by finding related executions.}
 #'  \item{\code{\link{plotRuns}}}{: Trace processing lineage for a run and plot it.}
 #' }
