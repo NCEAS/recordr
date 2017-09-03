@@ -38,7 +38,6 @@
 #' @import RSQLite
 #' @import XML
 #' @import hash
-#' @import DiagrammeR
 #' @importFrom utils URLdecode packageDescription read.csv savehistory sessionInfo timestamp write.csv
 #' @include Constants.R
 #' @section Methods:
@@ -2258,10 +2257,12 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
                                                      seq=as.character(NA), orderBy="-startTime", 
                                                      direction="both", quiet=TRUE, ...) {
   
-  if (!requireNamespace("DiagrammeR", quietly = TRUE)) {
-    stop("Package \"DiagrammeR\" is needed for function \"plotRuns\" to work. Please install it.",
-         call. = FALSE)
-  }
+  # if (!requireNamespace("DiagrammeR", quietly = TRUE)) {
+  #   stop("Package \"DiagrammeR\" is needed for function \"plotRuns\" to work. Please install it.",
+  #        call. = FALSE)
+  # } else {
+  #   if(!is.element("package:DiagrammeR", search())) attachNamespace("DiagrammeR")
+  # }
   # traceRuns returns a list of ExecMetadata objects based on the user's search parameters.
   # The user can search for a run by using any run attribute, but only the first run returned will be traced.
   # The user can specify a sort order to control which run is first, for example, the latest run of a particular
