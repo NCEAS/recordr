@@ -90,7 +90,7 @@ setMethod("initialize", signature = "FileMetadata", definition = function(.Objec
   # so that they don't get written out as an integer timestamp, i.e. milliseconds since ref date
   # 'file' argument is required and can be a URL, so no file info available and should be provided on command 
   # line, if possible
-  file <- normalizePath(file)
+  file <- normalizePath(file, mustWork=FALSE)
   if(file.exists(file)) {
     filePath <- file
     fpInfo <- file.info(filePath)
