@@ -7,7 +7,7 @@ test_that("Recordr library loads", {
 
 test_that("Can create Recordr instance", {
   rc <- new("Recordr")
-  expect_that(rc@class[1], matches("Recordr"))
+  expect_match(rc@class[1], "Recordr")
 })
 
 test_that("Can trace readLines, writeLines", {
@@ -21,12 +21,12 @@ test_that("Can trace readLines, writeLines", {
   # Write out to a file
   sbuf <- paste(LETTERS, collapse="")
   tfile <- sprintf("%s/letters.dat", tempdir())
-  writeLines(sbuf, tfile)
+  base::writeLines(sbuf, tfile)
   status <- endRecord(rc)
   mdf <- listRuns(rc, tag=tagNum, quiet=T)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
-  expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
+  expect_match(mdf[mdf$tag == tagNum, 'executionId'], executionId)
   # Delete the single run
   mdf <- deleteRuns(rc, tag=tagNum, quiet=T)
   # If we deleted the run, then the returned data
@@ -49,7 +49,7 @@ test_that("Can trace readLines, writeLines", {
   mdf <- listRuns(rc, tag=tagNum, quiet=T)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
-  expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
+  expect_match(mdf[mdf$tag == tagNum, 'executionId'], executionId)
   # Delete the single run
   mdf <- deleteRuns(rc, tag=tagNum, quiet=T)
   # If we deleted the run, then the returned data
@@ -68,7 +68,7 @@ test_that("Can trace readLines, writeLines", {
   mdf <- listRuns(rc, tag=tagNum, quiet=T)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
-  expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
+  expect_match(mdf[mdf$tag == tagNum, 'executionId'], executionId)
   expect_equal(sbuf, newBuf)
   # Delete the single run
   mdf <- deleteRuns(rc, tag=tagNum, quiet=T)
@@ -90,7 +90,7 @@ test_that("Can trace readLines, writeLines", {
   mdf <- listRuns(rc, tag=tagNum, quiet=T)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
-  expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
+  expect_match(mdf[mdf$tag == tagNum, 'executionId'], executionId)
   expect_equal(sbuf, newBuf)
   # Delete the single run
   mdf <- deleteRuns(rc, tag=tagNum, quiet=T)

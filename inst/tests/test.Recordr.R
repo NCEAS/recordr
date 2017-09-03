@@ -7,20 +7,21 @@ test_that("Recordr library loads", {
 
 test_that("Can create Recordr instance", {
   recordr <- new("Recordr")
-  expect_that(recordr@class[1], matches("Recordr"))
+  expect_match(recordr@class[1], "Recordr")
 })
 
 # Create an R script that has no dependencies on external files
 createLocalRWScript <- function(scriptPath, inFile, outFile) {
   sink(scriptPath)
   cat(sprintf("df <- read.csv(file = normalizePath(\"%s\", mustWork=FALSE))\n", inFile))
+  cat(sprintf("df <- transform(df, x=x*y)\n"))
   cat(sprintf("write.csv(df, file = normalizePath(\"%s\", mustWork=FALSE))\n\n", outFile))
   sink()
 }
 createLocalRWScript2 <- function(scriptPath, inFile, outFile) {
   sink(scriptPath)
   cat(sprintf("df <- read.csv(file = normalizePath(\"%s\", mustWork=FALSE))\n", inFile))
-  cat(sprintf("df <- transform(df, a=log(x))\n"))
+  cat(sprintf("df <- transform(df, x=log(x))\n"))
   cat(sprintf("write.csv(df, file = normalizePath(\"%s\", mustWork=FALSE))\n\n", outFile))
   sink()
 }
@@ -28,7 +29,7 @@ createLocalRWScript2 <- function(scriptPath, inFile, outFile) {
 createLocalRWScript3 <- function(scriptPath, inFile, outFile) {
   sink(scriptPath)
   cat(sprintf("df <- read.csv(file = normalizePath(\"%s\", mustWork=FALSE))\n", inFile))
-  cat(sprintf("df <- transform(df, b=log(y))\n"))
+  cat(sprintf("df <- transform(df, y=log(y))\n"))
   cat(sprintf("write.csv(df, file = normalizePath(\"%s\", mustWork=FALSE))\n\n", outFile))
   sink()
 }
@@ -57,6 +58,8 @@ test_that("Can record a script execution", {
   write.csv(data.frame(x=1:10, y=11:20), file = inFile)
   # Check that tests have been setup
   expect_that(class(uuidTag), equals("character"))
+  library(uuid)
+  library(recordr)
   recordr <- new("Recordr")  
   
   # Check that package metadata can be retrieved and updated
@@ -66,10 +69,13 @@ test_that("Can record a script execution", {
   putMetadata(recordr, id=executionId, metadata=metadata, asText=TRUE)
   newMeta <- getMetadata(recordr, id=executionId)
   expect_true(any(grepl("Hubbell", metadata)))
-  # Check the D1 package created by the record() call  
+  # Check the D1 package created by the record() call
   #expect_that(is.null(pkg@sysmeta@identifier), is_false())
   #expect_that(pkg, is_a("DataPackage"))
-  
+
+  library(uuid)
+  library(recordr)
+  recordr <- new("Recordr")
   # Test startRecord() / endRecord()
   newTag <- UUIDgenerate()
   executionId <- startRecord(recordr, tag=newTag)
@@ -81,14 +87,14 @@ test_that("Can record a script execution", {
   # Record this run and check the resulting package
   #pkg <- endRecord(recordr)
   #expect_that(length(getIdentifiers(pkg)), equals(2))
-  
+
   #expect_that(class(pkg@sysmeta)[1], equals("SystemMetadata"))
   mdf <- listRuns(recordr, tag=newTag, quiet=T)
   oneRow <- nrow(mdf) == 1
   expect_that(oneRow, is_true())
-  expect_that(mdf[mdf$tag == newTag, 'executionId'], matches(executionId))
+  expect_match(mdf[mdf$tag == newTag, 'executionId'], executionId)
   # Delete the single run
-  
+
   mdf <- deleteRuns(recordr, tag=newTag, quiet=T)
   # If we deleted the run, then the returned data
   # frame of deleted runs will have one row
@@ -119,6 +125,7 @@ test_that("Can delete a script execution", {
 })
 
 test_that("Can trace lineage.", {
+  library(hash)
   uuidTag2 <- UUIDgenerate()
   uuidTag3 <- UUIDgenerate()
   scriptPath <- gsub("\\\\", "/", tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".R"))
@@ -131,13 +138,13 @@ test_that("Can trace lineage.", {
   inFile2 <- outFile
   outFile2 <- gsub("\\\\", "/", tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".csv"))
   createLocalRWScript2(scriptPath2, inFile2, outFile2)
-  
+
   # Script 3 in a linked processing chain
   scriptPath3 <- gsub("\\\\", "/", tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".R"))
   inFile3 <- outFile2
   outFile3 <- gsub("\\\\", "/", tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".csv"))
   createLocalRWScript3(scriptPath3, inFile3, outFile3)
-  
+
   recordr <- new("Recordr")
   # Check that package metadata can be retrieved and updated
   # These 3 scripts are linked via their common files, i.e.
@@ -146,7 +153,7 @@ test_that("Can trace lineage.", {
   executionId <- record(recordr, scriptPath, tag=uuidTag)
   executionId2 <- record(recordr, scriptPath2, tag=uuidTag2)
   executionId3 <- record(recordr, scriptPath3, tag=uuidTag3)
-  
+
   # Should return 3 exection ids
   results <- traceRuns(recordr, direction="forward", id=executionId)
   execIds <- keys(results$execMetas)
@@ -168,7 +175,7 @@ test_that("Can trace lineage.", {
   expect_true(is.element(executionId, execIds))
   expect_true(is.element(executionId2, execIds))
   expect_true(is.element(executionId3, execIds))
-  
+
   # Should return 2 execution ids
   results <- traceRuns(recordr, direction="forward", id=executionId2)
   execIds <- keys(results$execMetas)
@@ -176,7 +183,7 @@ test_that("Can trace lineage.", {
   expect_false(is.element(executionId, execIds))
   expect_true(is.element(executionId2, execIds))
   expect_true(is.element(executionId3, execIds))
-  
+
   # Should return 1 execution id (itself)
   results <- traceRuns(recordr, direction="forward", id=executionId3)
   execIds <- keys(results$execMetas)
@@ -184,7 +191,7 @@ test_that("Can trace lineage.", {
   expect_false(is.element(executionId, execIds))
   expect_false(is.element(executionId2, execIds))
   expect_true(is.element(executionId3, execIds))
-  
+
   # Should return 1 execution id (itself)
   results <- traceRuns(recordr, direction="backward", id=executionId)
   execIds <- keys(results$execMetas)
@@ -192,7 +199,7 @@ test_that("Can trace lineage.", {
   expect_true(is.element(executionId, execIds))
   expect_false(is.element(executionId2, execIds))
   expect_false(is.element(executionId3, execIds))
-  
+
   # Cleanup
   mdf <- deleteRuns(recordr, tag=uuidTag, quiet=T)
   mdf <- deleteRuns(recordr, tag=uuidTag2, quiet=T)

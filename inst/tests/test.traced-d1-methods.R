@@ -7,7 +7,7 @@ test_that("Recordr library loads", {
 
 test_that("Can create Recordr instance", {
   rc <- new("Recordr")
-  expect_that(rc@class[1], matches("Recordr"))
+  expect_match(rc@class[1], "Recordr")
 })
 
 test_that("Can trace dataone::createObject(), getObject(), updateObject()", {
@@ -36,7 +36,9 @@ test_that("Can trace dataone::createObject(), getObject(), updateObject()", {
     # Create a data object, and convert it to csv format
     testdf <- data.frame(x=1:10,y=11:20)
     csvfile <- paste(tempfile(), ".csv", sep="")
+    cat(sprintf("csvfile from test.traced-d1-methods: %s\n", csvfile))
     write.csv(testdf, csvfile, row.names=FALSE)
+    cat(sprintf("done with write.csv\n"))
     
     # Create SystemMetadata for the object
     format <- "text/csv"
@@ -51,14 +53,14 @@ test_that("Can trace dataone::createObject(), getObject(), updateObject()", {
     
     # Upload the data to the MN using create(), checking for success and a returned identifier
     response <- createObject(mn, newid, csvfile, sysmeta)
-    expect_that(response, not(is_null()))
-    expect_that(xmlValue(xmlRoot(response)), matches(newid))
+    expect_false(is.null(response))
+    expect_match(response, newid)
     endRecord(rc)
     
     mdf <- listRuns(rc, tag=tagNum, quiet=T)
     oneRow <- nrow(mdf) == 1
     expect_that(oneRow, is_true())
-    expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
+    expect_match(mdf[mdf$tag == tagNum, 'executionId'], executionId)
     # Delete the single run
     mdf <- deleteRuns(rc, tag=tagNum, quiet=T)
     # If we deleted the run successfully, then the returned data
@@ -78,7 +80,7 @@ test_that("Can trace dataone::createObject(), getObject(), updateObject()", {
     mdf <- listRuns(rc, tag=tagNum, quiet=T)
     oneRow <- nrow(mdf) == 1
     expect_that(oneRow, is_true())
-    expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
+    expect_match(mdf[mdf$tag == tagNum, 'executionId'], executionId)
     mdf <- deleteRuns(rc, tag=tagNum, quiet=T)
     oneRow <- nrow(mdf) == 1
     expect_that(oneRow, is_true())
@@ -103,16 +105,16 @@ test_that("Can trace dataone::createObject(), getObject(), updateObject()", {
     
     # Update the object that was previously created by this test.
     response <- updateObject(mn, newid, csvfile, updateid, sysmeta)
-    expect_that(xmlValue(xmlRoot(response)), matches(updateid))
+    expect_match(response, updateid)
     updsysmeta <- getSystemMetadata(mn, updateid)
-    expect_that(class(updsysmeta)[1], matches("SystemMetadata"))
-    expect_that(updsysmeta@obsoletes, matches(newid))
+    expect_match(class(updsysmeta)[1], "SystemMetadata")
+    expect_match(updsysmeta@obsoletes, newid)
     endRecord(rc)
     
     mdf <- listRuns(rc, tag=tagNum, quiet=T)
     oneRow <- nrow(mdf) == 1
     expect_that(oneRow, is_true())
-    expect_that(mdf[mdf$tag == tagNum, 'executionId'], matches(executionId))
+    expect_match(mdf[mdf$tag == tagNum, 'executionId'], executionId)
     # Delete the single run
     mdf <- deleteRuns(rc, tag=tagNum, quiet=T)
     oneRow <- nrow(mdf) == 1
