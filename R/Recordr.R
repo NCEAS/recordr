@@ -322,15 +322,19 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=as.characte
   # Using this mechanism, the DataONE and R methods and functions
   # are only overridden while the record function is running, allowing the user to use DataONE
   # and R normally from their interactive R session.
-  attach(NULL, name=".recordr")
-  recordrEnv <- as.environment(".recordr")
+  #assign(".recordrEnv", list2env(list(.recordr=TRUE)), envir=globalenv(), inherits=FALSE)
+  env <- globalenv()
+  env$.recordrEnv <- new.env()
+  env$.recordrEnv$.recordr <- TRUE
+  #assign(".recordrEnv", list2env(list(.recordr=TRUE)), envir=globalenv(), inherits=FALSE)
   # Put a copy of the recordr object itself info the recordr environment, in case
   # to the overriding functions need any information that it contains, such as the db connection
   # Note: The recordr object contains the db connection that has to be open in the Recordr class
   # initialization because it also needs to be available to functions like listRuns() that
   # operate outside the startRecord -> endRecord execution.
+  #recordrEnv <- findEnv("recordrEnv")
+  recordrEnv <- as.environment(get(".recordrEnv", envir=globalenv()))
   recordrEnv$recordr <- recordr
-
   # If no scriptName is passed to startRecord(), then we are running in the R console, and R
   # itself is the top level program we are running.
   currentTime <- format(Sys.time(), "%Y%m%d%H%M%s")
@@ -430,24 +434,64 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=as.characte
   # Override R functions
   #recordrEnv$source <- recordr::recordr_source
   
-  #recordrEnv$createD1Object <- recordr::recordr_createD1Object
-  # override DataONE v2.0 methods
-  recordrEnv$getObject <- recordr::recordr_getObject
-  recordrEnv$create <- recordr::recordr_create
-  recordrEnv$updateObject <- recordr::recordr_updateObject
-  # override R functions
-  recordrEnv$read.csv <- recordr::recordr_read.csv
-  recordrEnv$write.csv <- recordr::recordr_write.csv
-  recordrEnv$ggsave <- recordr::recordr_ggsave
-  recordrEnv$readLines <- recordr::recordr_readLines
-  recordrEnv$writeLines <- recordr::recordr_writeLines
-  recordrEnv$readPNG <- recordr::recordr_readPNG
-  recordrEnv$writePNG <- recordr::recordr_writePNG
-  recordrEnv$scan <- recordr::recordr_scan
-  recordrEnv$raster <- recordr::recordr_raster
-  recordrEnv$writeRaster <- recordr::recordr_writeRaster
-  recordrEnv$readOGR <- recordr::recordr_readOGR
-  recordrEnv$writeOGR <- recordr::recordr_writeOGR
+  # trace DataONE versioj 2.0 functions
+  # Trace calls specifying 'exit=' so that any error checking that the traced call
+  # performs will get done before the tracer routine is called. This works well unless the
+  # traced call itself calls 'on.exit', in which case we have to set a recordr 'deferred'
+  # trace, as our only option is to trace at the beginning of the call, so the file may not
+  # be created yet, for calls that create files, and we cannot get info or orchive the file.
+  # Deferred traces are done during 'endRecord', when the file should have been created by.
+  traceOn <- getOption("traceOn")
+  if(is.null(traceOn)) traceOn = TRUE
+  tracingState(on=traceOn)
+  traceVerbose=getOption("traceVerbose")
+  if(is.null(traceVerbose)) traceVerbose=FALSE
+  if(requireNamespace("dataone")) {
+    if(!is.element("package:dataone", search())) env <- attachNamespace("dataone")
+    #suppressMessages(trace("getObject", exit=recordr::recordr_getObject, where=getNamespace("dataone")))
+    #suppressMessages(trace("createObject", exit=recordr::recordr_createObject, where=getNamespace("dataone")))
+    #suppressMessages(trace("updateObject", exit=recordr::recordr_updateObject, where=getNamespace("dataone")))
+    trace("getObject", exit=recordr::recordr_getObject, print=traceVerbose, where=globalenv())
+    trace("createObject", exit=recordr::recordr_createObject, print=traceVerbose, where=globalenv())
+    trace("updateObject", exit=recordr::recordr_updateObject, print=traceVerbose, where=globalenv())
+  }
+  
+  # trace R functions
+  if(requireNamespace("utils")) {
+    if(!is.element("package:utils", search())) env <- attachNamespace("utils")
+    #trace("read.csv", tracer=recordr::recordr_read.csv, print=TRUE, where=parent.env(environment()))
+    # works only with utils::read.csv
+    trace("read.csv", tracer=recordr::recordr_read.csv, print=traceVerbose, where=globalenv())
+    # works with utils::read.csv
+    #trace("read.csv", tracer=recordr::recordr_read.csv, print=TRUE, where=getNamespace("utils"))
+    # works with utils::read.csv only
+    #trace(read.csv, tracer=recordr::recordr_read.csv, print=TRUE)
+    trace("write.csv", exit=recordr::recordr_write.csv, print=traceVerbose, where=globalenv())
+  }
+  #suppressMessages(trace(base::scan, exit=recordr::recordr_scan))
+  #suppressMessages(trace(base::readLines, exit=recordr::recordr_readLines))
+  #trace(base::writeLines, exit=recordr::recordr_writeLines)
+  if(requireNamespace("ggplot2", quietly=TRUE)) {
+    if(!is.element("package:ggplot2", search())) env <- attachNamespace("ggplot2")
+    # ggsave() calls 'on.exit' call, so we can't set a tracer using the parameter `exit=`
+    trace("ggsave", tracer=recordr::recordr_ggsave, print=traceVerbose, where=globalenv())
+  }
+  if(requireNamespace("png", quietly=TRUE)) {
+    if(!is.element("package:png", search())) env <- attachNamespace("png")
+    trace("readPNG", exit=recordr::recordr_readPNG, print=traceVerbose, where=globalenv())
+    #trace("writePNG", exit=recordr::recordr_writePNG, where=getNamespace("png"))
+    trace("writePNG", exit=recordr::recordr_writePNG, print=traceVerbose, where=globalenv())
+  }
+  #if(requireNamespace("raster", quietly=TRUE)) {
+  #  env <- attachNamespace("raster")
+  #  trace("raster", exit=recordr::recordr_raster, where=globalenv())
+  #  trace("writeRaster", exit=recordr::recordr_writeRaster, where=globalenv())
+  #}
+  if(requireNamespace("rgdal", quietly=TRUE)) {
+    if(!is.element("package:rgdal", search())) env <- attachNamespace("rgdal")
+    trace("readOGR", exit=recordr::recordr_readOGR, print=traceVerbose, where=globalenv())
+    trace("writeOGR", exit=recordr::recordr_writeOGR, print=traceVerbose, where=globalenv())
+  }
   
   # Create the run metadata directory for this execution
   runDir <- getRunDir(recordr, recordrEnv$execMeta@executionId)
@@ -473,6 +517,7 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=as.characte
     }
   }
   setProvCapture(TRUE)
+  tracingState(on=TRUE)
   # The Recordr provenance capture capability is now setup and when startRecord() returns, the
   # user can continue to work in the calling context, i.e. the console and provenance will be
   # capture until endRecord() is called.
@@ -500,13 +545,16 @@ setGeneric("endRecord", function(recordr) {
 #' runIdentifier <- endRecord(rc)
 #' }
 setMethod("endRecord", signature("Recordr"), function(recordr) {
+  # Pause any prov tracing of any functio
+  tracingState(on=FALSE)
   on.exit(recordrShutdown())
   # Check if a recording session is active
-  if (! is.element(".recordr", base::search())) {
+  if (!exists(".recordrEnv", where = globalenv(), inherits = FALSE )) {
     message("A Recordr session is not currently active.")
     return(NULL)
   }
-  recordrEnv <- as.environment(".recordr")
+  #recordrEnv <- as.environment(".recordr")
+  recordrEnv <- as.environment(get(".recordrEnv", envir=globalenv()))
   runDir <- getRunDir(recordr, recordrEnv$execMeta@executionId)
   if (!file.exists(runDir)) {
       dir.create(runDir, recursive = TRUE)
@@ -1659,9 +1707,40 @@ setMethod("putMetadata", signature("Recordr"), function(recordr, id=as.character
 })
 
 recordrShutdown <- function() {
-  if (is.element(".recordr", base::search())) {
-    detach(".recordr")
+  if (exists(".recordrEnv", where = globalenv(), inherits = FALSE )) {
+    rm(".recordrEnv", envir=globalenv())
   }
+  if(requireNamespace("dataone", quietly=TRUE)) {
+    #untrace("createObject", where = getNamespace("dataone"))
+    #untrace("getObject", where = getNamespace("dataone"))
+    #untrace("updateObject", where = getNamespace("dataone"))
+    untrace("createObject", where = globalenv())
+    untrace("getObject", where = globalenv())
+    untrace("updateObject", where = globalenv())
+  }
+  suppressMessages(untrace(base::readLines))
+  untrace(base::writeLines)
+  #suppressMessages(untrace(base::scan))
+  untrace("read.csv")
+  untrace("write.csv")
+  if(requireNamespace("ggplot2", quietly=TRUE)) {
+    untrace("ggsave")
+  }
+  if(requireNamespace("png", quietly=TRUE)) {
+    untrace("readPNG")
+    untrace("writePNG")
+  }
+  untrace("scan")
+  if(isNamespaceLoaded("raster")) {
+    untrace("raster")
+    untrace("writeRaster")
+  }
+  if(requireNamespace("rgdal", quietly=TRUE)) {
+    untrace("readOGR")
+    untrace("writeOGR")
+  }
+  # TODO: save previous state (before record) and restore to that state
+  tracingState(on=FALSE)
 }
 
 #' Create a minimal EML document.
