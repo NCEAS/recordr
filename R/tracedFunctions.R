@@ -1244,18 +1244,79 @@ archiveFile <- function(file, force=FALSE) {
   return(archivedRelFilePath)
 }
 
-findOnSearchPath <- function(name, env = parent.frame()) {
+getCallArgFromStack <- function(nFrame, functionName, argName, argPos) {
+  # Go backward in the call stack and find the call for the function we are 
+  # searching for. The first list element from 'sys.call()' will be the
+  # function and unevaluated arguments.
+  # The call we are looking for will look something like this
+  #   write.csv(testdf, csvfile, row.names = FALSE)
+  # When this call is converted to a list (i.e. as.list(argList)), the
+  # named arguments will be names of the list, and the positional args
+  # will be in the corresponsing location for the call, i.e. for write.csv
+  # the "file" argument is in position 2, well actually position 3, as the
+  # function name will always be the first list element.
+  nback <- 1
+  for (iframe in nFrame:1) {
+    nback <- nback + 1
+    thisCall <- sys.call(which=iframe)
+    argList <- as.list(thisCall)
+    #cat(sprintf("class: %s\n", class(argList[[1]])))
+    if(class(argList[[1]]) != "name" && class(argList[[1]]) != "call") next
+    if(class(argList[[1]]) == "call") {
+      thisCallStr <- deparse(argList[[1]])
+    } else {
+      thisCallStr <- as.character(argList[[1]])
+    }
+    
+    #cat(sprintf("trying %s\n", thisCallStr))
+    # Does the call match the target function call with or without the namespace?
+    if(grepl(paste("^", functionName, sep=""), thisCallStr, perl=TRUE) || grepl(paste0("^.*::", functionName), thisCallStr, perl=TRUE)) {
+      parentEnv <- parent.frame(n=nback)
+      rawArg <- as.list(standardizeCall(sys.call(which=iframe), env=parentEnv))[[argName]]
+      if(is.null(rawArg)) {
+        if(argPos+1 > length(argList)) {
+          return(NULL)
+        } else {
+          rawArg <- as.list(standardizeCall(sys.call(which=iframe), env=parentEnv))[[argPos+1]]
+        }
+      }
+      #eval(parse(text=foo), envir=parent.frame(n=6))
+      #cat(sprintf("class(rawArg): %s\n", class(rawArg)))
+      if(class(rawArg) == "character" || class(rawArg) == "call") {
+        argValue <- eval(rawArg, envir=parentEnv)
+      } else {
+        argValue <- eval(parse(text=as.character(rawArg)), envir=parentEnv)
+      }
+      return(argValue)
+    } 
+    #else {
+    #  cat(sprintf("skipping %s\n", thisCallStr))
+    #}
+  }
+  stop("Internal error: unable to trace %s, cannot find this function in the call stack.")
+}
+
+findEnv <- function(name, env = parent.frame()) {
+  cat(sprintf("checking env: %s\n", environmentName(env)))
   if (identical(env, emptyenv())) {
     return(as.character(NA))
-  } else if (exists(name, envir = env, inherits = FALSE) && environmentName(env) != ".recordr") {
-    # Success case
-    if(identical(env, baseenv())) {
-      return("package:base")
-    } else {
-      return(sprintf("%s", environmentName(env)))
-    }
+  } else if (exists(name, envir = env, inherits = FALSE)) {
+      return(env$recordrEnv)
   } else {
     # Recursive case
-    findOnSearchPath(name, parent.env(env))
+    findEnv(name, parent.env(env))
   }
+}
+
+#' Standardise a function call
+#'
+#' @param call A call
+#' @param env Environment in which to look up call value.
+#' @note from Hadley Wicham's pryr standarize_call
+standardizeCall <- function(call, env = parent.frame()) {
+  stopifnot(is.call(call))
+  f <- eval(call[[1]], env)
+  if (is.primitive(f)) return(call)
+  
+  match.call(f, call)
 }
