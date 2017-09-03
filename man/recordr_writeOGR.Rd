@@ -4,10 +4,7 @@
 \alias{recordr_writeOGR}
 \title{Provenance wrapper for the rgdal::writeOGR function}
 \usage{
-recordr_writeOGR(obj, dsn, layer, driver, dataset_options = NULL,
-  layer_options = NULL, verbose = FALSE, check_exists = NULL,
-  overwrite_layer = FALSE, delete_dsn = FALSE, morphToESRI = NULL,
-  encoding = NULL)
+recordr_writeOGR()
 }
 \arguments{
 \item{obj}{The image to write out.}
@@ -23,4 +20,3 @@ for the file that was written.
 \note{
 This function is not intended to be called directly by a user.
 }
-

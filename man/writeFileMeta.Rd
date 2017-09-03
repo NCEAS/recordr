@@ -26,4 +26,3 @@ This method is used internally by the recordr package.
 \seealso{
 \code{\link[=FileMetadata-class]{FileMetadata}} { class description}
 }
-

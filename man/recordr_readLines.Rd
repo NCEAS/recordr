@@ -4,7 +4,7 @@
 \alias{recordr_readLines}
 \title{Provenance wrapper for R base::readLines function}
 \usage{
-recordr_readLines(con, ...)
+recordr_readLines()
 }
 \arguments{
 \item{con}{A connetion to read from}
@@ -18,4 +18,3 @@ for the file read.
 \note{
 This function is not intended to be called directly by a user.
 }
-

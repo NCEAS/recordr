@@ -27,6 +27,7 @@ This class is used internally by the recordr package.
 
 \item{\code{dataTypeURI}}{The RDF data type that specifies the type of the object}
 }}
+
 \section{Methods}{
 
 \itemize{
@@ -35,7 +36,7 @@ This class is used internally by the recordr package.
  \item{\code{\link{writeProvRels}}}{: Save a provenance relationship.}object
 }
 }
+
 \seealso{
 \code{\link{recordr}}{ package description.}
 }
-

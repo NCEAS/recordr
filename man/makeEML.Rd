@@ -32,4 +32,3 @@ makeEML(recordr, id, system, title, creators, abstract = NA,
 \description{
 An EML document is create from the values passed in.
 }
-

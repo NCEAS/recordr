@@ -36,4 +36,3 @@ This method is used internally by the recordr package.
 \seealso{
 \code{\link[=ProvRels-class]{ProvRels}} { class description}
 }
-

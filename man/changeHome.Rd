@@ -19,4 +19,3 @@ directory to the new one. A default value is not set.}
 \description{
 Change the recordr home directory
 }
-

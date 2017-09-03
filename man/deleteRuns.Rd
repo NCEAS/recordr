@@ -49,4 +49,3 @@ maintains their own backup.
 \seealso{
 \code{\link[=Recordr-class]{Recordr}}{ class description}
 }
-

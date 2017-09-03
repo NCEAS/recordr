@@ -48,6 +48,7 @@ A class representing a script execution with the run manager
 
 \item{\code{seq}}{A \code{integer} containing a simple integer value associated with the exection.}
 }}
+
 \section{Methods}{
 
 \itemize{
@@ -57,10 +58,10 @@ A class representing a script execution with the run manager
  \item{\code{\link{updateExecMeta}}}{: Update saved execution metadata.}
 }
 }
-\author{
-slaughter
-}
+
 \seealso{
 \code{\link{recordr}}{ package description.}
 }
-
+\author{
+slaughter
+}

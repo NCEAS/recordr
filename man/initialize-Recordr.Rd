@@ -28,4 +28,3 @@ information that recordr stores in the recordr home directory.
 \seealso{
 \code{\link[=Recordr-class]{Recordr}} { class description}
 }
-

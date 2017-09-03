@@ -15,4 +15,3 @@ logical TRUE if the upgrade was successful, FALSE if a problem was encountered.
 \description{
 Update the recordr database to the current version
 }
-

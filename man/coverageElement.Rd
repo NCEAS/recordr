@@ -17,4 +17,3 @@ An EML::Coverage object
 \description{
 Create a coverage element
 }
-

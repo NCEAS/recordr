@@ -42,4 +42,3 @@ is a character vector, if it is FALSE, then the \code{metadata} parameter is a f
 \seealso{
 \code{\link[=Recordr-class]{Recordr}} { class description}
 }
-

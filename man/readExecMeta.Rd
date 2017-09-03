@@ -56,4 +56,3 @@ range to find runs that started execution between the start and end times that a
 \seealso{
 \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
 }
-

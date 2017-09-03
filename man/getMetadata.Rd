@@ -33,4 +33,3 @@ Ecological Metadata Language \url{https://knb.ecoinformatics.org/#external//emlp
 This metadata can be retrieved from the recordr cache for review or editing if desired. If the metadata
 is updated, it can be re-inserted into the recordr cache using the \code{putMetadata} method.
 }
-

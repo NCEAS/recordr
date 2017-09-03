@@ -69,4 +69,3 @@ listRuns(rc, tag="analysis v1.3")
 \seealso{
 \code{\link[=Recordr-class]{Recordr}}{ class description}
 }
-

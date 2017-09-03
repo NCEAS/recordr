@@ -4,7 +4,7 @@
 \alias{recordr_readPNG}
 \title{Provenance wrapper for the pnd::read function}
 \usage{
-recordr_readPNG(source, ...)
+recordr_readPNG()
 }
 \arguments{
 \item{source}{The PNG file to read.}
@@ -18,4 +18,3 @@ for the file read.
 \note{
 This function is not intended to be called directly by a user.
 }
-

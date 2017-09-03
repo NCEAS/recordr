@@ -64,4 +64,3 @@ Initialize an execution metadata object
 \seealso{
 \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
 }
-

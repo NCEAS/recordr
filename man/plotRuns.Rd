@@ -74,4 +74,3 @@ plotRuns(recordr, tag="best run yet!", orderBy="-startTime")
 \seealso{
 \code{\link[=Recordr-class]{Recordr}} { class description}
 }
-

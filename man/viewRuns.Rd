@@ -76,4 +76,3 @@ nrow(info$files)
 \seealso{
 \code{\link[=Recordr-class]{Recordr}} { class description}
 }
-

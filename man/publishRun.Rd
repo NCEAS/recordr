@@ -10,7 +10,7 @@ publishRun(recordr, ...)
 
 \S4method{publishRun}{Recordr}(recordr, id = as.character(NA),
   seq = as.character(NA), assignDOI = FALSE, update = FALSE,
-  quiet = TRUE)
+  quiet = TRUE, retPkg = FALSE)
 }
 \arguments{
 \item{recordr}{a Recordr instance}
@@ -34,4 +34,3 @@ The published identifier of the uploaded package
 \description{
 Publish a recordr'd execution to DataONE
 }
-

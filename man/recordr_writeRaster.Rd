@@ -4,16 +4,16 @@
 \alias{recordr_writeRaster}
 \title{Provenance wrapper for the raster::writeRaster function}
 \usage{
-recordr_writeRaster(x, filename, ...)
+recordr_writeRaster()
 }
 \arguments{
 \item{x}{Raster* object}
 
-\item{...}{additional parameters}
-
 \item{file}{Output filename}
 
 \item{format}{Output file type.}
+
+\item{...}{additional parameters}
 }
 \value{
 The name of the output file
@@ -25,4 +25,3 @@ for the file that was written.
 \note{
 This function is not intended to be called directly by a user.
 }
-

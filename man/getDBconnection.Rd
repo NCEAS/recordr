@@ -12,4 +12,3 @@ getDBconnection(dbFile)
 \description{
 Get a database connection
 }
-

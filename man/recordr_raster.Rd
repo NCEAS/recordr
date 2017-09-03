@@ -4,7 +4,7 @@
 \alias{recordr_raster}
 \title{Provenance wrapper for the raster::raster function}
 \usage{
-recordr_raster(x, ...)
+recordr_raster()
 }
 \arguments{
 \item{x}{The filename or Raster object.}
@@ -18,4 +18,3 @@ for the file read.
 \note{
 This function is not intended to be called directly by a user.
 }
-

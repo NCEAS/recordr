@@ -4,13 +4,7 @@
 \alias{recordr_readOGR}
 \title{Provenance wrapper for the rgdal::readOGR function}
 \usage{
-recordr_readOGR(dsn, layer, verbose = TRUE, p4s = NULL,
-  stringsAsFactors = default.stringsAsFactors(),
-  drop_unsupported_fields = FALSE, pointDropZ = FALSE,
-  dropNULLGeometries = TRUE, useC = TRUE, disambiguateFIDs = FALSE,
-  addCommentsToPolygons = TRUE, encoding = NULL, use_iconv = FALSE,
-  swapAxisOrder = FALSE, require_geomType = NULL, integer64 = "no.loss",
-  GDAL1_integer64_policy = FALSE)
+recordr_readOGR()
 }
 \arguments{
 \item{dsn}{data source name}
@@ -26,4 +20,3 @@ for the file read.
 \note{
 This function is not intended to be called directly by a user.
 }
-

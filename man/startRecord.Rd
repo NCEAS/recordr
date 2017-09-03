@@ -47,4 +47,3 @@ runIdentifier <- endRecord(rc)
 \seealso{
 \code{\link[=Recordr-class]{Recordr}} { class description}
 }
-

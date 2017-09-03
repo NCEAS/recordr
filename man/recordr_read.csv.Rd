@@ -4,7 +4,7 @@
 \alias{recordr_read.csv}
 \title{Provenance wrapper for the R utils::read.csv function}
 \usage{
-recordr_read.csv(...)
+recordr_read.csv()
 }
 \arguments{
 \item{...}{function parameters}
@@ -16,4 +16,3 @@ for the file that was read.
 \note{
 This function is not intended to be called directly by a user.
 }
-

@@ -4,7 +4,7 @@
 \alias{recordr_getObject}
 \title{Provenance wrapper function for dataone::getObject}
 \usage{
-recordr_getObject(node, pid, ...)
+recordr_getObject()
 }
 \arguments{
 \item{node}{The DataONE node to get the object from}
@@ -20,4 +20,3 @@ for the object that was downloaded.
 \note{
 This function is not intended to be called directly by a user.
 }
-
