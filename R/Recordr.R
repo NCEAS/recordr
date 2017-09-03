@@ -657,7 +657,7 @@ setMethod("endRecord", signature("Recordr"), function(recordr) {
   scriptFmt <- "application/R"
   programD1Obj <- new("DataObject", id=recordrEnv$programId, dataobj=script, format=scriptFmt, user=recordrEnv$execMeta@user, mnNodeId=recordrEnv$mnNodeId)    
   # TODO: Set access control on the action object to be public
-  addData(recordrEnv$dataPkg, programD1Obj)
+  addMember(recordrEnv$dataPkg, programD1Obj)
   # Save the package relationships to disk so that we can recreate this package
   # at a later date.
   provRels <- getRelationships(recordrEnv$dataPkg)
@@ -1441,7 +1441,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
       if (public) sciObj <- setPublicAccess(sciObj)
       if(!quiet) cat(sprintf("Adding science object with id: %s, file: %s\n", 
                              getIdentifier(sciObj), basename(thisFile[['filePath']])))
-      addData(pkg, sciObj)
+      addMember(pkg, sciObj)
       # Now update the metadata object corresponding to this dataset in order to set the
       # Online distribution value so that MetacatUI can properly identify and display this item.
       # The 'additionalInfo' value was stored during endRecord() so that we could match up the
@@ -1474,7 +1474,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=tempMetadataFile, suggestedFilename="metadata.xml")
   if(!is.na(submitter)) metaObj@sysmeta@submitter <- submitter
   if(!is.na(rightsHolder)) metaObj@sysmeta@rightsHolder <- rightsHolder
-  addData(pkg, metaObj)
+  addMember(pkg, metaObj)
   # Now add the relationships between the science objects in the package and the metadata object
   # "metaObj documents sciObj"
   sciObjIds <- as.character(list())
