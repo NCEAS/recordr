@@ -160,8 +160,8 @@ recordr_updateObject <- function() {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE) 
   }
-  # Return the value from the overridden function
-  return(result)
+  tracingState(on=TRUE)
+  return()
 }
 
 ## @export
@@ -242,8 +242,8 @@ recordr_write.csv <- function() {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  # write.csv does not return a value
-  invisible(NULL)
+  tracingState(on=TRUE)
+  return()
 }
 
 #' Provenance wrapper for the R utils::read.csv function
@@ -380,7 +380,8 @@ recordr_ggsave <- function() {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  return(obj)
+  tracingState(on=TRUE)
+  return()
 }
 
 #' Provenance wrapper for R base::readLines function
@@ -491,9 +492,9 @@ recordr_writeLines <- function() {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
+  tracingState(on=TRUE)
   return()
 }
-
 
 #' Provenance wrapper for the R base::scan function
 #' @description Override the base::scan function and record a provenance relationship
@@ -551,7 +552,8 @@ recordr_scan <- function() {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  invisible(obj)
+  tracingState(on=TRUE)
+  return()
 }
 
 #' Provenance wrapper for the pnd::read function 
@@ -604,7 +606,8 @@ recordr_readPNG <- function () {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  invisible(obj)
+  tracingState(on=TRUE)
+  return()
 }
 
 #' Provenance wrapper for the png::write function
@@ -661,7 +664,8 @@ recordr_writePNG <- function(image, target, ...) {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  return(outImage)
+  tracingState(on=TRUE)
+  return()
 }
 
 
@@ -717,7 +721,8 @@ recordr_raster <- function () {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  invisible(rasterLayer)
+  tracingState(on=TRUE)
+  return()
 }
 
 #' Provenance wrapper for the raster::writeRaster function
@@ -800,7 +805,8 @@ recordr_readOGR <- function () {
     }
   } else {
     # file or dir doesn't exist, return the function results
-    return(obj)
+    tracingState(on=TRUE)
+    return()
   }
   
   # Get the option that controls whether or not file read operations are traced.
@@ -838,7 +844,8 @@ recordr_readOGR <- function () {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  invisible(obj)
+  tracingState(on=TRUE)
+  return()
 }
  
 #' Provenance wrapper for the rgdal::writeOGR function
@@ -908,10 +915,11 @@ recordr_writeOGR <- function() {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  return(status)
+  tracingState(on=TRUE)
+  return()
 }
 
-  # Disable or enable provenance capture temporarily
+# Disable or enable provenance capture temporarily
 # It may be necessary to disable provenance capture temporarily, for example when
 # record() is writting out a housekeeping file.
 # A state variable in the ".recordr" environment is used to
