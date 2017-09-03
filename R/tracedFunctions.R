@@ -13,24 +13,13 @@
 #' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_getObject <- function(node, pid, ...) {
-  # Call the masked function to retrieve the DataONE object
-  functionName <- "getObject"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr overrode) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next getObject fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding. 
-    d1o <- f(node, pid, ...)
-    rm(f)
-  } else {
-    message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  } 
+recordr_getObject <- function() {
+  #message("in recordr_getObject")
+  tracingState(on=FALSE)
+  node <- getCallArgFromStack(sys.nframe(), functionName="getObject", argName="x", argPos=1)
+  pid  <- getCallArgFromStack(sys.nframe(), functionName="getObject", argName="pid", argPos=2)
+  cat(sprintf("node: %s\n", node@identifier))
+  cat(sprintf("pid: %s\n", pid))
   
   # Get the option that controls whether or not DataONE read operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
@@ -63,37 +52,26 @@ recordr_getObject <- function(node, pid, ...) {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  return(d1o)
+  tracingState(on=TRUE)
+  return()
 }
 
 #' Provenance wrapper function for dataone::createObject method
 #' @description Override the dataone::createOjbect method and record a provenance relationship
 #' for the object created.
-#' @param mnode The member node to craete the object on
-#' @param pid A persistent identifier
-#' @param file The file to upload
-#' @param sysmeta A SysstemMetadata object associated with the uploaded object
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_create <- function(mnode, pid, file, sysmeta, ...) {
-  functionName <- "create"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next create() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    result <- f(mnode, pid, file, sysmeta, ...)
-    rm(f)
-  } else {
-    message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  } 
+recordr_createObject <- function() {
+  cat(sprintf("in recordr_createObject"))
+  tracingState(on=FALSE)
+  mnode <- getCallArgFromStack(sys.nframe(), functionName="createObject", argName="x", argPos=1)
+  pid <- getCallArgFromStack(sys.nframe(), functionName="createObject", argName="pid", argPos=2)
+  file <- getCallArgFromStack(sys.nframe(), functionName="createObject", argName="file", argPos=3)
+  cat(sprintf("mnode: %s\n", mnode@identifier))
+  cat(sprintf("pid : %s\n", pid))
+  cat(sprintf("file: %s\n", file))
   
+  D1_URL <- URLdecode(sprintf("%s/object/%s", mnode@endpoint, pid))
   # Get the option that controls whether or not DataONE write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
   # to TRUE, i.e. capture writes.
@@ -130,38 +108,23 @@ recordr_create <- function(mnode, pid, file, sysmeta, ...) {
     setProvCapture(TRUE)
   }
   # Return the value from the overridden function
-  return(result)
+  tracingState(on=TRUE)
+  return()
 }
 
 #' Provenance wrapper function for dataone::updateObject
 #' @description Override the dataone::updateObject method and record a provenance
 #' relationship for the object uploaded.
-#' @param mnode The DataONE member node to update the object on
-#' @param pid The persistent identifier of the object to be updated
-#' @param file The file to upload
-#' @param newpid The persistent identifier of the updating object
-#' @param sysmeta The SystemMetadata for the updating object
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
-  functionName <- "updateObject"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next updateObject() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    result <- f(mnode, pid, file, newpid, sysmeta, ...)
-    rm(f)
-  } else {
-    message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  } 
+recordr_updateObject <- function() {
+  cat(sprintf("in recordr_updateObject"))
+  tracingState(on=FALSE)
+  mnode <- getCallArgFromStack(sys.nframe(), functionName="updateObject", argName="x", argPos=1)
+  newpid <- getCallArgFromStack(sys.nframe(), functionName="updateObject", argName="newpid", argPos=2)
+  file <- getCallArgFromStack(sys.nframe(), functionName="updateObject", argName="file", argPos=3)
   
+  D1_URL <- URLdecode(sprintf("%s/object/%s", mnode@endpoint, newpid))
   # Get the option that controls whether or not DataONE write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
   # to TRUE, i.e. capture writes.
@@ -235,48 +198,35 @@ recordr_updateObject <- function(mnode, pid, file, newpid, sysmeta, ...) {
 #' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_write.csv <- function(x, file, ...) {
-  # Call the original function that we are overriding
-  # utils::write.csv(x, file, ...)
-  functionName <- "write.csv"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr overrode) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next write.csv() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    f(x, file, ...)
-    rm(f)
-  } else {
-    cat(sprintf("unable to find function %s on search path", functionName))
-    return(NULL)
-  } 
-  
+recordr_write.csv <- function() {
+  #cat(sprintf("In recordr_write.csv\n"))
+  tracingState(on=FALSE)
+  file <- getCallArgFromStack(sys.nframe(), functionName="write.csv", argName="file", argPos=2)
+  # The file should have been created, because this tracer function is fired at the exit of 'write.csv'
+  # the 'file=' argument could be a complex expression, i.e. 'file=file.path(dir, filename)', so evaluate it.
+    
   # Get the option that controls whether or not file write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
   # to TRUE, i.e. capture file writes.
   capture_file_writes <- getOption("capture_file_writes")
   if(is.null(capture_file_writes)) capture_file_writes <- TRUE
-  
   datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_writes) {
     if(is.element("connection", class(file))) {
       message(sprintf("Tracing write.csv from a connection is not supported by the recordr package."))
-      # write.csv does not return a value
-      invisible(NULL)
+      tracingState(on=TRUE)
+      return()
     }
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     # Create a data package object for the derived dataset
     dataFmt <- "text/csv"
     dataObj <- new("DataObject", id=datasetId, file=file, format=dataFmt)
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
@@ -302,54 +252,27 @@ recordr_write.csv <- function(x, file, ...) {
 #' @param ... function parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_read.csv <- function(...) {
-  #dataRead <- utils::read.csv(...)
-  functionName <- "read.csv"
-  # Find the next "read.csv" on the search path. The user could have defined their own
-  # read.csv, so we want to call the one that recordr shadowed. If the user doesn't
-  # have their own version of this function, then the R system version in packqge:utils
-  # will be found and called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next read.csv() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    dataRead <- f(...)
-    rm(f)
-  } else {
-    cat(sprintf("unable to find function %s on search path", functionName))
-    return(NULL)
-  } 
+recordr_read.csv <- function() {
+  tracingState(on=FALSE)
+  #cat(sprintf("In recordr_read.csv\n"))
+  file <- getCallArgFromStack(sys.nframe(), functionName="read.csv", argName="file", argPos=2)
+  text <- getCallArgFromStack(sys.nframe(), functionName="read.csv", argName="text", argPos=7)
   
   # Record the provenance relationship between the user's script and an input data file.
   # If the user didn't specify a data file, i.e. they are reading from a text connection,
   # then exit, as we don't track provenance for text connections. With read.csv, a
   # text connection can be specified by omitting the 'file' argument and specifying the
   # 'text' argument.
-  argList <- list(...)
-  argListLen <- length(argList)
   # read.csv() args: no "file=", but "text="
-  if (!"file" %in% names(argList) && "text" %in% names(argList)) {
+  if (is.na(file) && (!is.na(text))) {
     #cat(sprintf("text connection: %s", argList$text))
-    return(dataRead)
-  } else if ("file" %in% names(argList)) {
-    # read.csv() args: "file=" specified
-    #cat(sprintf("file: %s\n", argList$file))
-    fileArg <- argList$file
-  } else if (!"file" %in% names(argList) && !"text" %in% names(argList)) {
-    # read.csv() args: no "file=" or "text=", so first arg must be the filename
-    #cat(sprintf("file: %s\n", argList[[1]]))
-    fileArg <- argList[[1]]
-  } else {
-    cat(paste0("Error: unknown arguments passed to record_read.csv: ", argList))
-  }
+    tracingState(on=TRUE)
+    return()
+  } 
   
   # Currently connections are not traced
-  if(is.element("connection", class(fileArg))) {
+  if(is.element("connection", class(file))) {
     message(sprintf("Tracing read.csv from a connection is not supported by the recordr package."))
-    return(dataRead)
   }
   
   # Get the option that controls whether or not file read operations are traced.
@@ -389,44 +312,29 @@ recordr_read.csv <- function(...) {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  return(dataRead)
+  tracingState(on=TRUE)
+  return()
 }
 
 #' Provenance wrapper for the ggplot2::ggsave function
 #' @description Override the ggplot2::ggsave function and record a provenance relationship
 #' for the file that was written.
-#' @param filename The filename to save the plot to
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_ggsave <- function(filename, ...) {
-  functionName <- "ggsave"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next ggsave() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    obj <- f(filename, ...)
-    rm(f)
-  } else {
-      message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  }
-  
+recordr_ggsave <- function() {
+  tracingState(on=FALSE)
+  #cat(sprintf("In recordr_ggsave\n"))
+  filename <- getCallArgFromStack(sys.nframe(), functionName="ggsave", argName="filename", argPos=1)
   # Get the option that controls whether or not file write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
   # to TRUE, i.e. capture file writes.
   capture_file_writes <- getOption("capture_file_writes")
   if(is.null(capture_file_writes)) capture_file_writes <- TRUE
-  
   # Record the provenance relationship between the user's script and the derived data file
     #message("tracing recordr_ggssave")
   if (getProvCapture() && capture_file_writes) {
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     user <- recordrEnv$execMeta@user
     #datasetId <- sprintf("%s_%s.%s", tools::file_path_sans_ext(basename(file)), UUIDgenerate(), tools::file_ext(file))
@@ -481,26 +389,10 @@ recordr_ggsave <- function(filename, ...) {
 #' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_readLines <- function(con, ...) {
-  # Call the original function that we are overriding
-  #obj <- base::readLines(con, ...)
-  functionName <- "readLines"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next readLines() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    obj <- f(con, ...)
-    rm(f)
-  } else {
-      message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  }
-  
+recordr_readLines <- function() {
+  tracingState(on=FALSE)
+  #cat(sprintf("In recordr_readLines\n"))
+  con <- getCallArgFromStack(sys.nframe(), functionName="readLines", argName="con", argPos=1)
   # Get the option that controls whether or not file read operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
   # to TRUE, i.e. capture file reads.
@@ -554,26 +446,10 @@ recordr_readLines <- function(con, ...) {
 #' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_writeLines <- function(text, con, ...) {
-  # Call the original function that we are overriding
-  #base::writeLines(text, con, ...)
-  functionName <- "writeLines"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next writeLines() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    obj <- f(text, con, ...)
-    rm(f)
-  } else {
-    message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  }
-  
+recordr_writeLines <- function() {
+  tracingState(on=FALSE)
+  #cat(sprintf("In recordr_writeLines\n"))
+  con <- getCallArgFromStack(sys.nframe(), functionName="writeLines", argName="filename", argPos=2)
   # Get the option that controls whether or not file write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
   # to TRUE, i.e. capture file writes.
@@ -624,25 +500,10 @@ recordr_writeLines <- function(text, con, ...) {
 #' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_scan <- function(file, ...) {
-  # Call the original function that we are overriding
-  #obj <- base::scan(file, ...)
-  functionName <- "scan"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next scan() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    obj <- f(file, ...)
-    rm(f)
-  } else {
-    message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  }
+recordr_scan <- function() {
+  tracingState(on=FALSE)
+  #cat(sprintf("In recordr_scan\n"))
+  file <- getCallArgFromStack(sys.nframe(), functionName="scan", argName="file", argPos=2)
   
   # Get the option that controls whether or not file read operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
@@ -696,25 +557,9 @@ recordr_scan <- function(file, ...) {
 #' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_readPNG <- function (source, ...) {
-  # Call the original function that we are overriding
-  functionName <- "readPNG"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next readPNG() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    obj <- f(source, ...)
-    rm(f)
-  } else {
-    message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  } 
-  
+recordr_readPNG <- function () {
+  tracingState(on=FALSE)
+  source <- getCallArgFromStack(sys.nframe(), functionName="readPNG", argName="source", argPos=1)
   # Get the option that controls whether or not file read operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
   # to TRUE, i.e. capture file reads.
@@ -765,25 +610,8 @@ recordr_readPNG <- function (source, ...) {
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_writePNG <- function(image, target, ...) {
-  # Call the original function that we are overriding
-  #outImage <- png::writePNG(image, target, ...)
-  functionName <- "writePNG"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next writePNG() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    outImage <- f(image, target, ...)
-    rm(f)
-  } else {
-    message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  }
-  
+  tracingState(on=FALSE)
+  target <- getCallArgFromStack(sys.nframe(), functionName="writePNG", argName="target", argPos=1)
   # Get the option that controls whether or not file write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
   # to TRUE, i.e. capture file writes.
@@ -836,29 +664,14 @@ recordr_writePNG <- function(image, target, ...) {
 #' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_raster <- function (x, ...) {
-  # Call the original function that we are overriding
-  functionName <- "raster"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next readPNG() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    rasterLayer <- f(x, ...)
-    rm(f)
-  } else {
-    message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  }
-  filePath <- x
+recordr_raster <- function () {
+  tracingState(on=FALSE)
+  filePath <- getCallArgFromStack(sys.nframe(), functionName="raster", argName="x", argPos=1)
   
   if(class(filePath) != "character") {
     message("Don't trace raster() if arg is not class(character).")
-    return(rasterLayer) 
+    tracingState(on=TRUE)
+    return() 
   }
   
   # Get the option that controls whether or not file read operations are traced.
@@ -908,24 +721,9 @@ recordr_raster <- function (x, ...) {
 #' @return The name of the output file
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_writeRaster <- function(x, filename, ...) {
-  # Call the original function that we are overriding
-  functionName <- "writeRaster"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next writeRaster() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    xOut <- f(x, filename, ...)
-    rm(f)
-  } else {
-    message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  }
+recordr_writeRaster <- function() {
+  tracingState(on=FALSE)
+  filename <- getCallArgFromStack(sys.nframe(), functionName="writeRaster", argName="filename", argPos=2)
   
   # Get the option that controls whether or not file write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
@@ -972,32 +770,10 @@ recordr_writeRaster <- function(x, filename, ...) {
 #' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_readOGR <- function (dsn, layer, verbose = TRUE, p4s = NULL, stringsAsFactors = default.stringsAsFactors(), 
-                             drop_unsupported_fields = FALSE, pointDropZ = FALSE, dropNULLGeometries = TRUE, 
-                             useC = TRUE, disambiguateFIDs = FALSE, addCommentsToPolygons = TRUE, 
-                             encoding = NULL, use_iconv = FALSE, swapAxisOrder = FALSE, 
-                             require_geomType = NULL, integer64 = "no.loss", GDAL1_integer64_policy = FALSE) {
-  # Call the original function that we are overriding
-  functionName <- "readOGR"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next readPNG() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    cat(sprintf("calling readOGR..."))
-    obj <- f(dsn, layer, verbose, p4s, stringsAsFactors,
-             drop_unsupported_fields, pointDropZ, dropNULLGeometries, useC, 
-             disambiguateFIDs, addCommentsToPolygons, encoding, use_iconv, 
-             swapAxisOrder, require_geomType, integer64, GDAL1_integer64_policy)
-    rm(f)
-  } else {
-    message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  }
+recordr_readOGR <- function () {
+  tracingState(on=FALSE)
+  dsn <- getCallArgFromStack(sys.nframe(), functionName="readOGR", argName="dsn", argPos=1)
+  layer <- getCallArgFromStack(sys.nframe(), functionName="readOGR", argName="layer", argPos=2)
   
   # The dsn argument can be a file or a directory
   if(file.exists(dsn)) {
@@ -1062,29 +838,10 @@ recordr_readOGR <- function (dsn, layer, verbose = TRUE, p4s = NULL, stringsAsFa
 #' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_writeOGR <- function(obj, dsn, layer, driver, dataset_options = NULL, layer_options = NULL, 
-  verbose = FALSE, check_exists = NULL, overwrite_layer = FALSE, 
-  delete_dsn = FALSE, morphToESRI = NULL, encoding = NULL) {
-  # Call the original function that we are overriding
-  #status <- rgdal::writeOGR(obj, dsn, layer, driver, dataset_options, layer_options, 
-              #verbose, check_exists, overwrite_layer, delete_dsn, morphToESRI, encoding)
-  functionName <- "writeOGR"
-  # See comments for function 'recordr_read.csv' for an explaination of how the
-  # overridden function (the one recordr is overriding) is called.
-  functionEnv <- findOnSearchPath(functionName, env=parent.frame())
-  if(!is.null(functionEnv)) {
-    #cat(sprintf("calling function %s in environment %s\n", functionName, functionEnv))
-    f <- get(functionName, envir=as.environment(functionEnv))
-    # Now call the next writePNG() fuction in the search path with our bound function. 
-    # Note: do.call doesn't work if you give it the qualified function name, 
-    # so we have to do this rebinding.
-    status <- f(obj, dsn, layer, driver, dataset_options, layer_options, 
-      verbose, check_exists, overwrite_layer, delete_dsn, morphToESRI, encoding)
-    rm(f)
-  } else {
-    message(sprintf("Unable to find function %s on search path", functionName))
-    return(NULL)
-  }
+recordr_writeOGR <- function() {
+  tracingState(on=FALSE)
+  dsn <- getCallArgFromStack(sys.nframe(), functionName="writeOGR", argName="dsn", argPos=2)
+  layer <- getCallArgFromStack(sys.nframe(), functionName="writeOGR", argName="layer", argPos=3)
   
   # The dsn argument can be a file or a directory
   filePath <- ""
