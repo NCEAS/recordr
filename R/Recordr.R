@@ -756,11 +756,15 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
     # Stop recording provenance and finalize the data package. If the
     # recordr environment wasn't setup properly, then we won't
     # be able to properly end recording.
-    if (is.element(".recordr", base::search())) {
+    if (exists(".recordrEnv", where = globalenv(), inherits = FALSE )) {
       endRecord(recordr)
     }
     # return the execution identifier
-    return(execId)
+    if(exists("execId")) {
+      return(execId)
+    } else {
+      return(as.character(NA))
+    }
   })
 })
 
