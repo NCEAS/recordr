@@ -103,19 +103,20 @@ setMethod("initialize", signature = "Recordr", definition = function(.Object, ne
   .Object@recordrDir <- recordrDir
   # Open a connection to the database that contains execution metadata,
   .Object@dbFile <- normalizePath(file.path(recordrDir, "recordr.sqlite"), mustWork=FALSE)
+  dbConn = NULL
   dbConn <- getDBconnection(dbFile=.Object@dbFile)
   if (is.null(dbConn)) {
     stop("Unable to create a Recordr object\n")
   } else {
     .Object@dbConn <- dbConn
-  } 
-  
+  }
+
   if (!dbIsValid(dbConn)) {
     if(is.null(dbConn)) {
       stop(sprintf("Error reconnecting to database file %s\n", .Object@dbFile))
     }
   }
-  
+  # 
   #dbVersion <- getRecordrDbVersion(.Object)
   # Get recordr version from admin table. 
   recordrVersion <- packageDescription(pkg="recordr")$Version
@@ -135,6 +136,8 @@ setMethod("initialize", signature = "Recordr", definition = function(.Object, ne
   if (!is.element("admin", dbListTables(.Object@dbConn))) {
     createAdminTable(.Object, RECORDR_DB_VERSION)
   }
+ 
+  dbDisconnect(.Object@dbConn)
    
   return(.Object)
 })

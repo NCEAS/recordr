@@ -735,7 +735,9 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
     dbClearResult(result)
   }
   
-  if(tmpDBconn) dbDisconnect(dbConn)
+  if(tmpDBconn) {
+    dbDisconnect(dbConn)
+  }
   return(execMetas)
 })
 
