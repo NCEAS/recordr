@@ -303,9 +303,9 @@ recordr_read.csv <- function() {
     # Record the execution inputs that will be used to assert 'prov:wasDerivedFrom' relationships
     recordrEnv$execInputIds <- c(recordrEnv$execInputIds, datasetId)
     # Save a copy of this input file into the recordr archive
-    archivedFilePath <- archiveFile(file=fileArg)
+    archivedFilePath <- archiveFile(file=file)
     # Save the file metadata to the database
-    filemeta <- new("FileMetadata", file=fileArg, 
+    filemeta <- new("FileMetadata", file=file, 
                     fileId=datasetId, 
                     executionId=recordrEnv$execMeta@executionId, 
                     access="read", format="text/csv",
@@ -406,14 +406,20 @@ recordr_readLines <- function() {
   # Record the provenance relationship between the user's script and the derived data file
   
   if (getProvCapture() && capture_file_reads) {
-    if(is.element("connection", class(con))) {
+    if(is.element("text", class(con))) {
       filePath <- summary(con)$description
-      message(sprintf("Tracing readLines from a connection is not supported by the recordr package."))
-      return(obj)
+      message(sprintf("Tracing readLines from a text connection is not supported by the recordr package."))
+      tracingState(on=TRUE)
+      return()
     } else {
-      filePath <- con
+      if(class(con) == "character") {
+        filePath <- con 
+      } else {
+        filePath <- summary(con)$description
+      }
     }
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
@@ -460,12 +466,13 @@ recordr_writeLines <- function() {
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_writes) {
-    if(is.element("connection", class(con))) {
+    if(is.element("text", class(con))) {
       filePath <- summary(con)$description
       message(sprintf("Tracing writeLines from a connection is not supported by the recordr package."))
+      tracingState(on=TRUE)
       return()
     } else {
-      filePath <- con
+      filePath <- summary(con)$description
     }
     #recordrEnv <- as.environment(".recordr")
     recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
