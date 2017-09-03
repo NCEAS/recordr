@@ -30,15 +30,16 @@ recordr_getObject <- function() {
   # Write provenance info for this object to the DataPackage object.
   if (getProvCapture() && capture_d1_reads) {
     setProvCapture(FALSE)
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     # Record the DataONE resolve service endpoint + pid for the object of the RDF triple
     # Decode the URL that will be added to the resource map
     D1_URL <- URLdecode(sprintf("%s/object/%s", node@endpoint, pid))
     # Record prov:used relationship between the input dataset and the execution
-    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=D1_URL, predicate=provUsed)
+    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=pid, predicate=provUsed)
     # Record relationship identifying this dataset as a provone:Data
-    insertRelationship(recordrEnv$dataPkg, subjectID=D1_URL, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
-    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, D1_URL)
+    insertRelationship(recordrEnv$dataPkg, subjectID=pid, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, pid)
     # Write file metadata only, don't locally archive the file sent to DataONE, as this
     # operation is 'reading' the file from DataONE. If the script did read this file
     # locally by some other means (e.g. "readLines", "read.csv") then a separate prov entry
@@ -81,14 +82,14 @@ recordr_createObject <- function() {
   # Record provenance if not disabled 
   if (getProvCapture() && capture_d1_writes) {
     setProvCapture(FALSE)
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     # Record the DataONE endpoint + pid for the object of the RDF triple
-    D1_URL <- URLdecode(sprintf("%s/object/%s", mnode@endpoint, pid))
     # Record prov:wasGeneratedByrelationship between the created dataset and the execution
-    insertRelationship(recordrEnv$dataPkg, subjectID=D1_URL, objectIDs=recordrEnv$execMeta@executionId, predicate=provWasGeneratedBy)
+    insertRelationship(recordrEnv$dataPkg, subjectID=pid, objectIDs=recordrEnv$execMeta@executionId, predicate=provWasGeneratedBy)
     # Record relationship identifying this dataset as a provone:Data
-    insertRelationship(recordrEnv$dataPkg, subjectID=D1_URL, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
-    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, D1_URL)
+    insertRelationship(recordrEnv$dataPkg, subjectID=pid, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, pid)
     # The DataONE URL is the subject of the 'wasGeneratedBy' relationship, i.e. D1 URL -> wasGeneratedBy -> script,
     # so the URL is used instead of the filename. The file info will be collected from the local file however, i.e.
     # the size, checksum, etc. Also, this local file will not be archived, as it is available from DataONE.
@@ -133,15 +134,14 @@ recordr_updateObject <- function() {
   
   if (getProvCapture() && capture_d1_writes) {
     setProvCapture(FALSE)
-    recordrEnv <- as.environment(".recordr")
-    # Record the DataONE endpoint + pid for the object of the RDF triple
-    D1_URL <- URLdecode(sprintf("%s/object/%s", mnode@endpoint, pid))
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     # Record prov:wasGeneratedByrelationship between the input dataset and the execution
-    insertRelationship(recordrEnv$dataPkg, subjectID=D1_URL, objectIDs=recordrEnv$execMeta@executionId, predicate=provWasGeneratedBy)
+    insertRelationship(recordrEnv$dataPkg, subjectID=newpid, objectIDs=recordrEnv$execMeta@executionId, predicate=provWasGeneratedBy)
     # Record relationship identifying this dataset as a provone:Data
-    insertRelationship(recordrEnv$dataPkg, subjectID=D1_URL, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    insertRelationship(recordrEnv$dataPkg, subjectID=newpid, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
     # Record the execution outputs that will be used to assert 'prov:wasDerivedFrom' relationships
-    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, D1_URL)
+    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, newpid)
     # The DataONE URL is the subject of the 'wasGeneratedBy' relationship, i.e. D1 URL -> wasGeneratedBy -> script,
     # so the URL is used instead of the filename. The file info will be collected from the local file however, i.e.
     # the size, checksum, etc. Also, this local file will not be archived, as it is available from DataONE.
@@ -282,7 +282,8 @@ recordr_read.csv <- function() {
   if(is.null(capture_file_reads)) capture_file_reads <- TRUE
   
   if (getProvCapture() && capture_file_reads) {
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     user <- recordrEnv$execMeta@user
     # TODO: replace this with a user configurable faciltiy to specify how to generate identifiers
@@ -465,7 +466,8 @@ recordr_writeLines <- function() {
     } else {
       filePath <- con
     }
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
@@ -518,11 +520,13 @@ recordr_scan <- function() {
     if(is.element("connection", class(file))) {
       #filePath <- summary(file)$description
       message(sprintf("Tracing scan from a connection is not supported by the recordr package."))
-      return(obj)
+      tracingState(on=TRUE)
+      return()
     } else {
       filePath <- file
     }
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     user <- recordrEnv$execMeta@user
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
@@ -570,11 +574,13 @@ recordr_readPNG <- function () {
   if (getProvCapture() && capture_file_reads) {
     if(is.element("raw", class(source))) {
       message(sprintf("Tracing readPNG with source as a raw vector is not supported by the recordr package."))
-      return(obj)
+      tracingState(on=TRUE)
+      return()
     } else {
       filePath <- source
     }
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
@@ -625,11 +631,13 @@ recordr_writePNG <- function(image, target, ...) {
     if(is.element("connection", class(target))) {
       filePath <- summary(target)$description
       message(sprintf("Tracing writePNG from a connection is not supported by the recordr package."))
+      tracingState(on=TRUE)
       return()
     } else {
       filePath <- target
     }
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
@@ -683,7 +691,8 @@ recordr_raster <- function () {
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_reads) {
     cat(sprintf("Tracing raster with filePath: %s", filePath))
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
@@ -733,17 +742,17 @@ recordr_writeRaster <- function() {
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_writes) {
-    filePath <- filename
     sprintf("Tracing raster with filePath: %s", filePath)
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
     dataFmt <- "application/octet-stream"
-    dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filename)
     # TODO: use file argument when file size is greater than a configuration value
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
@@ -802,7 +811,8 @@ recordr_readOGR <- function () {
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_reads) {
     cat(sprintf("Tracing readOGR with file: %s\n", filePath))
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
@@ -859,7 +869,8 @@ recordr_writeOGR <- function() {
     }
   } else {
     # file or dir doesn't exist, return the function results (NULL for writeOGR)
-    return(status)
+    tracingState(on=TRUE)
+    return()
   }
   
   # Get the option that controls whether or not file write operations are traced.
@@ -871,7 +882,8 @@ recordr_writeOGR <- function() {
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_writes) {
     #cat(sprintf("Tracing writeOGR with file: %s from package %s\n", filePath, environmentName(functionEnv)))
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
@@ -908,8 +920,11 @@ recordr_writeOGR <- function() {
 setProvCapture <- function(enable) {
   # If the '.recordr' environment hasn't been created, then we are calling this
   # function outside the context of record(), so don't attempt to update the environment'
-  if (is.element(".recordr", base::search())) {
-    assign("provCaptureEnabled", enable, envir = as.environment(".recordr"))
+  #if (exists("provCaptureEnabled", where = as.environment(recordrEnv), inherits = FALSE )) {
+  #  if (is.element(".recordr", base::search())) {
+  if (exists(".recordrEnv", where = globalenv(), inherits = FALSE )) {
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
+    assign("provCaptureEnabled", enable, envir = recordrEnv)
     return(enable)
   } else {
     # If we were able to update "provCaptureEnabled" state variable because env ".recordr"
@@ -925,12 +940,10 @@ getProvCapture <-  function() {
   #
   # If the '.recordr' environment hasn't been created, then we are calling this
   # function outside the context of record(), so don't attempt to read from the environment.
-  if (is.element(".recordr", base::search())) {
-    if (exists("provCaptureEnabled", where = ".recordr", inherits = FALSE )) {
-      enabled <- base::get("provCaptureEnabled", envir = as.environment(".recordr"))
-    } else {
-      enabled <- FALSE
-    }
+  recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
+  #if (is.element(".recordr", base::search())) {
+  if (exists("provCaptureEnabled", where = recordrEnv, inherits = FALSE )) {
+    enabled <- base::get("provCaptureEnabled", envir = recordrEnv)
   } else {
     enabled <- FALSE
   }
@@ -944,7 +957,7 @@ archiveFile <- function(file, force=FALSE) {
     return(NULL)
   }
   
-  recordrEnv <- as.environment(".recordr") 
+  recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
   # If force is trune, then always archive the file, regardless of user defined settings
   if(!force) {
     # Don't archive files that are bigger than a user specified maximum, in bytes
