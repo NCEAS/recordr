@@ -1309,7 +1309,7 @@ setGeneric("publishRun", function(recordr, ...) {
 #' @return The published identifier of the uploaded package
 setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(NA), 
                                                        seq=as.character(NA), 
-                                                       assignDOI=FALSE, update=FALSE, quiet=TRUE) {
+                                                       assignDOI=FALSE, update=FALSE, quiet=TRUE, retPkg=FALSE) {
   
   executionId <- id
   if (!requireNamespace("dataone", quietly = TRUE)) {
@@ -1502,6 +1502,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
     }
   }
   
+  if(retPkg) return(pkg)
   if(!quiet) cat(sprintf("Uploading data package...\n"))
   # uploadDataPackage returns the "package pid" 'published identifier' for this datapackage. This will be displayed in the 
   # viewRuns() output for this under "Published ID".
