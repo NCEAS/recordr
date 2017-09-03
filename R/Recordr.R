@@ -718,15 +718,16 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
   
   # Execute the script specified by the user, making sure to catch any error encountered.
   result = tryCatch ({
-    if ( is.element(".recordr", base::search())) {
-      detach(".recordr")
+    if (exists(".recordrEnv", where = globalenv(), inherits = FALSE )) {
+      rm(globalenv()$.recordrEnv)
     }
-    file <- normalizePath(file, mustWork=TRUE)
     if(!file.exists(file)) {
       stop(sprintf("Error, file \"%s\" does not exist\n", file))
     }
+    file <- normalizePath(file, mustWork=TRUE)
     execId <- startRecord(recordr, tag, .file=file, .console=FALSE)
-    recordrEnv <- as.environment(".recordr")
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(get(".recordrEnv", envir=globalenv()))
     setProvCapture(TRUE)
     # Source the user's script, passing in arguments that they intended for the 'source' call.  
     # Because we are calling the 'source' function with the packageId, the overridden function
