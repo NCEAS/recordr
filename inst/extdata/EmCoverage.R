@@ -1,4 +1,4 @@
-library(dataone)
+library(ggplot2)
 # This test script can be used to test the 'record' method of the recordr package.
 # This script downloads a dataset from DataONE and creates a local CSV file from
 # this dataset.
