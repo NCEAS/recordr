@@ -2277,10 +2277,10 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
   # value for the recordr object, i.e. executionId.
   idsToDgrmR <- hash()
   
-  graph <- create_graph()
-  graph <- set_global_graph_attrs(graph, attr = "layout", value = "dot", attr_type="graph") 
-  graph <- set_global_graph_attrs(graph, attr = "fontname", value = "Helvetica", attr_type="node")
-  graph <- set_global_graph_attrs(graph, attr = "color", value = "gray20", attr_type="edge")
+  graph <- DiagrammeR::create_graph()
+  graph <- DiagrammeR::set_global_graph_attrs(graph, attr = "layout", value = "dot", attr_type="graph") 
+  graph <- DiagrammeR::set_global_graph_attrs(graph, attr = "fontname", value = "Helvetica", attr_type="node")
+  graph <- DiagrammeR::set_global_graph_attrs(graph, attr = "color", value = "gray20", attr_type="edge")
   
   # Loop through the list of executions, adding nodes for each execution
   for (execId in keys(linkedIds)) {
@@ -2293,7 +2293,7 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
       execLabel <- basename(em@softwareApplication)
     }
     # Add node if it hasn't been added to the lookup table or it hasn't been added to the graph.
-    if(!has.key(execId, idsToDgrmR) || !node_present(graph, node=idsToDgrmR[[execId]])) {
+    if(!has.key(execId, idsToDgrmR) || !DiagrammeR::node_present(graph, node=idsToDgrmR[[execId]])) {
       graph <- add_node_with_id(graph, id=execId, label=execLabel, idLookup=idsToDgrmR)
       graph <- set_node_attrs(graph, node_attr= "shape", values="rectangle", nodes=idsToDgrmR[[execId]])
     }
@@ -2309,7 +2309,7 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
           graph <- add_node_with_id(graph, id=fileKey, label=fileName, idLookup=idsToDgrmR)
           nodes[[fileKey]] <- TRUE
         }
-        if(!edge_present(graph, from=idsToDgrmR[[fileKey]], to=idsToDgrmR[[execId]])) {
+        if(DiagrammeR::edge_present(graph, from=idsToDgrmR[[fileKey]], to=idsToDgrmR[[execId]])) {
           graph <- add_edge_with_ids(graph, from=fileKey, to=execId, idLookup=idsToDgrmR)
         }
       }
@@ -2325,10 +2325,10 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
         # Has a node in the graph been created for this file already?
         if(!has.key(fileKey, nodes)) {
           graph <- add_node_with_id(graph, id=fileKey, label=fileName, idLookup=idsToDgrmR)
-          graph <- set_node_attrs(graph, node_attr= "shape", values="ellipse", nodes=idsToDgrmR[[fileKey]])
+          graph <- DiagrammeR::set_node_attrs(graph, node_attr= "shape", values="ellipse", nodes=idsToDgrmR[[fileKey]])
           nodes[[fileKey]] <- TRUE
         } 
-        if(!edge_present(graph, from=idsToDgrmR[[fileKey]], to=idsToDgrmR[[execId]])) {
+        if(!DiagrammeR::edge_present(graph, from=idsToDgrmR[[fileKey]], to=idsToDgrmR[[execId]])) {
           graph <- add_edge_with_ids(graph, from=execId, to=fileKey, idLookup=idsToDgrmR)
         }
       }
@@ -2338,7 +2338,7 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
   # Render the graph using GraphViz. Out is sent to the RStudio viewer and
   # can be exported using the RStudio viewer panel. Other output options will
   # be added.
-  render_graph(graph)
+  DiagrammeR::render_graph(graph)
 })
 
 #' Trace processing lineage by finding related executions
