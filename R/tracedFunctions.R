@@ -291,11 +291,11 @@ recordr_read.csv <- function() {
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
     dataFmt <- "text/csv"
-    dataObj <- new("DataObject", id=datasetId, format=dataFmt, user=user, mnNodeId=recordrEnv$mnNodeId, filename=fileArg)
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, user=user, mnNodeId=recordrEnv$mnNodeId, filename=file)
     # TODO: use file argument when file size is greater than a configuration value
     #dataObj <- new("DataObject", id=datasetId, filename=normalizePath(file), format=dataFmt, user=user, mnNodeId=recordrEnv$mnNodeId)    
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     # Record prov:wasUsedBy relationship between the input dataset and the execution
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
     # Record relationship identifying this dataset as a provone:Data
@@ -364,7 +364,7 @@ recordr_ggsave <- function() {
     
     dataObj <- new("DataObject", id=datasetId, format=dataFmt, filename=filename)
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
@@ -420,7 +420,7 @@ recordr_readLines <- function() {
     dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
     # TODO: use file argument when file size is greater than a configuration value
     # Record prov:used relationship between the execution and the input dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
@@ -475,7 +475,7 @@ recordr_writeLines <- function() {
     dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
     # TODO: use file argument when file size is greater than a configuration value
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
@@ -535,7 +535,7 @@ recordr_scan <- function() {
     dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
     # TODO: use file argument when file size is greater than a configuration value
     # Record prov:used relationship between the execution and the input dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
@@ -588,7 +588,7 @@ recordr_readPNG <- function () {
     dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
     # TODO: use file argument when file size is greater than a configuration value
     # Record prov:used relationship between the execution and the input dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
@@ -645,7 +645,7 @@ recordr_writePNG <- function(image, target, ...) {
     dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
     # TODO: use file argument when file size is greater than a configuration value
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
@@ -700,7 +700,7 @@ recordr_raster <- function () {
     dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
     # TODO: use file argument when file size is greater than a configuration value
     # Record prov:used relationship between the execution and the input dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
@@ -768,7 +768,8 @@ recordr_writeRaster <- function() {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  return(xOut)
+  tracingState(on=TRUE)
+  return()
 }
 
 #' Provenance wrapper for the rgdal::readOGR function 
@@ -820,7 +821,7 @@ recordr_readOGR <- function () {
     dataObj <- new("DataObject", id=datasetId, format=dataFmt, filename=filePath)
     # TODO: use file argument when file size is greater than a configuration value
     # Record prov:used relationship between the execution and the input dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
@@ -891,7 +892,7 @@ recordr_writeOGR <- function() {
     dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
     # TODO: use file argument when file size is greater than a configuration value
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
-    addData(recordrEnv$dataPkg, dataObj)
+    addMember(recordrEnv$dataPkg, dataObj)
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
     # Record relationship identifying this dataset as a provone:Data
     insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
