@@ -443,7 +443,9 @@ recordr_readLines <- function() {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  invisible(obj)
+  cat(sprintf("exiting recordr_readLines\n"))
+  tracingState(on=TRUE)
+  return()
 }
 
 #' Provenance wrapper for R base::writeLines function
