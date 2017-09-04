@@ -2305,7 +2305,7 @@ setMethod("plotRuns", signature("Recordr"), function(recordr, id=as.character(NA
     # Add node if it hasn't been added to the lookup table or it hasn't been added to the graph.
     if(!has.key(execId, idsToDgrmR) || !DiagrammeR::node_present(graph, node=idsToDgrmR[[execId]])) {
       graph <- add_node_with_id(graph, id=execId, label=execLabel, idLookup=idsToDgrmR)
-      graph <- set_node_attrs(graph, node_attr= "shape", values="rectangle", nodes=idsToDgrmR[[execId]])
+      graph <- DiagrammeR::set_node_attrs(graph, node_attr= "shape", values="rectangle", nodes=idsToDgrmR[[execId]])
     }
     # Create nodes and links for input files
     if(nrow(ufs) > 0) {
@@ -2589,9 +2589,9 @@ add_node_with_id <- function(graph, id, type=NULL, label=NULL, idLookup) {
   # DiagrammeR won't let you assign id values to a node, so you have
   # to see what id is given to a node, and then remember that so we
   # can map the DiagrammeR node ids to our fileIds
-  orig_node_ids <- get_node_ids(graph)
-  graph <- add_node(graph, type=type, label=label)
-  new_node_ids <- get_node_ids(graph)
+  orig_node_ids <- DiagrammeR::get_node_ids(graph)
+  graph <- DiagrammeR::add_node(graph, type=type, label=label)
+  new_node_ids <- DiagrammeR::get_node_ids(graph)
   node_id <- base::setdiff(new_node_ids, orig_node_ids)
   idLookup[[id]] <- node_id
   return(graph)
@@ -2600,6 +2600,6 @@ add_node_with_id <- function(graph, id, type=NULL, label=NULL, idLookup) {
 add_edge_with_ids <- function(graph, from, to, idLookup) {
   fromId <- idLookup[[from]]
   toId <- idLookup[[to]]
-  graph <-add_edge(graph, from=fromId, to=toId)
+  graph <- DiagrammeR::add_edge(graph, from=fromId, to=toId)
   return(graph)
 }
