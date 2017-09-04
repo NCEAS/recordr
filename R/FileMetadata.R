@@ -162,6 +162,7 @@ setMethod("writeFileMeta", signature("Recordr", "FileMetadata"), function(record
     if(is.null(dbConn)) {
       stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
     }
+    tmpDBconn <- TRUE
   } else {
     dbConn <- recordr@dbConn
   } 
@@ -267,6 +268,7 @@ setMethod("readFileMeta", signature("Recordr"), function(recordr,
     if(is.null(dbConn)) {
       stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
     }
+    tmpDBconn <- TRUE
   } else {
     dbConn <- recordr@dbConn
   }
