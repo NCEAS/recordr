@@ -703,7 +703,6 @@ recordr_raster <- function () {
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_reads) {
-    cat(sprintf("Tracing raster with filePath: %s", filePath))
     #recordrEnv <- as.environment(".recordr")
     recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
