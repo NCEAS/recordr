@@ -110,6 +110,7 @@ setMethod("writeProvRel", signature("Recordr"), function(recordr, provRels, ...)
     if(is.null(dbConn)) {
       stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
     }
+    tmpDBconn <- TRUE
   } else {
     dbConn <- recordr@dbConn
   } 
@@ -223,6 +224,7 @@ setMethod("readProvRels", signature("Recordr"), function(recordr,
     if(is.null(dbConn)) {
       stop(sprintf("Error reconnecting to database file %s\n", recordr@dbFile))
     }
+    tmpDBconn <- TRUE
   } else {
     dbConn <- recordr@dbConn
   }
