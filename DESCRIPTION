@@ -1,6 +1,6 @@
 Package: recordr
 Title: R Provenance Tracking
-Version: 1.0.3
+Version: 1.0.3.9000
 Authors@R: c( person("Peter", "Slaughter", role = c("aut", "cre"), email = "slaughter@nceas.ucsb.edu"),
     person("Matthew", "Jones", role = "aut", email = "jones@nceas.ucsb.edu"),
     person("Chris", "Jones", role = "ctb", email = "cjones@nceas.ucsb.edu"),
@@ -19,14 +19,19 @@ Imports:
     datapack,
     digest,
     XML,
-    RSQLite
+    RSQLite,
+    rappdirs,
+    hash,
+    EML
 Suggests:
     dataone,
     ggplot2,
     knitr,
     png,
     testthat,
-    rmarkdown
+    rmarkdown,
+    DiagrammeR,
+    rgdal
 VignetteBuilder: knitr
 License: Apache License 2.0
 URL: https://github.com/NCEAS/recordr
@@ -36,7 +41,8 @@ Collate:
     'Recordr.R'
     'ExecMetadata.R'
     'FileMetadata.R'
+    'ProvRels.R'
     'onLoad.R'
     'recordr-package.R'
     'tracedFunctions.R'
-RoxygenNote: 5.0.1
+RoxygenNote: 6.0.1

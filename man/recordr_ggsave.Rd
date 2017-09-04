@@ -4,12 +4,7 @@
 \alias{recordr_ggsave}
 \title{Provenance wrapper for the ggplot2::ggsave function}
 \usage{
-recordr_ggsave(filename, ...)
-}
-\arguments{
-\item{filename}{The filename to save the plot to}
-
-\item{...}{additional parameters}
+recordr_ggsave()
 }
 \description{
 Override the ggplot2::ggsave function and record a provenance relationship
@@ -18,4 +13,3 @@ for the file that was written.
 \note{
 This function is not intended to be called directly by a user.
 }
-

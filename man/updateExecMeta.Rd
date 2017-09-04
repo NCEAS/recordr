@@ -46,4 +46,3 @@ is published, with information about the publishing process.
 \seealso{
 \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
 }
-

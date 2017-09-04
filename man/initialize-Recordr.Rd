@@ -6,17 +6,25 @@
 \alias{initialize-Recordr}
 \title{Initialize a Recorder object}
 \usage{
-\S4method{initialize}{Recordr}(.Object, recordrDir = as.character(NA))
+\S4method{initialize}{Recordr}(.Object, newDir = as.character(NA), copy = T,
+  ...)
 }
 \arguments{
 \item{.Object}{The Recordr object}
 
-\item{recordrDir}{The directory to store provenance data in.}
+\item{newDir}{The recordr home directory is changed to the new location.}
 }
 \description{
 Initialize a Recorder object
 }
+\details{
+A recordr object is returned that can be used with other \code{recordr} package
+methods. When the optional \code{newDir} argument is used, the recordr home directory is
+changed to the new value. The default behaviour is to have data copied from the old
+home directory to the new one, but this can be changed by using the \code{copy} argument, i.e.
+See the recordr vignette \code{'recordr Package Introduction'} for more information about 
+information that recordr stores in the recordr home directory.
+}
 \seealso{
 \code{\link[=Recordr-class]{Recordr}} { class description}
 }
-

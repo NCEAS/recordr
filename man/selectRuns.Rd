@@ -50,4 +50,3 @@ This method is used internally by the \emph{recordr} package.
 \seealso{
 \code{\link[=Recordr-class]{Recordr}} { class description}
 }
-

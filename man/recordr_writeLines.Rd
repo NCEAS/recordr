@@ -4,7 +4,7 @@
 \alias{recordr_writeLines}
 \title{Provenance wrapper for R base::writeLines function}
 \usage{
-recordr_writeLines(text, con, ...)
+recordr_writeLines()
 }
 \arguments{
 \item{text}{A character vector to write.}
@@ -20,4 +20,3 @@ for the file that was written.
 \note{
 This function is not intended to be called directly by a user.
 }
-

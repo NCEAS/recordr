@@ -24,8 +24,8 @@ The recorded information for a script constitutes data provenance for the data p
 ## Using recordr
 ### Recording a Script Execution
 The *record()* method takes an R script filename as an argument and sources it, recording files that
-were read and written by R functions that are registered with *recordr*. It is not necessary to
-modify an R script in order to use *record*.
+were read and written by R functions that are registered with *recordr*. It is not necessary to 
+modify an R script in order to use *record*. 
 
 The following example runs a sample script that is included with the *recordr* package:
 
@@ -38,10 +38,11 @@ deleteRuns(rc, seq=1:1000)
 
 ```{r record,warning=F,message=F}
 library(recordr)
-suppressWarnings(require(ggplot2))
-rc <- new("Recordr")
-sampleScript <- system.file("extdata/EmCoverage.R", package="recordr")
-firstRunId <- record(rc, sampleScript , tag="first recordr run")
+if(require("ggplot2")) {
+  rc <- new("Recordr")
+  sampleScript <- system.file("extdata/EmCoverage.R", package="recordr")
+  firstRunId <- record(rc, sampleScript , tag="first recordr run")
+}
 ```
 
 Information about the script execution is stored in the *recordr* cache (~/.recordr). *recordr* provides methods to
@@ -58,7 +59,25 @@ recordr has only run once in this demo, only one run is listed:
 ```{r listRuns,warning=F,message=F}
 listRuns(rc, tag="first")
 ```
-If no search parameters are specified to *listRuns*, then all recorded runs are listed.
+If no search parameters are specified to *listRuns*, then all recorded runs are listed. 
+
+### Preparing Metdata for a Run
+
+The first time that recordr() is run, an initial metadata template file is copied to 
+the file "~/.record/package_metadata_template.R". Each time that record() is called, a
+metdata file is created for the current run by using the template file as a starting
+point and generating an EML document, creating EML elements for the items in
+the template file. In addition 'otherEntity' element is created for each each data
+object that is created by the run and the R script that was run.
+
+The metadata template file can be edited before a run, using the values you specify
+to affect the generated EML document.
+
+If you are using Rstudio, click on File->Open File (Ctrl-O)
+and open ~/.recordr, then click on "package_metadata_template.R" in the File pane. 
+
+Currently only the items that are in the template file can be updated, and new elements
+cannot be added, so for example, the 'title', 'abstract' and 'creators' can be edited.
 
 ### Recording An R Console Session
 
@@ -67,7 +86,7 @@ If no search parameters are specified to *listRuns*, then all recorded runs are 
 the R console, information capture begins. Information will be captured for any
 function registered with *recordr*, while all other console input will not cause
 any information capture. Information capture is terminated when *endRecord()* is
-entered in the console, and execution information is written to the *recordr*
+entered in the console, and execution information is written to the *recordr* 
 cache.
 
 ```{r console session,warning=F,message=F,eval=F}
@@ -83,7 +102,8 @@ endRecord(rc)
 ```
 
 The history of all statements typed during this recorded console session is
-saved in the *recordr* cache.
+saved in the *recordr* cache and will be included in the data package uploaded 
+to a data repository when publishRun() is called.
 
 ### Viewing Script Executions
 
@@ -94,7 +114,7 @@ using the *viewRuns()* method, for example:
 viewRuns(rc, id=firstRunId, sections=c("details", "used", "generated"))
 ```
 
-Information for all matching runs is retrieved and displayed,
+Information for all matching runs is retrieved and displayed, 
 The output displayed by *viewRuns* is divided into the sections "details", "used"
 and "generated", which can be selectively displayed using the _sections_ parameter.
 
@@ -118,6 +138,58 @@ base       | scan
 
 Other information about the execution environment is also recorded, such as the R packages that were
 loaded, the operating system, system user name.
+
+## Disk usage
+
+Recordr can save copies of files that were read and written by R scripts that are run with `record`. In
+Addition, the R script run is also retained.
+You may wish to do this so that you have copies of the files as they existed when the program was run.
+
+This provides reproducibility, so that your scripts can be re-rerun with the same inputs. Or you may wish
+to create a package of the set of files that were read or written by a particular script run, and archive
+the package locally, or publish it to a data repository.
+
+By default, Recordr does not archive copies of files that were read or written by the R scripts that
+are run with `recordr`. 
+
+You must set the R option `max_archive_file_size` to the maximum size of a file that can be copied
+to the Recordr archive. If this option is unset or set to `0` then no files will be copied to the
+archive. If files are not copied to the archive, then recordr will try to access them in the disk
+location that they were in when `record()` ran.
+
+Setting `max_archive_file_size`
+
+# Max file size to archive, in bytes
+#options(recordr_max_archive_file_size=1000000.0)
+
+#options(blocked_replica_node_list = TRUE)
+#options(capture_dataone_reads  = TRUE)
+#options(capture_dataone_writes = TRUE)
+#options(capture_file_reads  = TRUE)
+#options(capture_file_writes = TRUE)
+#options(certificate_path = "")
+#options(dataone_env = "DEV")
+#options(dataone_env = "DEV2")
+options(dataone_env = "SANDBOX2")
+#options(dataone_env = "STAGING")
+#options(dataone_env = "STAGING2") # mnTestKNB
+##options(foaf_name = as.character(NA))
+#options(number_of_replicas = 3)
+##options(orcid_identifier = "orcid.org/0000-0002-2192-403X")
+##options(package_metadata_template_path = "~/.recordr/package_metadata_template.R")
+#options(preferred_replica_node_list = list())
+##options(provenance_storage_directory = "~/.recordr")
+#options(public_read_allowed = TRUE)
+#options(replication_allowed = TRUE) 
+##options(rights_holder = "CN=Peter Slaughter A34456,O=Google,C=US,DC=cilogon,DC=org")
+#options(source_member_node_id = "urn:node:KNB")
+##options(submitter = "CN=Peter Slaughter A34456,O=Google,C=US,DC=cilogon,DC=org")
+#options(target_member_node_id = "urn:node:mnDevUCSB2")
+#options(target_member_node_id = "urn:node:mnTestKNB")
+#options(target_member_node_id = "urn:node:mnStageUCSB2")
+options(target_member_node_id = "urn:node:mnDemo2")
+
+
 
 ## *recordr* Internals
 
@@ -172,3 +244,18 @@ This problem will be addressed in the next feature release of *recordr*.
 rc <- new("Recordr")
 deleteRuns(rc, id=firstRunId, quiet=T)
 ```
+
+## Customizing Recordr
+
+in demo mode - recordr stores information in the R temp directory, so any information recorded
+will be lost when the current R session ends
+
+in order to retain information permanently:
+
+recordrConfig(rc, "homedir")
+
+or 
+
+recordrConfig(rc, "homedir", "/Users/smith/recordr")
+
+

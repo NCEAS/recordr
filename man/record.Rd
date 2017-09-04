@@ -39,4 +39,3 @@ executionId <- record(rc, file="myscript.R", tag="first run of myscript.R")
 \seealso{
 \code{\link[=Recordr-class]{Recordr}} { class description}
 }
-

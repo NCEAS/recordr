@@ -4,20 +4,7 @@
 \alias{recordr_updateObject}
 \title{Provenance wrapper function for dataone::updateObject}
 \usage{
-recordr_updateObject(mnode, pid, file, newpid, sysmeta, ...)
-}
-\arguments{
-\item{mnode}{The DataONE member node to update the object on}
-
-\item{pid}{The persistent identifier of the object to be updated}
-
-\item{file}{The file to upload}
-
-\item{newpid}{The persistent identifier of the updating object}
-
-\item{sysmeta}{The SystemMetadata for the updating object}
-
-\item{...}{additional parameters}
+recordr_updateObject()
 }
 \description{
 Override the dataone::updateObject method and record a provenance
@@ -26,4 +13,3 @@ relationship for the object uploaded.
 \note{
 This function is not intended to be called directly by a user.
 }
-

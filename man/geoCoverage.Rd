@@ -20,4 +20,3 @@ geoCoverage(geoDescription, west, east, north, south)
 \description{
 Create a geographic coverage element from a description and bounding coordinates
 }
-

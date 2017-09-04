@@ -23,4 +23,3 @@ Save a single execution metadata.
 \seealso{
 \code{\link[=ExecMetadata-class]{ExecMetadata}} { class description}
 }
-

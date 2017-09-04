@@ -15,7 +15,7 @@ contributed to those products to a data repository such as the DataONE network.
 
 A *recordr* overview vignette can be viewed at https://github.com/NCEAS/recordr/blob/master/vignettes/intro_recordr.Rmd.
 
-## Installation Notes
+## Installation Notes 
 
 The *recordr* R package requires the R package *redland*. If you are installing on Ubuntu then the Redland C libraries
 must be installed first. If you are installing on Mac OS X or Windows then installing these libraries is not required.
@@ -63,7 +63,7 @@ To install the *recordr* R packages from the R console:
 install.packages("recordr")
 library(recordr)
 ```
-
+  
 The *recordr* R package should be available for use at this point.
 
 Note: if you wish to build the required *redland* package from source before installing *recordr*, please see the redland [installation instructions]( https://github.com/ropensci/redland-bindings/tree/master/R/redland).
@@ -74,7 +74,7 @@ The `recordr` package is licensed as open source software under the Apache 2.0 l
 
 ## Example Usage
 
-The `recordr` package can be used to track code execution in R, data inputs and outputs to
+The `recordr` package can be used to track code execution in R, data inputs and outputs to 
 those executions, and the software environment during the execution (e.g., R, OS versions).  
 Some examples are provided in the overview vignette.  As a quick start, here is an example that
 starts recordr, executes a precanned R script, and then views the details of that script run.

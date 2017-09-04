@@ -4,7 +4,7 @@
 \alias{recordr_scan}
 \title{Provenance wrapper for the R base::scan function}
 \usage{
-recordr_scan(file, ...)
+recordr_scan()
 }
 \arguments{
 \item{file}{The file to scan.}
@@ -18,4 +18,3 @@ for the scanned file.
 \note{
 This function is not intended to be called directly by a user.
 }
-

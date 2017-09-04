@@ -21,6 +21,7 @@ An overview of the recordr package is available with the R command: \code{'vigne
  \item{\code{\link[=Recordr-class]{Recordr}}}{: A class containing methods to record, review and publish data provenance}
 }
 }
+
 \examples{
 \dontrun{
 # This example shows how to record provenance for an R script and view the recorded 
@@ -35,4 +36,3 @@ viewRuns(rc, tag="recording #1")
 \author{
 Peter Slaughter (NCEAS), Matthew B. Jones (NCEAS), Christopher Jones (NCEAS)
 }
-

@@ -21,4 +21,3 @@ Remove a file from the recordr archive directory
 This function is intended to run only during a record() session, i.e. the
 recordr environment needs to be available.
 }
-

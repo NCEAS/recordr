@@ -35,6 +35,7 @@ This class is used internally by the recordr package.
 
 \item{\code{archivedFilePath}}{a \code{character} containing the location of the archived file}
 }}
+
 \section{Methods}{
 
 \itemize{
@@ -43,7 +44,7 @@ This class is used internally by the recordr package.
  \item{\code{\link{writeFileMeta}}}{: Save metadata for a single file.}
 }
 }
+
 \seealso{
 \code{\link{recordr}}{ package description.}
 }
-

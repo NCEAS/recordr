@@ -203,7 +203,7 @@ setMethod("writeExecMeta", signature("Recordr"), function(recordr, execMeta, ...
     dbConn <- recordr@dbConn
   }
   #print(sprintf("writeExecMeta: writing file %s/runs/%s/execMetadata.csv", recordr@recordrDir, execMeta@executionId))
-  # Get values from all the slots for the execution metadata, in the order they were declared in the class definition.
+  # Get values from all the slots for the execution metadata, in yhe order they were declared in the class definition.
   execSlotNames <- slotNames("ExecMetadata")
   # Remove the 'seq' slot, as this is an autoincrement column in the db, and cannot be specified as the db
   # will determine it's value apon insert.
@@ -213,6 +213,9 @@ setMethod("writeExecMeta", signature("Recordr"), function(recordr, execMeta, ...
   # Get the database connection and chek if the execmeta table exists.
   #  dbSendQuery(conn = recordr@dbConn, statement="SELECT name FROM sqlite_master WHERE type='table' AND name='execmeta';")
   # if (dbGetRowCount(result) == 0) {
+  
+  # 'seq' is the primary key so that this field will auto-increment. Previously recordr was attempting to do this manually, 
+  # which was essential
   
   if (!is.element("execmeta", dbListTables(dbConn))) {
     createStatement <- "CREATE TABLE execmeta
@@ -732,7 +735,9 @@ setMethod("readExecMeta", signature("Recordr"), function(recordr,
     dbClearResult(result)
   }
   
-  if(tmpDBconn) dbDisconnect(dbConn)
+  if(tmpDBconn) {
+    dbDisconnect(dbConn)
+  }
   return(execMetas)
 })
 

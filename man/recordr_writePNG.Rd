@@ -20,4 +20,3 @@ for the file that was written.
 \note{
 This function is not intended to be called directly by a user.
 }
-

@@ -8,8 +8,8 @@
 \usage{
 startRecord(recordr, ...)
 
-\S4method{startRecord}{Recordr}(recordr, tag = list(),
-  .file = as.character(NA), .console = TRUE)
+\S4method{startRecord}{Recordr}(recordr, tag = as.character(NA),
+  .file = as.character(NA), .console = TRUE, log = as.character(NA))
 }
 \arguments{
 \item{recordr}{a Recordr instance}
@@ -21,6 +21,8 @@ startRecord(recordr, ...)
 \item{.file}{the filename for the script to run (only used internally when startRecord() is called from record())}
 
 \item{.console}{a logical argument that is used internally by the recordr package}
+
+\item{log}{A character string. If .console=TRUE, the file to log console commands to. The default is 'console.log'.}
 }
 \value{
 execution identifier that uniquely identifies this recorded session
@@ -45,4 +47,3 @@ runIdentifier <- endRecord(rc)
 \seealso{
 \code{\link[=Recordr-class]{Recordr}} { class description}
 }
-

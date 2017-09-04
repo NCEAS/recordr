@@ -4,7 +4,7 @@
 \alias{recordr_write.csv}
 \title{Provenance wrapper for the R write.csv function}
 \usage{
-recordr_write.csv(x, file, ...)
+recordr_write.csv()
 }
 \arguments{
 \item{x}{The object to write}
@@ -20,4 +20,3 @@ for the written file.
 \note{
 This function is not intended to be called directly by a user.
 }
-
