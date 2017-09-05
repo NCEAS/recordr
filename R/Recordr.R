@@ -2088,6 +2088,7 @@ getRecordrDbVersion <- function(recordr) {
   }
   
   if (!is.element("admin", dbListTables(dbConn))) {
+    if(tmpDBconn) dbDisconnect(dbConn)
     return(as.character(NA))
   }
   
