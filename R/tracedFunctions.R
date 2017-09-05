@@ -63,14 +63,10 @@ recordr_getObject <- function() {
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_createObject <- function() {
-  cat(sprintf("in recordr_createObject"))
   tracingState(on=FALSE)
   mnode <- getCallArgFromStack(sys.nframe(), functionName="createObject", argName="x", argPos=1)
   pid <- getCallArgFromStack(sys.nframe(), functionName="createObject", argName="pid", argPos=2)
   file <- getCallArgFromStack(sys.nframe(), functionName="createObject", argName="file", argPos=3)
-  cat(sprintf("mnode: %s\n", mnode@identifier))
-  cat(sprintf("pid : %s\n", pid))
-  cat(sprintf("file: %s\n", file))
   
   D1_URL <- URLdecode(sprintf("%s/object/%s", mnode@endpoint, pid))
   # Get the option that controls whether or not DataONE write operations are traced.
@@ -119,7 +115,6 @@ recordr_createObject <- function() {
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_updateObject <- function() {
-  cat(sprintf("in recordr_updateObject"))
   tracingState(on=FALSE)
   mnode <- getCallArgFromStack(sys.nframe(), functionName="updateObject", argName="x", argPos=1)
   newpid <- getCallArgFromStack(sys.nframe(), functionName="updateObject", argName="newpid", argPos=2)
@@ -777,7 +772,6 @@ recordr_writeRaster <- function() {
                     access="write", format="application/octet-stream",
                     archivedFilePath=archivedFilePath)
     writeFileMeta(recordrEnv$recordr, filemeta)
-    setProvCapture(TRUE)
   }
   tracingState(on=TRUE)
   return()
@@ -823,7 +817,6 @@ recordr_readOGR <- function () {
   
   # Record the provenance relationship between the user's script and the derived data file
   if (getProvCapture() && capture_file_reads) {
-    cat(sprintf("Tracing readOGR with file: %s\n", filePath))
     #recordrEnv <- as.environment(".recordr")
     recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
