@@ -745,24 +745,22 @@ recordr_raster <- function () {
 #' @export
 recordr_writeRaster <- function() {
   tracingState(on=FALSE)
-  filename <- getCallArgFromStack(sys.nframe(), functionName="writeRaster", argName="filename", argPos=2)
+  filePath <- getCallArgFromStack(sys.nframe(), functionName="writeRaster", argName="filename", argPos=2)
   
   # Get the option that controls whether or not file write operations are traced.
   # If this option is not set, NULL is returned. If this is the case, set the default
   # to TRUE, i.e. capture file writes.
   capture_file_writes <- getOption("capture_file_writes")
   if(is.null(capture_file_writes)) capture_file_writes <- TRUE
-  
   # Record the provenance relationship between the user's script and the derived data file
-  if (getProvCapture() && capture_file_writes) {
-    sprintf("Tracing raster with filePath: %s", filePath)
+  if (capture_file_writes) {
     #recordrEnv <- as.environment(".recordr")
     recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
     setProvCapture(FALSE)
     datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
     # Create a data package object for the derived dataset
     dataFmt <- "application/octet-stream"
-    dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filename)
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, file=filePath)
     # TODO: use file argument when file size is greater than a configuration value
     # Record prov:wasGeneratedBy relationship between the execution and the output dataset
     addMember(recordrEnv$dataPkg, dataObj)
