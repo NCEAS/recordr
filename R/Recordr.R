@@ -1738,7 +1738,7 @@ recordrShutdown <- function() {
     suppressMessages(untrace("writePNG"))
   }
   suppressMessages(untrace("scan"))
-  if(isNamespaceLoaded("raster")) {
+  if(requireNamespace("raster")) {
     suppressMessages(untrace("raster"))
     suppressMessages(untrace("writeRaster"))
   }
