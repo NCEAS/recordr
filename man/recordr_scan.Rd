@@ -6,11 +6,6 @@
 \usage{
 recordr_scan()
 }
-\arguments{
-\item{file}{The file to scan.}
-
-\item{...}{additional parameters}
-}
 \description{
 Override the base::scan function and record a provenance relationship
 for the scanned file.

@@ -6,13 +6,6 @@
 \usage{
 recordr_writeOGR()
 }
-\arguments{
-\item{obj}{The image to write out.}
-
-\item{dsn}{The data source name.}
-
-\item{...}{additional parameters}
-}
 \description{
 Override the rgdal::writeOGR function and record a provenance relationship
 for the file that was written.

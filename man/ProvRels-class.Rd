@@ -33,7 +33,7 @@ This class is used internally by the recordr package.
 \itemize{
  \item{\code{\link[=initialize-ProvRels]{initialize}}}{: Initialize a ProvRels object}
  \item{\code{\link{readProvRels}}}{: Retrieve saved provenance relationships.}
- \item{\code{\link{writeProvRels}}}{: Save a provenance relationship.}object
+ \item{\code{\link{writeProvRel}}}{: Save a provenance relationship.}object
 }
 }
 

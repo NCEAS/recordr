@@ -28,6 +28,12 @@ readProvRels(recordr, ...)
 
 \item{object}{The object of the provenance relationships to match}
 
+\item{subjectType}{A character value containing the subject type of the relationship to match}
+
+\item{objectType}{A character value containing the object type of the relationship to match}
+
+\item{dataTypeURI}{A character value containing the data type of the relationship to match}
+
 \item{orderBy}{The column to sort the result set by.}
 
 \item{sortOrder}{The sort type. Values include ("ascending", "descending")}

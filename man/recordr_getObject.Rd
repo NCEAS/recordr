@@ -6,13 +6,6 @@
 \usage{
 recordr_getObject()
 }
-\arguments{
-\item{node}{The DataONE node to get the object from}
-
-\item{pid}{The persistent identifier for the object}
-
-\item{...}{additional parameters}
-}
 \description{
 Override the dataone::getObject method and record a provenance relationship
 for the object that was downloaded.

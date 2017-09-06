@@ -8,9 +8,6 @@
 #' @title Provenance wrapper function for dataone::getObject
 #' @description Override the dataone::getObject method and record a provenance relationship
 #' for the object that was downloaded.
-#' @param node The DataONE node to get the object from
-#' @param pid The persistent identifier for the object 
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_getObject <- function() {
@@ -188,9 +185,6 @@ recordr_updateObject <- function() {
 #' Provenance wrapper for the R write.csv function
 #' @description Override the utils::write.csv function and record a provenance relationship
 #' for the written file.
-#' @param x The object to write
-#' @param file The output connection to write to
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_write.csv <- function() {
@@ -382,8 +376,6 @@ recordr_ggsave <- function() {
 #' Provenance wrapper for R base::readLines function
 #' @description Override the base::readLines function and record a provenance relationship
 #' for the file read.
-#' @param con A connetion to read from
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_readLines <- function() {
@@ -438,7 +430,6 @@ recordr_readLines <- function() {
     writeFileMeta(recordrEnv$recordr, filemeta)
     setProvCapture(TRUE)
   }
-  cat(sprintf("exiting recordr_readLines\n"))
   tracingState(on=TRUE)
   return()
 }
@@ -446,9 +437,6 @@ recordr_readLines <- function() {
 #' Provenance wrapper for R base::writeLines function
 #' @description Override the base::writeLines function and record a provenance relationship
 #' for the file that was written.
-#' @param text A character vector to write.
-#' @param con The connection to write to.
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_writeLines <- function() {
@@ -503,8 +491,6 @@ recordr_writeLines <- function() {
 #' Provenance wrapper for the R base::scan function
 #' @description Override the base::scan function and record a provenance relationship
 #' for the scanned file.
-#' @param file The file to scan.
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_scan <- function() {
@@ -563,8 +549,6 @@ recordr_scan <- function() {
 #' Provenance wrapper for the pnd::read function 
 #' @description Override the png::read function and record a provenance relationship
 #' for the file read. 
-#' @param source The PNG file to read.
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_readPNG <- function () {
@@ -617,12 +601,9 @@ recordr_readPNG <- function () {
 #' Provenance wrapper for the png::write function
 #' @description Override the png::write function and record a provenance relationship
 #' for the file that was written.
-#' @param image The image to write out.
-#' @param target The file to write to.
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
-recordr_writePNG <- function(image, target, ...) {
+recordr_writePNG <- function() {
   tracingState(on=FALSE)
   target <- getCallArgFromStack(sys.nframe(), functionName="writePNG", argName="target", argPos=1)
   # Get the option that controls whether or not file write operations are traced.
@@ -676,8 +657,6 @@ recordr_writePNG <- function(image, target, ...) {
 #' Provenance wrapper for the raster::raster function 
 #' @description Override the raster::raster function and record a provenance relationship
 #' for the file read. 
-#' @param x The filename or Raster object.
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_raster <- function () {
@@ -731,10 +710,6 @@ recordr_raster <- function () {
 #' Provenance wrapper for the raster::writeRaster function
 #' @description Override the raster::writeRaster function and record a provenance relationship
 #' for the file that was written.
-#' @param x Raster* object
-#' @param file Output filename
-#' @param format Output file type.
-#' @param ... additional parameters
 #' @return The name of the output file
 #' @note This function is not intended to be called directly by a user.
 #' @export
@@ -780,9 +755,6 @@ recordr_writeRaster <- function() {
 #' Provenance wrapper for the rgdal::readOGR function 
 #' @description Override the rgdal::readOGR function and record a provenance relationship
 #' for the file read. 
-#' @param dsn data source name
-#' @param layer layer name
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_readOGR <- function () {
@@ -850,9 +822,6 @@ recordr_readOGR <- function () {
 #' Provenance wrapper for the rgdal::writeOGR function
 #' @description Override the rgdal::writeOGR function and record a provenance relationship
 #' for the file that was written.
-#' @param obj The image to write out.
-#' @param dsn The data source name.
-#' @param ... additional parameters
 #' @note This function is not intended to be called directly by a user.
 #' @export
 recordr_writeOGR <- function() {

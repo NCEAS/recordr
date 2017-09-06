@@ -13,22 +13,12 @@ writeProvRel(recordr, provRels, ...)
 \arguments{
 \item{recordr}{A recordr object}
 
+\item{provRels}{A ProvRels object.}
+
 \item{...}{(Not yet used)}
-
-\item{subject}{The subject of a provenance relationship}
-
-\item{predicate}{The predicate of a provenance relationship}
-
-\item{object}{The object of a provenance relationship}
-
-\item{subjectType}{a \code{"character"}, the RDF node type of the subject, i.e. "url", "blank"}
-
-\item{objectType}{a \code{"character"}, the RDF node type of the object i.e. "url", "blank"}
-
-\item{dataTypeURI}{a \code{"character"}, the RDF data type of the object, i.e. "xsd:string"}
 }
 \description{
-Metadata for a file is written to an RSQLite database.
+Metadata for a provenance relationship is written to the recordr RSQLite database.
 }
 \details{
 This method is used internally by the recordr package.

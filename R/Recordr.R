@@ -70,9 +70,11 @@ setClass("Recordr", slots = c(recordrDir = "character",
 #' @aliases initialize-Recordr
 #' @param .Object The Recordr object
 #' @param newDir The recordr home directory is changed to the new location.
+#' @param copy A logical value: if TRUE and \code{newDir} is specified, then copy data from the existing recordr home to the new one.
+#' @param ... Additional parameters
 #' @seealso \code{\link[=Recordr-class]{Recordr}} { class description}
 setMethod("initialize", signature = "Recordr", definition = function(.Object, newDir=as.character(NA), 
-                                                                     copy=T, ...) {
+                                                                     copy=TRUE, ...) {
   
   # Get the current recordr home directory. If this is the first time that this function
   # has been callled, then the default initial directory is selected.
@@ -196,6 +198,7 @@ getRecordrDir <- function() {
 #' @param currentDir A character value specifying the current recordr home directory
 #' @param newDir A character value, specifying the new recordr home directory
 #' @param copy A logical value. A value of TRUE causes data to be copied from the old
+#' @param ... Additional arguments
 #' directory to the new one. A default value is not set.
 changeHome <- function(recordr, currentDir, newDir=as.character(NA), copy, ...) {
   
@@ -1309,6 +1312,7 @@ setGeneric("publishRun", function(recordr, ...) {
 #' @param assignDOI a boolean value: if TRUE, assign DOI values for system metadata, otherwise assign uuid values
 #' @param update a boolean value: if TRUE, republish a previously published execution
 #' @param quiet A boolean value: if TRUE, informational messages are not printed (default=TRUE)
+#' @param retPkg A boolean value: if TRUE, then the package that was uploaded is returned, if FALSE then the identifier of the package is returned (default=FALSE).
 #' @return The published identifier of the uploaded package
 setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(NA), 
                                                        seq=as.character(NA), 

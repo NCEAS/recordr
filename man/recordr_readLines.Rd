@@ -6,11 +6,6 @@
 \usage{
 recordr_readLines()
 }
-\arguments{
-\item{con}{A connetion to read from}
-
-\item{...}{additional parameters}
-}
 \description{
 Override the base::readLines function and record a provenance relationship
 for the file read.

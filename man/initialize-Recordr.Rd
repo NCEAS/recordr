@@ -6,13 +6,17 @@
 \alias{initialize-Recordr}
 \title{Initialize a Recorder object}
 \usage{
-\S4method{initialize}{Recordr}(.Object, newDir = as.character(NA), copy = T,
-  ...)
+\S4method{initialize}{Recordr}(.Object, newDir = as.character(NA),
+  copy = TRUE, ...)
 }
 \arguments{
 \item{.Object}{The Recordr object}
 
 \item{newDir}{The recordr home directory is changed to the new location.}
+
+\item{copy}{A logical value: if TRUE and \code{newDir} is specified, then copy data from the existing recordr home to the new one.}
+
+\item{...}{Additional parameters}
 }
 \description{
 Initialize a Recorder object

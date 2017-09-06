@@ -6,11 +6,6 @@
 \usage{
 recordr_raster()
 }
-\arguments{
-\item{x}{The filename or Raster object.}
-
-\item{...}{additional parameters}
-}
 \description{
 Override the raster::raster function and record a provenance relationship
 for the file read.

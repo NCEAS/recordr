@@ -13,7 +13,9 @@ changeHome(recordr, currentDir, newDir = as.character(NA), copy, ...)
 
 \item{newDir}{A character value, specifying the new recordr home directory}
 
-\item{copy}{A logical value. A value of TRUE causes data to be copied from the old
+\item{copy}{A logical value. A value of TRUE causes data to be copied from the old}
+
+\item{...}{Additional arguments
 directory to the new one. A default value is not set.}
 }
 \description{

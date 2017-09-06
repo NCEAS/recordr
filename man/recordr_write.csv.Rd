@@ -6,13 +6,6 @@
 \usage{
 recordr_write.csv()
 }
-\arguments{
-\item{x}{The object to write}
-
-\item{file}{The output connection to write to}
-
-\item{...}{additional parameters}
-}
 \description{
 Override the utils::write.csv function and record a provenance relationship
 for the written file.

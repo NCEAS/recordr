@@ -6,13 +6,6 @@
 \usage{
 recordr_writeLines()
 }
-\arguments{
-\item{text}{A character vector to write.}
-
-\item{con}{The connection to write to.}
-
-\item{...}{additional parameters}
-}
 \description{
 Override the base::writeLines function and record a provenance relationship
 for the file that was written.

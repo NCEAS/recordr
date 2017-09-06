@@ -4,14 +4,7 @@
 \alias{recordr_writePNG}
 \title{Provenance wrapper for the png::write function}
 \usage{
-recordr_writePNG(image, target, ...)
-}
-\arguments{
-\item{image}{The image to write out.}
-
-\item{target}{The file to write to.}
-
-\item{...}{additional parameters}
+recordr_writePNG()
 }
 \description{
 Override the png::write function and record a provenance relationship

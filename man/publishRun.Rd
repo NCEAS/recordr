@@ -27,6 +27,8 @@ seealso \code{\link[=Recordr-class]{Recordr}} { class description}}
 \item{update}{a boolean value: if TRUE, republish a previously published execution}
 
 \item{quiet}{A boolean value: if TRUE, informational messages are not printed (default=TRUE)}
+
+\item{retPkg}{A boolean value: if TRUE, then the package that was uploaded is returned, if FALSE then the identifier of the package is returned (default=FALSE).}
 }
 \value{
 The published identifier of the uploaded package

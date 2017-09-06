@@ -6,15 +6,6 @@
 \usage{
 recordr_writeRaster()
 }
-\arguments{
-\item{x}{Raster* object}
-
-\item{file}{Output filename}
-
-\item{format}{Output file type.}
-
-\item{...}{additional parameters}
-}
 \value{
 The name of the output file
 }

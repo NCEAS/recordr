@@ -34,7 +34,7 @@
 #' \itemize{
 #'  \item{\code{\link[=initialize-ProvRels]{initialize}}}{: Initialize a ProvRels object}
 #'  \item{\code{\link{readProvRels}}}{: Retrieve saved provenance relationships.}
-#'  \item{\code{\link{writeProvRels}}}{: Save a provenance relationship.}object
+#'  \item{\code{\link{writeProvRel}}}{: Save a provenance relationship.}object
 #' }
 #' @seealso \code{\link{recordr}}{ package description.}
 setClass("ProvRels", slots = c(executionId = "character",
@@ -85,15 +85,10 @@ setMethod("initialize", signature = "ProvRels", definition = function(.Object, e
 # ##########################
 # 
 #' Save a single provenance relationship.
-#' @description Metadata for a file is written to an RSQLite database.
+#' @description Metadata for a provenance relationship is written to the recordr RSQLite database.
 #' @details This method is used internally by the recordr package.
 #' @param recordr A recordr object
-#' @param subject The subject of a provenance relationship 
-#' @param predicate The predicate of a provenance relationship
-#' @param object The object of a provenance relationship
-#' @param subjectType a \code{"character"}, the RDF node type of the subject, i.e. "url", "blank"
-#' @param objectType a \code{"character"}, the RDF node type of the object i.e. "url", "blank"
-#' @param dataTypeURI a \code{"character"}, the RDF data type of the object, i.e. "xsd:string"
+#' @param provRels A ProvRels object.
 #' @param ... (Not yet used)
 #' @seealso \code{\link[=ProvRels-class]{ProvRels}} { class description}
 setGeneric("writeProvRel", function(recordr, provRels, ...) {
@@ -206,6 +201,9 @@ setGeneric("readProvRels", function(recordr, ...) {
 #' @param subject The subject of the provenance relationships to match
 #' @param predicate The predicate of the provenance relationships to match
 #' @param object The object of the provenance relationships to match
+#' @param subjectType A character value containing the subject type of the relationship to match
+#' @param objectType A character value containing the object type of the relationship to match
+#' @param dataTypeURI A character value containing the data type of the relationship to match
 #' @param orderBy The column to sort the result set by.
 #' @param sortOrder The sort type. Values include ("ascending", "descending")
 #' @param delete a \code{"logical"}, if TRUE, the selected file entries are deleted (default: FALSE).

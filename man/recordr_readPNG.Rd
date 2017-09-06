@@ -6,11 +6,6 @@
 \usage{
 recordr_readPNG()
 }
-\arguments{
-\item{source}{The PNG file to read.}
-
-\item{...}{additional parameters}
-}
 \description{
 Override the png::read function and record a provenance relationship
 for the file read.

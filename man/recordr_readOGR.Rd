@@ -6,13 +6,6 @@
 \usage{
 recordr_readOGR()
 }
-\arguments{
-\item{dsn}{data source name}
-
-\item{layer}{layer name}
-
-\item{...}{additional parameters}
-}
 \description{
 Override the rgdal::readOGR function and record a provenance relationship
 for the file read.
