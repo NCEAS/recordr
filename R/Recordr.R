@@ -440,37 +440,34 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=as.characte
   #recordrEnv$source <- recordr::recordr_source
   
   # trace DataONE versioj 2.0 functions
-  # Trace calls specifying 'exit=' so that any error checking that the traced call
+  # The trace() calls specifying 'exit=' so that any error checking that the traced call
   # performs will get done before the tracer routine is called. This works well unless the
   # traced call itself calls 'on.exit', in which case we have to set a recordr 'deferred'
   # trace, as our only option is to trace at the beginning of the call, so the file may not
-  # be created yet, for calls that create files, and we cannot get info or orchive the file.
+  # be created yet, for calls that create files, and we cannot get info for, or orchive the file.
   # Deferred traces are done during 'endRecord', when the file should have been created by.
+  # The user can set the option 'traceOn' to enable/disable tracing.
   traceOn <- getOption("traceOn")
   if(is.null(traceOn)) traceOn = TRUE
   tracingState(on=traceOn)
   traceVerbose=getOption("traceVerbose")
   if(is.null(traceVerbose)) traceVerbose=FALSE
-  if(requireNamespace("dataone")) {
+  
+  # The trace() function is called with 'where=globalenv() so that functions are traced regardless
+  # of how the are called, i.e. with the qualifying package name, e.g. "ggplot2::ggsave(...)" or without
+  # it, "ggsave(...)". This argument appears to specify where in the search path the search for the
+  # traced function begins.
+  if(requireNamespace("dataone", quietly=TRUE)) {
     if(!is.element("package:dataone", search())) env <- attachNamespace("dataone")
-    #suppressMessages(trace("getObject", exit=recordr::recordr_getObject, where=getNamespace("dataone")))
-    #suppressMessages(trace("createObject", exit=recordr::recordr_createObject, where=getNamespace("dataone")))
-    #suppressMessages(trace("updateObject", exit=recordr::recordr_updateObject, where=getNamespace("dataone")))
     suppressMessages(trace("getObject", exit=recordr::recordr_getObject, print=traceVerbose, where=globalenv()))
     suppressMessages(trace("createObject", exit=recordr::recordr_createObject, print=traceVerbose, where=globalenv()))
     suppressMessages(trace("updateObject", exit=recordr::recordr_updateObject, print=traceVerbose, where=globalenv()))
   }
   
   # trace R functions
-  if(requireNamespace("utils")) {
+  if(requireNamespace("utils", quietly=TRUE)) {
     if(!is.element("package:utils", search())) env <- attachNamespace("utils")
-    #trace("read.csv", tracer=recordr::recordr_read.csv, print=TRUE, where=parent.env(environment()))
-    # works only with utils::read.csv
     suppressMessages(trace("read.csv", tracer=recordr::recordr_read.csv, print=traceVerbose, where=globalenv()))
-    # works with utils::read.csv
-    #trace("read.csv", tracer=recordr::recordr_read.csv, print=TRUE, where=getNamespace("utils"))
-    # works with utils::read.csv only
-    #trace(read.csv, tracer=recordr::recordr_read.csv, print=TRUE)
     suppressMessages(trace("write.csv", exit=recordr::recordr_write.csv, print=traceVerbose, where=globalenv()))
   }
   #suppressMessagess(trace(base::scan, exit=recordr::recordr_scan))
@@ -492,6 +489,11 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=as.characte
     suppressMessages(trace("raster", exit=recordr::recordr_raster, print=traceVerbose, where=globalenv()))
     suppressMessages(trace("writeRaster", exit=recordr::recordr_writeRaster, print=traceVerbose, where=globalenv()))
   }
+  if(requireNamespace("readr", quietly=TRUE)) {
+    if(!is.element("package:readr", search())) env <- attachNamespace("readr")
+    suppressMessages(trace("read_csv", exit=recordr::recordr_read_csv, print=traceVerbose, where=globalenv()))
+    suppressMessages(trace("write_csv", exit=recordr::recordr_write_csv, print=traceVerbose, where=globalenv()))
+  }
   if(requireNamespace("rgdal", quietly=TRUE)) {
     if(!is.element("package:rgdal", search())) env <- attachNamespace("rgdal")
     suppressMessages(trace("readOGR", exit=recordr::recordr_readOGR, print=traceVerbose, where=globalenv()))
@@ -504,7 +506,6 @@ setMethod("startRecord", signature("Recordr"), function(recordr, tag=as.characte
   # variable is defined.
   recordrEnv$recordrDir <- recordr@recordrDir
   
-  #cat(sprintf("filePath: %s\n", recordrEnv$scriptPath))
   # Record relationship identifying this id as a provone:Execution
   insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=provONEexecution, predicate=rdfType, objectType="uri")
  
@@ -1722,16 +1723,12 @@ recordrShutdown <- function() {
     rm(".recordrEnv", envir=globalenv())
   }
   if(requireNamespace("dataone", quietly=TRUE)) {
-    #untrace("createObject", where = getNamespace("dataone"))
-    #untrace("getObject", where = getNamespace("dataone"))
-    #untrace("updateObject", where = getNamespace("dataone"))
     suppressMessages(untrace("createObject", where = globalenv()))
     suppressMessages(untrace("getObject", where = globalenv()))
     suppressMessages(untrace("updateObject", where = globalenv()))
   }
   suppressMessages(untrace(base::readLines))
   untrace(base::writeLines)
-  #suppressMessages(untrace(base::scan))
   suppressMessages(untrace("read.csv"))
   suppressMessages(untrace("write.csv"))
   if(requireNamespace("ggplot2", quietly=TRUE)) {
@@ -1742,9 +1739,13 @@ recordrShutdown <- function() {
     suppressMessages(untrace("writePNG"))
   }
   suppressMessages(untrace("scan"))
-  if(requireNamespace("raster")) {
+  if(requireNamespace("raster", quietly=TRUE)) {
     suppressMessages(untrace("raster"))
     suppressMessages(untrace("writeRaster"))
+  }
+  if(requireNamespace("readr", quietly=TRUE)) {
+    suppressMessages(untrace("read_csv"))
+    suppressMessages(untrace("write_csv"))
   }
   if(requireNamespace("rgdal", quietly=TRUE)) {
     suppressMessages(untrace("readOGR"))

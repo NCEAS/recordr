@@ -306,6 +306,131 @@ recordr_read.csv <- function() {
   return()
 }
 
+#' Provenance wrapper for the R readr::write_csv function
+#' @description Override the readr::write_csv function and record a provenance relationship
+#' for the written file.
+#' @note This function is not intended to be called directly by a user.
+#' @export
+recordr_write_csv <- function() {
+  cat(sprintf("In recordr_write_csv\n"))
+  tracingState(on=FALSE)
+  file <- getCallArgFromStack(sys.nframe(), functionName="write_csv", argName="path", argPos=2)
+  # The file should have been created, because this tracer function is fired at the exit of 'write_csv'
+  # the 'path=' argument could be a complex expression, i.e. 'path=file.path(dir, filename)', so evaluate it.
+  
+  # Get the option that controls whether or not file write operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file writes.
+  capture_file_writes <- getOption("capture_file_writes")
+  if(is.null(capture_file_writes)) capture_file_writes <- TRUE
+  datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+  
+  # Record the provenance relationship between the user's script and the derived data file
+  if (getProvCapture() && capture_file_writes) {
+    if(is.element("connection", class(file))) {
+      message(sprintf("Tracing write_csv from a connection is not supported by the recordr package."))
+      tracingState(on=TRUE)
+      return()
+    }
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
+    setProvCapture(FALSE)
+    # Create a data package object for the derived dataset
+    dataFmt <- "text/csv"
+    dataObj <- new("DataObject", id=datasetId, file=file, format=dataFmt)
+    # Record prov:wasGeneratedBy relationship between the execution and the output dataset
+    addMember(recordrEnv$dataPkg, dataObj)
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=recordrEnv$execMeta@executionId, predicate = provWasGeneratedBy)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    # Record the execution outputs that will be used to assert 'prov:wasDerivedFrom' relationships
+    recordrEnv$execOutputIds <- c(recordrEnv$execOutputIds, datasetId)
+    # Save a copy of this generated file to the recordr archiv
+    archivedFilePath <- archiveFile(file=file)
+    filemeta <- new("FileMetadata", file=file, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="write", format="text/csv",
+                    archivedFilePath=archivedFilePath)
+    writeFileMeta(recordrEnv$recordr, filemeta)
+    setProvCapture(TRUE)
+  }
+  tracingState(on=TRUE)
+  cat(sprintf("Exiting recordr_write_csv\n"))
+  return()
+}
+
+#' Provenance wrapper for the R readr::read_csv function
+#' @description Override the readr::read_csv function and record a provenance relationship
+#' for the file that was read.
+#' @param ... function parameters
+#' @note This function is not intended to be called directly by a user.
+#' @export
+recordr_read_csv <- function() {
+  tracingState(on=FALSE)
+  cat(sprintf("In recordr_read_csv\n"))
+  file <- getCallArgFromStack(sys.nframe(), functionName="read_csv", argName="path", argPos=1)
+  
+  # Record the provenance relationship between the user's script and an input data file.
+  # If the user didn't specify a data file, i.e. they are reading from a text connection,
+  # then exit, as we don't track provenance for text connections. With read.csv, a
+  # text connection can be specified by omitting the 'file' argument and specifying the
+  # 'text' argument.
+  # read_csv() args: no "file=", but "text="
+  if (is.na(file)) {
+    #cat(sprintf("text connection: %s", argList$text))
+    tracingState(on=TRUE)
+    return()
+  } 
+  
+  # Currently connections are not traced
+  if(is.element("connection", class(file))) {
+    message(sprintf("Tracing read_csv from a connection is not supported by the recordr package."))
+  }
+  
+  # Get the option that controls whether or not file read operations are traced.
+  # If this option is not set, NULL is returned. If this is the case, set the default
+  # to TRUE, i.e. capture file reads.
+  capture_file_reads <- getOption("capture_file_reads")
+  if(is.null(capture_file_reads)) capture_file_reads <- TRUE
+  
+  if (getProvCapture() && capture_file_reads) {
+    #recordrEnv <- as.environment(".recordr")
+    recordrEnv <- as.environment(base::get(".recordrEnv", envir=globalenv()))
+    setProvCapture(FALSE)
+    user <- recordrEnv$execMeta@user
+    # TODO: replace this with a user configurable faciltiy to specify how to generate identifiers
+    #datasetId <- sprintf("%s_%s", basename(fileArg), UUIDgenerate())
+    datasetId <- sprintf("urn:uuid:%s", UUIDgenerate())
+    # Create a data package object for the derived dataset
+    dataFmt <- "text/csv"
+    dataObj <- new("DataObject", id=datasetId, format=dataFmt, user=user, mnNodeId=recordrEnv$mnNodeId, filename=file)
+    # TODO: use file argument when file size is greater than a configuration value
+    #dataObj <- new("DataObject", id=datasetId, filename=normalizePath(file), format=dataFmt, user=user, mnNodeId=recordrEnv$mnNodeId)    
+    # Record prov:wasGeneratedBy relationship between the execution and the output dataset
+    addMember(recordrEnv$dataPkg, dataObj)
+    # Record prov:wasUsedBy relationship between the input dataset and the execution
+    insertRelationship(recordrEnv$dataPkg, subjectID=recordrEnv$execMeta@executionId, objectIDs=datasetId, predicate = provUsed)
+    # Record relationship identifying this dataset as a provone:Data
+    insertRelationship(recordrEnv$dataPkg, subjectID=datasetId, objectIDs=provONEdata, predicate=rdfType, objectTypes="uri")
+    # Record the execution inputs that will be used to assert 'prov:wasDerivedFrom' relationships
+    recordrEnv$execInputIds <- c(recordrEnv$execInputIds, datasetId)
+    # Save a copy of this input file into the recordr archive
+    archivedFilePath <- archiveFile(file=file)
+    # Save the file metadata to the database
+    filemeta <- new("FileMetadata", file=file, 
+                    fileId=datasetId, 
+                    executionId=recordrEnv$execMeta@executionId, 
+                    access="read", format="text/csv",
+                    archivedFilePath=archivedFilePath)
+    writeFileMeta(recordrEnv$recordr, filemeta)
+    setProvCapture(TRUE)
+  }
+  tracingState(on=TRUE)
+  cat(sprintf("Exiting recordr_read_csv\n"))
+  return()
+}  
+  
 #' Provenance wrapper for the ggplot2::ggsave function
 #' @description Override the ggplot2::ggsave function and record a provenance relationship
 #' for the file that was written.
