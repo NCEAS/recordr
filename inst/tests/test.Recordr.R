@@ -213,3 +213,34 @@ test_that("Can trace lineage.", {
   unlink(scriptPath3)
   unlink(outFile3)
 })
+
+test_that("Can record read.csv, write.csv", {
+  library(uuid)
+  library(recordr)
+  recordr <- new("Recordr")
+  # Test startRecord() / endRecord()
+  newTag <- UUIDgenerate()
+  executionId <- startRecord(recordr, tag=newTag)
+  myData <- read.csv(file=system.file("extdata/testData.csv", package="recordr"), sep=",", header=TRUE)
+  outData <- myData[myData$percent_cover > 35.0, ]
+  outFile <- tempfile(pattern = "file", tmpdir = tempdir(), fileext = ".csv")
+  write.csv(file=outFile, outData)
+  endRecord(recordr)
+  mdf <- listRuns(recordr, tag=newTag, quiet=T)
+  oneRow <- nrow(mdf) == 1
+  expect_that(oneRow, is_true())
+  expect_match(mdf[mdf$tag == newTag, 'executionId'], executionId)
+  vdf <- viewRuns(recordr, tag=newTag, output=F)
+  # Was an input file recorded? (There should be one from read.csv)
+  expect_true(any(vdf$files$access == 'read'))
+  # Was an output file recorded (There should be one from write.csv)
+  expect_true(any(vdf$files$access == 'write'))
+  # Delete the single run
+  mdf <- deleteRuns(recordr, tag=newTag, quiet=T)
+  # If we deleted the run, then the returned data
+  # frame of deleted runs will have one row
+  oneRow <- nrow(mdf) == 1
+  expect_that(oneRow, is_true())
+  unlink(inFile)
+  unlink(outFile)
+})
