@@ -246,19 +246,17 @@ recordr_read.csv <- function() {
   #cat(sprintf("In recordr_read.csv\n"))
   file <- getCallArgFromStack(sys.nframe(), functionName="read.csv", argName="file", argPos=2)
   text <- getCallArgFromStack(sys.nframe(), functionName="read.csv", argName="text", argPos=7)
-  
   # Record the provenance relationship between the user's script and an input data file.
   # If the user didn't specify a data file, i.e. they are reading from a text connection,
   # then exit, as we don't track provenance for text connections. With read.csv, a
   # text connection can be specified by omitting the 'file' argument and specifying the
   # 'text' argument.
   # read.csv() args: no "file=", but "text="
-  if (is.na(file) && (!is.na(text))) {
-    #cat(sprintf("text connection: %s", argList$text))
+  if (!is.null(text) && is.na(file) && !is.na(text)) {
+    cat(sprintf("text connection: %s", text))
     tracingState(on=TRUE)
     return()
   } 
-  
   # Currently connections are not traced
   if(is.element("connection", class(file))) {
     message(sprintf("Tracing read.csv from a connection is not supported by the recordr package."))
