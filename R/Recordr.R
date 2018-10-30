@@ -1443,7 +1443,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
       filePath <- sprintf("%s/%s", recordr@recordrDir, thisFile[['archivedFilePath']])
       # Create DataObject for the science dataone
       # sysmeta@sumitter and rightsholder will be set to subject from auth token or X.509 certificate
-      sciObj <- new("DataObject", id=fileId, format=format, mnNodeId=mnId, filename=filePath, suggestedFilename=basename(origFilename))
+      sciObj <- new("DataObject", id=fileId, format=format, mnNodeId=mnId, filename=filePath)
       if(!is.na(submitter)) sciObj@sysmeta@submitter <- submitter
       if(!is.na(rightsHolder)) sciObj@sysmeta@rightsHolder <- rightsHolder
       if (public) sciObj <- setPublicAccess(sciObj)
@@ -1479,7 +1479,7 @@ setMethod("publishRun", signature("Recordr"), function(recordr, id=as.character(
   write_eml(emlObj, tempMetadataFile)
   putMetadata(recordr, id=executionId, metadata=tempMetadataFile, asText=FALSE)
   # Use windows friendly filenames, i.e. no ":"
-  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=tempMetadataFile, suggestedFilename="metadata.xml")
+  metaObj <- new("DataObject", id=metadataId, format=EML_211_FORMAT, mnNodeId=mnId, filename=tempMetadataFile)
   if(!is.na(submitter)) metaObj@sysmeta@submitter <- submitter
   if(!is.na(rightsHolder)) metaObj@sysmeta@rightsHolder <- rightsHolder
   addMember(pkg, metaObj)
