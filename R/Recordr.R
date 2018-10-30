@@ -720,11 +720,11 @@ setMethod("record", signature("Recordr"), function(recordr, file, tag="", ...) {
   
   # Execute the script specified by the user, making sure to catch any error encountered.
   result = tryCatch ({
+    if(!file.exists(file)) {
+      warning(sprintf("Unable to run \"record()\", file \"%s\" does not exist\n", file))
+    }
     if (exists(".recordrEnv", where = globalenv(), inherits = FALSE )) {
       rm(globalenv()$.recordrEnv)
-    }
-    if(!file.exists(file)) {
-      stop(sprintf("Error, file \"%s\" does not exist\n", file))
     }
     file <- normalizePath(file, mustWork=TRUE)
     execId <- startRecord(recordr, tag, .file=file, .console=FALSE)
